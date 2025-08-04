@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Clamp Calculator Clone</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #121212;
+            color: white;
+            padding: 2rem;
+            margin: 0;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+        }
+
+        .container {
+            background: #1e1e1e;
+            padding: 2rem;
+            border-radius: 10px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 1.5rem;
+        }
+
+        .section strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .form-group label {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .form-group input[type="number"] {
+            width: 100px;
+            padding: 0.4rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .result {
+            margin-top: 2rem;
+            background: #2a2a2a;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+
+        input[type="radio"] {
+            transform: scale(1.1);
+            margin-right: 0.4rem;
+        }
+
+        label input[type="radio"] {
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<h1>CSS Fluid Responsive Clamp Calculator</h1>
+
+<div class="container">
+    <div class="section">
+        <strong>Viewport</strong>
+        <div class="radio-group">
+            <label><input type="radio" name="rootSize" value="16" checked> 100%</label>
+            <label><input type="radio" name="rootSize" value="10"> 62.5%</label>
+        </div>
+        <div class="form-group">
+            <label for="minVW">Min Device Size (px):</label>
+            <input type="number" id="minVW" value="320">
+        </div>
+        <div class="form-group">
+            <label for="maxVW">Max Device Size (px):</label>
+            <input type="number" id="maxVW" value="1366">
+        </div>
+    </div>
+
+    <div class="section">
+        <strong>Desired Values</strong>
+        <div class="form-group">
+            <label for="minFont">Minimum Value (rem):</label>
+            <input type="number" id="minFont" step="0.01">
+        </div>
+        <div class="form-group">
+            <label for="maxFont">Maximum Value (rem):</label>
+            <input type="number" id="maxFont" step="0.01">
+        </div>
+    </div>
+
+    <div class="result" id="result">Your clamp() function will appear here</div>
+</div>
+
+<script>
+    const radios = document.querySelectorAll('input[name="rootSize"]');
+    const inputs = document.querySelectorAll('input');
+
+    inputs.forEach(input => input.addEventListener('input', calculateClamp));
+    radios.forEach(radio => radio.addEventListener('change', calculateClamp));
+
+    function calculateClamp() {
+        const rootSize = Number(document.querySelector('input[name="rootSize"]:checked').value);
+        const minVW = Number(document.getElementById('minVW').value);
+        const maxVW = Number(document.getElementById('maxVW').value);
+        const minRem = Number(document.getElementById('minFont').value);
+        const maxRem = Number(document.getElementById('maxFont').value);
+
+        const minPx = minRem * rootSize;
+        const maxPx = maxRem * rootSize;
+
+        const slopePx = (maxPx - minPx) / (maxVW - minVW);
+        const interceptPx = minPx - slopePx * minVW;
+
+        const slopeVW = slopePx * 100;
+        const interceptRem = interceptPx / rootSize;
+
+        document.getElementById('result').textContent = `clamp(${minRem}rem, ${slopeVW.toFixed(3)}vw + ${interceptRem.toFixed(3)}rem, ${maxRem}rem)`;
+    }
+
+    calculateClamp();
+</script>
+
+</body>
+</html>
