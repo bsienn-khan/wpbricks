@@ -159,7 +159,7 @@ class Element_Form extends Element {
 						'textarea'   => esc_html__( 'Textarea', 'bricks' ),
 						'tel'        => esc_html__( 'Tel', 'bricks' ),
 						'number'     => esc_html__( 'Number', 'bricks' ),
-						'url'        => esc_html__( 'URL', 'bricks' ),
+						'url'        => 'URL',
 						'checkbox'   => esc_html__( 'Checkbox', 'bricks' ),
 						'select'     => esc_html__( 'Select', 'bricks' ),
 						'radio'      => esc_html__( 'Radio', 'bricks' ),
@@ -352,12 +352,39 @@ class Element_Form extends Element {
 					],
 				],
 
-				// @since 1.9.9
 				'spellcheck'                 => [
 					'label'    => esc_html__( 'Attribute', 'bricks' ) . ': ' . esc_html__( 'Spellcheck', 'bricks' ),
 					'type'     => 'text',
 					'info'     => 'off, etc.',
 					'required' => [ 'type', '=', [ 'text', 'textarea', 'email', 'url' ] ],
+				],
+
+				// @since 2.0.2
+				'pattern'                    => [
+					'label'    => esc_html__( 'Attribute', 'bricks' ) . ': ' . esc_html__( 'Pattern', 'bricks' ),
+					'type'     => 'text',
+					'info'     => esc_html__( 'Regular expression to validate the input.', 'bricks' ),
+					'required' => [ 'type', '=', [ 'text', 'tel', 'email', 'url', 'password', 'search' ] ],
+					'desc'     => sprintf(
+						'%s: ^[a-zA-Z0-9]+$ (%s). %s',
+						esc_html__( 'Example', 'bricks' ),
+						esc_html__( 'alphanumeric characters only', 'bricks' ),
+						Helpers::article_link( 'form-element/#pattern-validation', esc_html__( 'Learn more', 'bricks' ) )
+					),
+				],
+
+				// @since 2.0.2 (title attribute, used for pattern, but can be added to any input field)
+				'title'                      => [
+					'label'    => esc_html__( 'Attribute', 'bricks' ) . ': ' . esc_html__( 'Title', 'bricks' ),
+					'type'     => 'text',
+					'info'     => esc_html__( 'Text to display when hovering over the field.', 'bricks' ),
+					'required' => [ 'type', '!=', [ 'hidden', 'radio', 'checkbox', 'files', 'html', 'rememberme' ] ],
+				],
+
+				'titleInfo'                  => [
+					'content'  => esc_html__( 'You can use the title attribute to provide a description of the expected input value to meet the "pattern" requirement set above.', 'bricks' ),
+					'type'     => 'info',
+					'required' => [ 'pattern', '!=', '' ]
 				],
 
 				'errorMessage'               => [
@@ -2176,6 +2203,11 @@ class Element_Form extends Element {
 				$this->set_attribute( "label-$index", 'for', "form-field-{$input_unique_id}" );
 			}
 
+			// Field title (@since 2.0.2)
+			if ( isset( $field['title'] ) && ! empty( $field['title'] ) ) {
+				$this->set_attribute( "field-$index", 'title', esc_attr( $field['title'] ) );
+			}
+
 			if ( $field['type'] === 'file' ) {
 				if ( ! isset( $field['fileUploadLimit'] ) || $field['fileUploadLimit'] > 1 ) {
 					$this->set_attribute( "field-$index", 'multiple' );
@@ -2301,6 +2333,11 @@ class Element_Form extends Element {
 				}
 
 				$this->set_attribute( "field-$index", 'spellcheck', ! empty( $field['spellcheck'] ) ? esc_attr( $field['spellcheck'] ) : 'false' );
+			}
+
+			// Check: "pattern" attribute (@since 2.0.2)
+			if ( ! empty( $field['pattern'] ) ) {
+				$this->set_attribute( "field-$index", 'pattern', esc_attr( $field['pattern'] ) );
 			}
 
 			// Input types type & value
@@ -2456,8 +2493,14 @@ class Element_Form extends Element {
 
 				// Group label for checkbox or radio input using a <div> instead of <label> (@since 1.9.6)
 				elseif ( isset( $settings['showLabels'] ) && ! empty( $field['label'] ) && in_array( $field['type'], [ 'checkbox', 'radio' ] ) ) {
+
+					// We need to render attributes with render_attributes, so that "required" class will
+					// also be added, if field is required (@since 2.0.2)
+					$this->set_attribute( "label-$index", 'class', 'label' );
+					$this->set_attribute( "label-$index", 'id', "label-{$checkbox_radio_unique_id}" );
+
 					// Changed label to unique ID so it's unique if we duplicate the form (@since 1.12)
-					echo "<div class=\"label\" id=\"label-{$checkbox_radio_unique_id}\">{$field['label']}</div>";
+					echo "<div {$this->render_attributes( "label-$index" )} >{$field['label']}</div>";
 				}
 
 				/**

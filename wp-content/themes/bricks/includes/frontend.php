@@ -960,7 +960,7 @@ class Frontend {
 
 		// Sticky header (top, not left or right)
 		if ( ! isset( $settings['headerPosition'] ) && isset( $settings['headerSticky'] ) ) {
-			$classes[] = 'sticky';
+			$classes[] = 'brx-sticky';
 
 			if ( isset( $settings['headerStickyOnScroll'] ) ) {
 				$classes[] = 'on-scroll';

@@ -741,8 +741,10 @@ class Admin {
 			}
 		}
 
-		// Unset container (= mandatory element)
-		unset( $elements['container'] );
+		foreach ( Elements::mandatory_elements() as $element_name ) {
+			// Unset mandatory elements
+			unset( $elements[ $element_name ] );
+		}
 
 		// STEP: Update or delete element manger in options table
 		if ( count( $elements ) ) {
@@ -1274,7 +1276,7 @@ class Admin {
 	 *
 	 * @since 1.0
 	 */
-	public function admin_enqueue_scripts() {
+	public function admin_enqueue_scripts( $hook ) {
 		wp_enqueue_style( 'bricks-admin', BRICKS_URL_ASSETS . 'css/admin.min.css', [], filemtime( BRICKS_PATH_ASSETS . 'css/admin.min.css' ) );
 
 		if ( is_rtl() ) {
@@ -1314,6 +1316,46 @@ class Admin {
 					}
 				}
 			}
+		}
+
+		/**
+		 * STEP: Add script to modify Bricks theme data in the themes.php page
+		 *
+		 * @since 2.0.2
+		 */
+		if ( $hook === 'themes.php' ) {
+			add_action(
+				'admin_footer',
+				function() {
+					?>
+			<script>
+				jQuery(document).ready(function($) {
+					// Modify Bricks theme data
+					if (Array.isArray(wp.themes.data.themes)) {
+						// Find the Bricks theme and modify its update string
+						wp.themes.data.themes.forEach(theme => {
+							if (theme.id === 'bricks') {
+								// Get first URL in theme.update string
+								const urlMatch = theme.update.match(/https?:\/\/[^\s]+/)
+								if (urlMatch) {
+									const url = urlMatch[0];
+									// Add target="_blank" to the URL in theme.update string
+									theme.update = theme.update.replace(url, url + '/" target="_blank" ')
+
+									// Remove any URL parameters
+									theme.update = theme.update.replace(/(\?|\&)[^"]+/, '')
+								}
+
+								// Remove 'thickbox' from theme.update string
+								theme.update = theme.update.replace(/thickbox/g, '')
+							}
+						})
+					}
+				})
+			</script>
+					<?php
+				}
+			);
 		}
 
 		// Add filterByUnused parameter to the data if it exists

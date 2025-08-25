@@ -832,8 +832,9 @@ class Element_Slider extends Element {
 					echo "<div {$this->render_attributes( "content-{$index}" )}>" . Helpers::parse_editor_content( $content ) . '</div>';
 				}
 
-				if ( isset( $slide['buttonText'] ) && ! empty( $slide['buttonText'] ) ) {
-					echo "<a {$this->render_attributes( "slide-button-{$index}" )}>{$slide['buttonText']}</a>";
+				$button_text = isset( $slide['buttonText'] ) ? $this->render_dynamic_data( $slide['buttonText'] ) : false;
+				if ( ! empty( $button_text ) ) {
+					echo "<a {$this->render_attributes( "slide-button-{$index}" )}>{$button_text}</a>";
 				}
 				?>
 			</div>

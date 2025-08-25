@@ -1022,12 +1022,6 @@ class Setup {
 				'right' => esc_html__( 'Right', 'bricks' ),
 			];
 
-			$control_options['imageRatio'] = [
-				'ratio-square' => esc_html__( 'Square', 'bricks' ),
-				'ratio-16-9'   => '16:9',
-				'ratio-4-3'    => '4:3',
-			];
-
 			$control_options['objectFit'] = [
 				'contain'    => esc_html__( 'Contain', 'bricks' ),
 				'cover'      => esc_html__( 'Cover', 'bricks' ),

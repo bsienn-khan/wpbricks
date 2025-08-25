@@ -737,6 +737,31 @@ class Helpers {
 		return $pagination_html;
 	}
 
+	/** Get global class data by ID
+	 *
+	 * @param string $class_id
+	 * @return array|null
+	 *
+	 * @since 2.0.2
+	 */
+	public static function get_global_class_by_id( $class_id, $key ) {
+		// Get global classes by ID
+		if ( empty( Database::$global_data['globalClassesById'] ) ) {
+			$global_classes                             = Database::$global_data['globalClasses'] ?? [];
+			Database::$global_data['globalClassesById'] = [];
+
+			foreach ( $global_classes as $class ) {
+				if ( isset( $class['id'] ) ) {
+					Database::$global_data['globalClassesById'][ $class['id'] ] = $class;
+				}
+			}
+		}
+
+		$global_class = Database::$global_data['globalClassesById'][ $class_id ] ?? null;
+
+		return $key ? $global_class[ $key ] ?? null : $global_class;
+	}
+
 	/**
 	 * Element placeholder HTML
 	 *
@@ -825,50 +850,54 @@ class Helpers {
 		}
 
 		/**
-		 * If element_id contains dashes, it is an element inside a component instance.
+		 * If element_id contains dashes, MAYBE it is an element inside a component instance.
+		 * - User might pass in unkown element ID with dashes (eg: brxe-h6j7k8) via {query_results_count:brxe-h6j7k8} (#86c4y35pt)
 		 *
 		 * @since 2.0
 		 */
-		$instance_id = false;
-
 		if ( strpos( $element_id, '-' ) !== false ) {
-			$instance_id = explode( '-', $element_id )[1] ?? false;
-		}
+			/**
+			 * Extract the string, treat first part as element ID and second part as instance ID
+			 * Example: q1w2e3r4-h6j7k8 => element ID: element, instance ID:
+			 */
+			$temp_parts       = explode( '-', $element_id );
+			$temp_element_id  = $temp_parts[0] ?? '';
+			$temp_instance_id = $temp_parts[1] ?? '';
+			$instance_element = self::get_element_data( $post_id, $temp_instance_id );
 
-		if ( $instance_id ) {
-			$element_id       = explode( '-', $element_id )[0];
-			$instance_element = self::get_element_data( $post_id, $instance_id );
+			// STEP: Verify if instance ID is valid
+			if ( $instance_element && isset( $instance_element['element'] ) && is_array( $instance_element['element'] ) ) {
+				$component_instance = self::get_component_instance( $instance_element['element'] );
 
-			// Return: Instance element not found
-			if ( ! $instance_element || ! isset( $instance_element['element'] ) || ! is_array( $instance_element['element'] ) ) {
-				return false;
-			}
+				// STEP: Verify if component instance is valid
+				if ( $component_instance && isset( $component_instance['elements'] ) && is_array( $component_instance['elements'] ) ) {
+					/**
+					 * Confirmed the $element_id is an element inside a component instance
+					 * Find the query element from the component instance
+					 */
+					$query_element = array_filter(
+						$component_instance['elements'],
+						function( $element ) use ( $temp_element_id ) {
+							return $element['id'] === $temp_element_id;
+						}
+					);
 
-			$component_instance = self::get_component_instance( $instance_element['element'] );
+					$query_element = reset( $query_element );
 
-			// Find the query element from the component instance
-			$query_element = array_filter(
-				$component_instance['elements'],
-				function( $element ) use ( $element_id ) {
-					return $element['id'] === $element_id;
+					// Return: Query element not found
+					if ( ! $query_element ) {
+						return false;
+					}
+
+					// Set the element ID to include the instance ID
+					$query_element['id'] = "{$temp_element_id}-{$temp_instance_id}";
+					$output['element']   = $query_element;
+					$output['elements']  = $component_instance['elements'] ?? [];
+					$output['source_id'] = 'component';
+
+					return $output;
 				}
-			);
-
-			$query_element = reset( $query_element );
-
-			// Return: Query element not found
-			if ( ! $query_element ) {
-				return false;
 			}
-
-			// Set the element ID to include the instance ID
-			$query_element['id'] = "{$element_id}-{$instance_id}";
-
-			$output['element']   = $query_element;
-			$output['elements']  = $component_instance['elements'] ?? [];
-			$output['source_id'] = 'component';
-
-			return $output;
 		}
 
 		$templates = [];

@@ -496,6 +496,15 @@ class Capabilities {
 			return true;
 		}
 
+		// If this is a Woo Shop page, check if the user has access_builder_page permission (@since 2.0.2)
+		if ( $post_type === 'product' && $post_id === 0 && function_exists( 'wc_get_page_id' ) ) {
+			$shop_page_id = wc_get_page_id( 'shop' );
+
+			if ( $shop_page_id && Builder_Permissions::user_has_permission( 'access_builder_page' ) ) {
+				return true;
+			}
+		}
+
 		// Check if this is a template post and user has edit_templates permission
 		if ( $post_type === BRICKS_DB_TEMPLATE_SLUG && Builder_Permissions::user_has_permission( 'edit_templates' ) ) {
 			return true;

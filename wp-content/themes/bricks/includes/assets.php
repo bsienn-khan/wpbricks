@@ -79,9 +79,10 @@ class Assets {
 
 		// Check if cascade layer is enabled to wrap  WordPress generated styles (@since 2.0)
 		if ( ! Database::get_setting( 'disableBricksCascadeLayer' ) ) {
-			add_filter( 'style_loader_tag', [ $this, 'wrap_block_styles_in_cascade_layer' ], 10, 2 ); // Block styles
+			// add_filter( 'style_loader_tag', [ $this, 'wrap_block_styles_in_cascade_layer' ], 10, 2 ); // NOTE: No longer use since as this could cause conflicts with blocks inline styles (@since 2.0.2)
 			add_filter( 'style_loader_tag', [ $this, 'wrap_mediaelement_styles_in_cascade_layer' ], 10, 2 ); // Mediaelement styles
 			add_filter( 'style_loader_tag', [ $this, 'wrap_select2_styles_in_cascade_layer' ], 10, 2 ); // Select2 styles
+			add_filter( 'style_loader_tag', [ $this, 'wrap_photoswipe_styles_in_cascade_layer' ], 10, 2 ); // WooCommerce Photoswipe styles
 		}
 	}
 
@@ -1598,6 +1599,29 @@ class Assets {
 		$control      = $controls[ $control_key ] ?? false;
 		$control_type = $control['type'] ?? '';
 		$css_rules    = [];
+
+		/**
+		 * STEP: Convert specific control setting key to new values
+		 *
+		 * Control keys: imageRatio (#86c50gz77)
+		 *
+		 * @since 2.0.2
+		 */
+		$convert_control_keys = [
+			'imageRatio' => [
+				'ratio-square' => '1/1',
+				'ratio-16-9'   => '16/9',
+				'ratio-4-3'    => '4/3',
+			],
+		];
+
+		if ( $convert_control_keys[ $control_key ] ?? false ) {
+			$convert_keys = $convert_control_keys[ $control_key ];
+
+			if ( isset( $convert_keys[ $setting_value ] ) ) {
+				$setting_value = $convert_keys[ $setting_value ];
+			}
+		}
 
 		// STEP: Loop over repeater items to generate CSS string
 		if ( $control_type === 'repeater' ) {
@@ -3641,7 +3665,7 @@ class Assets {
 	/**
 	 * Wrap WordPress block styles in cascade layer when enabled
 	 *
-	 * @since 1.12.2
+	 * NOTE: Not in use, but keeping it here for reference
 	 */
 	public function wrap_block_styles_in_cascade_layer( $tag, $handle ) {
 		if ( $handle === 'wp-block-library' || $handle === 'global-styles' ) {
@@ -3684,6 +3708,23 @@ class Assets {
 			$media   = $matches[3];
 
 			$tag = "<style>@import url('$css_url') layer(bricks);</style>";
+		}
+		return $tag;
+	}
+
+	/**
+	 * Wrap WooCommerce photoswipe styles in cascade layer
+	 *
+	 * @since 2.0.2
+	 */
+	public function wrap_photoswipe_styles_in_cascade_layer( $tag, $handle ) {
+		if ( $handle === 'photoswipe' || $handle === 'photoswipe-default-skin' ) {
+			// Extract the CSS file URL from the tag
+			preg_match( '/href=(["\'])([^\1]+)\1/', $tag, $matches );
+			if ( ! empty( $matches[2] ) ) {
+				$css_url = $matches[2];
+				$tag     = "<style>@import url('$css_url') layer(bricks);</style>";
+			}
 		}
 		return $tag;
 	}

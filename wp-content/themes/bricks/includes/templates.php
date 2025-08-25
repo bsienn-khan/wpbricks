@@ -12,6 +12,9 @@ class Templates {
 	// All generated inline CSS identifiers (@since 1.9.1)
 	public static $generated_inline_identifier = [];
 
+	// Flag to avoid assigning templates to hooks multiple times (@since 2.0.2)
+	private static $assigned_templates_to_hooks = false;
+
 	public function __construct() {
 		add_filter( 'init', [ $this, 'register_post_type' ] );
 
@@ -2113,6 +2116,13 @@ class Templates {
 		// Return: In builder
 		if ( bricks_is_builder() ) {
 			return;
+		}
+
+		// Avoid assigning template to hooks multiple times (@since 2.0.2)
+		if ( ! self::$assigned_templates_to_hooks ) {
+			self::$assigned_templates_to_hooks = true;
+		} else {
+			return; // Already assigned templates to hooks
 		}
 
 		// Get all available templates once in case Database::set_active_templates not triggered (#86c417v88)

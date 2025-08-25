@@ -120,20 +120,20 @@ class Breadcrumbs extends Element {
 		];
 
 		// HOME
-		$this->controls['homeLabel'] = [
-			'group'       => 'home',
-			'label'       => esc_html__( 'Label', 'bricks' ),
-			'type'        => 'text',
-			'inline'      => true,
-			'placeholder' => esc_html__( 'Home', 'bricks' ),
-		];
-
 		$this->controls['homeURL'] = [
 			'group'       => 'home',
-			'label'       => esc_html__( 'URL', 'bricks' ),
+			'label'       => 'URL',
 			'type'        => 'text',
 			'inline'      => true,
 			'placeholder' => esc_url( home_url() ),
+		];
+
+		$this->controls['homeLabel'] = [
+			'group'       => 'home',
+			'label'       => esc_html__( 'Text', 'bricks' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => esc_html__( 'Home', 'bricks' ),
 		];
 
 		$this->controls['homeIcon'] = [

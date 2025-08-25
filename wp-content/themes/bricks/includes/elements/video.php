@@ -376,7 +376,7 @@ class Element_Video extends Element {
 		$this->controls['fileControlNoDownload'] = [
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Disable', 'bricks' ) . ': ' . esc_html__( 'Download', 'bricks' ),
-			'info'     => 'Firefox: ' . esc_html__( 'No supported', 'bricks' ) . ' (controlslist)',
+			'info'     => 'Firefox: ' . esc_html__( 'Not supported', 'bricks' ) . ' (controlslist)',
 			'type'     => 'checkbox',
 			'required' => [
 				[ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
@@ -387,7 +387,7 @@ class Element_Video extends Element {
 		$this->controls['fileControlNoFullscreen'] = [
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Disable', 'bricks' ) . ': ' . esc_html__( 'Fullscreen', 'bricks' ),
-			'info'     => 'Firefox: ' . esc_html__( 'No supported', 'bricks' ) . ' (controlslist)',
+			'info'     => 'Firefox: ' . esc_html__( 'Not supported', 'bricks' ) . ' (controlslist)',
 			'type'     => 'checkbox',
 			'required' => [
 				[ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
@@ -398,7 +398,7 @@ class Element_Video extends Element {
 		$this->controls['fileControlNoRemotePlayback'] = [
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Disable', 'bricks' ) . ': ' . esc_html__( 'Remote playback', 'bricks' ),
-			'info'     => 'Firefox: ' . esc_html__( 'No supported', 'bricks' ) . ' (controlslist)',
+			'info'     => 'Firefox: ' . esc_html__( 'Not supported', 'bricks' ) . ' (controlslist)',
 			'type'     => 'checkbox',
 			'required' => [
 				[ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
@@ -1241,6 +1241,9 @@ class Element_Video extends Element {
 					$meta_video_url = (string) $url_or_id;
 				}
 			}
+		} elseif ( is_string( $meta_media_value ) && ! empty( $meta_media_value ) ) {
+			// If the value is a string, use it directly (the full URL can be provided via @fallback)
+			$meta_video_url = $meta_media_value;
 		}
 
 		if ( empty( $meta_video_url ) ) {

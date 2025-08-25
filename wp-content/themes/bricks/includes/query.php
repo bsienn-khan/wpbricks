@@ -1230,7 +1230,7 @@ class Query {
 			$new_orderby    = $orderby;
 
 			// Correction if order is an array but new_orderby is not an array (#86c4j20h9)
-			if ( is_array( $order ) && ! empty ( $order ) && is_string( $new_orderby ) ) {
+			if ( is_array( $order ) && ! empty( $order ) && is_string( $new_orderby ) ) {
 				$new_orderby = [
 					$new_orderby => strtoupper( $order[0] ?? 'DESC' ),
 				];
@@ -1994,12 +1994,19 @@ class Query {
 			// Top level loop
 			if ( self::get_looping_level() < 1 ) {
 				$component_id = self::get_query_element_component_id( $looping_query_id );
+				$instance_id  = self::get_query_element_instance_id( $looping_query_id );
 
 				if ( $component_id ) {
 					// Add query element ID if component ID exists (@since 1.12.2)
 					// Format: query_element_id:loop_index
 					$unique_loop_id = [
 						self::get_query_element_id( $looping_query_id ),
+						self::get_loop_index( $looping_query_id ),
+					];
+				} elseif ( $instance_id ) {
+					// Format: instance_id:loop_index (#86c511c31 @since 2.0.2)
+					$unique_loop_id = [
+						$instance_id,
 						self::get_loop_index( $looping_query_id ),
 					];
 				} else {
@@ -2147,6 +2154,17 @@ class Query {
 		$query = self::get_query_object( $query );
 
 		return ! empty( $query->component_id ) ? $query->component_id : false;
+	}
+
+	/**
+	 * Get instance ID of query loop element
+	 *
+	 * @since 2.0.2
+	 */
+	public static function get_query_element_instance_id( $query = '' ) {
+		$query = self::get_query_object( $query );
+
+		return ! empty( $query->instance_id ) ? $query->instance_id : false;
 	}
 
 	/**

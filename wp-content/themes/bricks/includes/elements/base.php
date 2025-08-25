@@ -1838,10 +1838,29 @@ abstract class Element {
 			$classes[] = 'bricks-lazy-hidden';
 		}
 
+		/**
+		 * STEP: Check if array item is an array and merge into main array
+		 *
+		 * Component property type "class" with muliple options.
+		 *
+		 * @since 2.0.2
+		 */
+		foreach ( $classes as $class_index => $class_name ) {
+			if ( is_array( $class_name ) ) {
+				$classes = array_merge( $classes, $class_name );
+
+				// Remove class index
+				unset( $classes[ $class_index ] );
+
+				// Re-index array
+				$classes = array_values( $classes );
+			}
+		}
+
 		// Parse CSS classes for dynamic data (@since 1.7.1)
-		foreach ( $classes as $index => $class_name ) {
+		foreach ( $classes as $class_index => $class_name ) {
 			if ( strpos( $class_name, '{' ) !== false && strpos( $class_name, '}' ) !== false ) {
-				$classes[ $index ] = bricks_render_dynamic_data( $class_name );
+				$classes[ $class_index ] = bricks_render_dynamic_data( $class_name );
 			}
 		}
 
@@ -3025,14 +3044,17 @@ abstract class Element {
 		];
 
 		$controls['imageRatio'] = [
-			'tab'       => 'content',
-			'group'     => 'settings',
-			'label'     => esc_html__( 'Image ratio', 'bricks' ),
-			'type'      => 'select',
-			'options'   => Setup::$control_options['imageRatio'],
-			'default'   => 'ratio-square',
-			'clearable' => false,
-			'inline'    => true,
+			'tab'    => 'content',
+			'group'  => 'settings',
+			'label'  => esc_html__( 'Image ratio', 'bricks' ),
+			'type'   => 'text',
+			'inline' => true,
+			'css'    => [
+				[
+					'selector' => '.image',
+					'property' => 'aspect-ratio',
+				],
+			],
 		];
 
 		$controls['initialSlide'] = [

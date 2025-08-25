@@ -15,11 +15,15 @@ $controls['layout'] = [
 
 $controls['imageRatio'] = [
 	'label'       => esc_html__( 'Image ratio', 'bricks' ),
-	'type'        => 'select',
-	'options'     => self::$control_options['imageRatio'],
-	'inline'      => true,
 	'description' => esc_html__( 'Precedes image height setting.', 'bricks' ),
-	'placeholder' => esc_html__( 'Square', 'bricks' ),
+	'type'        => 'text',
+	'inline'      => true,
+	'css'         => [
+		[
+			'selector' => '.image',
+			'property' => 'aspect-ratio',
+		],
+	],
 	'required'    => [ 'layout', '!=', [ 'masonry', 'metro' ] ],
 ];
 

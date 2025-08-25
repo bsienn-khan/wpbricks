@@ -595,6 +595,9 @@ const bricksUtils = {
 		// Check if the href has page query
 		if (url.searchParams.has('paged')) {
 			pageNumber = parseInt(url.searchParams.get('paged'))
+		} else if (href === window.bricksData?.baseUrl) {
+			// Example: Date archive page, 1st page is same as baseUrl (#86c4bj3zz @since 2.0.2)
+			pageNumber = 1
 		} else {
 			// Check if the href has page path
 			const pagePath = url.pathname.split('/')
@@ -2220,7 +2223,7 @@ function bricksQueryPagination() {
 }
 
 function bricksStickyHeader() {
-	let stickyHeaderEl = document.querySelector('#brx-header.sticky')
+	let stickyHeaderEl = document.querySelector('#brx-header.brx-sticky')
 
 	if (!stickyHeaderEl) {
 		return
@@ -4943,6 +4946,16 @@ const bricksFormFn = new BricksFunction({
 							}
 
 							resultEl.remove()
+
+							// Remove "fileName" form input.files array as well (@since 2.0.2)
+							const newFileList = new DataTransfer()
+							for (let i = 0; i < input.files.length; i++) {
+								const inputFile = input.files[i]
+								if (inputFile.name !== fileName) {
+									newFileList.items.add(inputFile)
+								}
+							}
+							input.files = newFileList.files
 						})
 					}
 
