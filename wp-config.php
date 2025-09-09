@@ -123,6 +123,12 @@ const AUTOMATIC_UPDATER_DISABLED = true;
 const DISALLOW_FILE_MODS = true;
 
 /**
+ * Sets the file system method to 'direct', allowing WordPress to write files directly.
+ * Since we have DISALLOW_FILE_MODS set to true, this is just to stop "Unable to connect" errors in the admin.
+ */
+const FS_METHOD = 'direct';
+
+/**
  * Disables post-revisions completely to save database space.
  * Default: true or a number like 3 (limited revisions stored)
  * Benefit: Significantly reduces database size and improves performance by eliminating
