@@ -843,18 +843,21 @@ class Capabilities {
 		 */
 		$role_can_builder_access = user_can( $user, 'manage_options' ) ? esc_html__( 'Full access', 'bricks' ) : esc_html__( 'No access', 'bricks' );
 
-		// User-specific builder access
-		if ( in_array( self::FULL_ACCESS, $role_can ) ) {
+		// Get role capabilities only (excluding user-specific capabilities)
+		$role_only_can = array_diff( $role_can, $user_can );
+
+		// Check role capabilities (not user-specific ones) for 'default' label display
+		if ( in_array( self::FULL_ACCESS, $role_only_can ) ) {
 			$role_can_builder_access = esc_html__( 'Full access', 'bricks' );
-		} elseif ( in_array( self::EDIT_CONTENT, $role_can ) ) {
+		} elseif ( in_array( self::EDIT_CONTENT, $role_only_can ) ) {
 			$role_can_builder_access = esc_html__( 'Edit content', 'bricks' );
-		} elseif ( in_array( self::NO_ACCESS, $role_can ) ) {
+		} elseif ( in_array( self::NO_ACCESS, $role_only_can ) ) {
 			$role_can_builder_access = esc_html__( 'No access', 'bricks' );
 		} else {
 			// Check for custom capabilities
 			foreach ( $custom_capabilities as $cap_name => $cap_data ) {
 				$cap_label = isset( $cap_data['label'] ) ? $cap_data['label'] : $cap_name;
-				if ( in_array( $cap_name, $role_can ) ) {
+				if ( in_array( $cap_name, $role_only_can ) ) {
 					$role_can_builder_access = $cap_label;
 					break;
 				}

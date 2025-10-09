@@ -140,7 +140,7 @@ class Element_Image extends Element {
 				'placeholder' => '',
 				'css'         => [
 					[
-						$img_css_selector,
+						'selector' => $img_css_selector,
 						'property' => 'aspect-ratio',
 					],
 				],
@@ -751,7 +751,15 @@ class Element_Image extends Element {
 			$image_caption = $image_data ? $image_data->post_excerpt : '';
 		}
 
-		$has_overlay = isset( $settings['popupOverlay'] );
+		$has_overlay = false;
+
+		// Check: Loop over settings that starts with 'popupOverlay' (@since 2.1)
+		foreach ( $settings as $key => $value ) {
+			if ( strpos( $key, 'popupOverlay' ) === 0 ) {
+				$has_overlay = true;
+				break;
+			}
+		}
 
 		$has_html_tag = $image_caption || $has_overlay || isset( $settings['_gradient'] ) || isset( $settings['tag'] );
 
@@ -1076,7 +1084,14 @@ class Element_Image extends Element {
 		}
 
 		if ( $image_caption ) {
-			$output .= '<figcaption class="bricks-image-caption">' . $image_caption . '</figcaption>';
+			// Assign a class to the caption element based on the theme style setting (@since 2.1)
+			if ( isset( $this->theme_styles['captionCustomStyles'] ) ) {
+				$this->set_attribute( 'figcaption', 'class', 'bricks-image-caption-custom' );
+			} else {
+				$this->set_attribute( 'figcaption', 'class', 'bricks-image-caption' );
+			}
+
+			$output .= "<figcaption {$this->render_attributes( 'figcaption' )}>" . $image_caption . '</figcaption>';
 		}
 
 		if ( $link ) {

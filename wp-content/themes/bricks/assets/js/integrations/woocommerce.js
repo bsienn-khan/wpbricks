@@ -16,7 +16,7 @@ function bricksShowNotice(message) {
 
 function bricksScrollToNotices() {
 	// Include Bricks WC notice wrapper
-	const scrollElement = jQuery(
+	let scrollElement = jQuery(
 		'.woocommerce-NoticeGroup-updateOrderReview, .woocommerce-NoticeGroup-checkout, .brxe-woocommerce-notice'
 	)
 
@@ -278,6 +278,63 @@ function bricksWooStarRating() {
 			)
 		}
 	})
+}
+
+/**
+ * Product reviews: Manage star rating fill states
+ *
+ * @since 2.1
+ */
+const bricksWooStarRatingManageFillFn = new BricksFunction({
+	parentNode: document,
+	selector: '.brxe-product-reviews',
+	eachElement: (reviewsContainer) => {
+		const tryFindStars = (attempt = 1) => {
+			const $starsContainer = jQuery(reviewsContainer).find('form .stars')
+
+			if ($starsContainer.length === 0 && attempt < 5) {
+				setTimeout(() => tryFindStars(attempt + 1), 500)
+				return
+			}
+
+			$starsContainer.each(function () {
+				const $stars = jQuery(this)
+				const stars = $stars.find('a')
+
+				const updateFilledStars = (activeIndex) => {
+					stars.each(function (index) {
+						if (index <= activeIndex) {
+							jQuery(this).addClass('bricks-star-filled')
+						} else {
+							jQuery(this).removeClass('bricks-star-filled')
+						}
+					})
+				}
+
+				stars.on('click', function () {
+					updateFilledStars(stars.index(this))
+				})
+
+				// Initialize
+				const activeIndex = stars.index(stars.filter('.active'))
+				if (activeIndex >= 0) {
+					updateFilledStars(activeIndex)
+				}
+			})
+		}
+
+		// Start trying to find stars
+		tryFindStars()
+	}
+})
+
+/**
+ * Product reviews: Manage star rating fill states
+ *
+ * @since 2.1
+ */
+function bricksWooStarRatingManageFill() {
+	bricksWooStarRatingManageFillFn.run()
 }
 
 /**
@@ -1807,6 +1864,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
 	bricksCheckoutLoginToggle()
 	bricksCheckoutLoginForm()
 	bricksWooVariationSwatches()
+	bricksWooStarRatingManageFill()
 
 	// Small timeout required to allow other plugins (e.g. WooCommerce Composite Products) to generate additional content (@since 1.8)
 	setTimeout(function () {

@@ -64,6 +64,7 @@ class Elements {
 			'tabs-nested', // @since 1.5
 			'form',
 			'map',
+			'map-leaflet', // @since 2.1
 			'map-connector', // @since 2.0
 			'alert',
 			'animated-typing',

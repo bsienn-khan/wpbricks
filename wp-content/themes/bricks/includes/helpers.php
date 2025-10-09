@@ -1085,10 +1085,30 @@ class Helpers {
 	 * @since 1.12
 	 */
 	public static function get_component_by_cid( $component_id ) {
+		if ( ! $component_id ) {
+			return false;
+		}
+
+		// Check if component exists (@since 2.1)
+		if ( empty( Database::$global_data ) || ! is_array( Database::$global_data ) || ! isset( Database::$global_data['components'] ) || ! is_array( Database::$global_data['components'] ) ) {
+			return false;
+		}
+
 		$components      = Database::$global_data['components'];
 		$component_index = array_search( $component_id, array_column( $components, 'id' ) );
 
-		return $components[ $component_index ] ?? false;
+		// Return false if component not found (@since 2.1)
+		if ( $component_index === false ) {
+			return false;
+		}
+
+		$component = $components[ $component_index ] ?? false;
+
+		if ( \Bricks\Integrations\Wpml\Wpml::is_wpml_active() && $component ) { // @since 2.x
+			$component = \Bricks\Integrations\Wpml\Wpml::get_translated_component( $component );
+		}
+
+		return $component;
 	}
 
 	/**
@@ -1107,7 +1127,17 @@ class Helpers {
 
 				// Return the component element
 				if ( $component_child_index !== false ) {
-					return $component['elements'][ $component_child_index ];
+					$element = $component['elements'][ $component_child_index ];
+
+					// Apply WPML translation on-the-fly if WPML is active
+					if ( \Bricks\Integrations\Wpml\Wpml::is_wpml_active() ) {
+						$translated_component = \Bricks\Integrations\Wpml\Wpml::get_translated_component( $component );
+						if ( isset( $translated_component['elements'][ $component_child_index ] ) ) {
+							$element = $translated_component['elements'][ $component_child_index ];
+						}
+					}
+
+					return $element;
 				}
 			}
 		}
@@ -1159,6 +1189,7 @@ class Helpers {
 
 		$component_props = $component['properties'] ?? [];
 		$instance_props  = $element['properties'] ?? [];
+		$instance_css_id = $element['settings']['_cssId'] ?? '';
 
 		// Get component element
 		$component_element = self::get_component_element_by_id( $component_id );
@@ -1331,9 +1362,14 @@ class Helpers {
 		}
 
 		// Loop over all component elements to merge or replace global classes (@since 2.0)
-		if ( isset( $component['elements'] ) && is_array( $component['elements'] ) ) {
+		if ( ! empty( $component['elements'] ) && is_array( $component['elements'] ) ) {
 			foreach ( $component['elements'] as &$component_child ) {
 				$global_class_ids = $component_child['settings']['_cssGlobalClassesProps'] ?? [];
+
+				// Set instance CSS ID (@since 2.1)
+				if ( $instance_css_id && $component_id === $component_child['id'] ) {
+					$component_child['settings']['_cssId'] = $instance_css_id;
+				}
 
 				// Without "Multiple options" enabled, global class ID is stored as a string
 				if ( is_string( $global_class_ids ) ) {
@@ -1967,7 +2003,13 @@ class Helpers {
 		// Clear code to populate with setting from database
 		$code = '';
 
-		// STEP: Get element settings from database (also checks for component & global element)
+		/**
+		 * STEP: Get element settings from database
+		 *
+		 * Checks also for:
+		 * - Component
+		 * - Global element
+		 */
 		$global_id        = $element_id;
 		$element_settings = self::get_element_settings( $post_id, $element_id, $global_id );
 
@@ -1981,6 +2023,20 @@ class Helpers {
 		elseif ( isset( $element_settings['query']['queryEditor'] ) ) {
 			$code      = $element_settings['query']['queryEditor'];
 			$signature = $element_settings['query']['signature'] ?? false;
+		}
+
+		// STEP: Get global query (@since 2.1)
+		elseif ( ! empty( $element_settings['query']['id'] ) ) {
+			$global_query_id = $element_settings['query']['id'];
+
+			foreach ( Database::$global_data['globalQueries'] as $global_query ) {
+				if ( isset( $global_query['id'] ) && $global_query['id'] === $global_query_id ) {
+					$code      = $global_query['settings']['queryEditor'] ?? '';
+					$signature = $global_query['settings']['signature'] ?? false;
+
+					break;
+				}
+			}
 		}
 
 		// Return error: Code signature verification from database failed
@@ -3783,15 +3839,194 @@ class Helpers {
 	}
 
 	/**
-	 * Process settings to update variable references
+	 * Send user activation email
 	 *
-	 * @since 2.0
+	 * @param number $user_id User ID
+	 * @param string $email_type Email type that should be sent (activation, resend-activation)
+	 *
+	 * @since 2.1
+	 */
+	public static function send_user_activation_email( $user_id, $email_type ) {
+		// Return: Required data missing
+		if ( ! $user_id || ! isset( $email_type ) || ! in_array( $email_type, [ 'activation', 'resend-activation' ] ) ) {
+			return;
+		}
+
+		$user = get_user_by( 'id', $user_id );
+
+		if ( ! $user ) {
+			return;
+		}
+
+		// STEP: Prepare global variables
+		$from_email = Database::get_setting( 'userActivationLinkEmailFrom' );
+		$from_name  = Database::get_setting( 'userActivationLinkEmailFromName' );
+		$subject    = Database::get_setting( 'userActivationLinkEmailSubject' );
+		$content    = Database::get_setting( 'userActivationLinkEmailContent' );
+		$is_html    = Database::get_setting( 'userActivationLinkEmailIsHtml', false );
+
+		$additional_params = [];
+
+		// STEP: Prepare headers
+		$headers = [];
+
+		// Header: 'From'
+		$from_email = ! empty( $from_email ) ? sanitize_email( $from_email ) : false;
+
+		if ( $from_email ) {
+			$from_name = ! empty( $from_name ) ? sanitize_text_field( $from_name ) : false;
+			$headers[] = $from_name ? "From: $from_name <$from_email>" : "From: $from_email";
+		}
+
+		// Header: 'Content-Type'
+		$headers[] = $is_html ? 'Content-Type: text/html; charset=UTF-8' : 'Content-Type: text/plain; charset=UTF-8';
+
+		// STEP: $email_type = activation or resend-activation
+		$activation_key = get_user_meta( $user_id, 'bricks_user_activation_key', true );
+
+		// STEP: Prepare activation link
+		$activation_link = '';
+		$activation_url  = '';
+
+		$activation_url = add_query_arg(
+			[
+				'user_id'        => $user_id,
+				'activation_key' => $activation_key
+			],
+			// Redirect to custom success page or home page
+			get_permalink( Database::get_setting( 'userActivationLinkSuccessPage', null ) ) ?: home_url()
+		);
+
+		$activation_link = $is_html
+			? '<a href="' . esc_url( $activation_url ) . '" target="_blank">' . esc_html( $activation_url ) . '</a>'
+			: $activation_url;
+
+		$additional_params['activation_url']  = $activation_url; // https://<site-url>/?params...
+		$additional_params['activation_link'] = $activation_link; // <a href="...">...</a>
+
+		// Add line breaks if HTML email is enabled and no HTML template exists (@since 1.11.1)
+		if ( $is_html && strpos( $content, '<html' ) === false ) {
+			$content = nl2br( $content );
+		}
+
+		$email['subject'] = self::replace_user_activation_email_parameters( $subject, $user, $additional_params, false );
+		$email['message'] = self::replace_user_activation_email_parameters( $content, $user, $additional_params, $is_html );
+
+		if ( empty( $email['subject'] ) ) {
+			$email['subject'] = esc_html__( 'Activate your account', 'bricks' );
+		}
+
+		if ( empty( $email['message'] ) ) {
+			$email['message']  = esc_html__( 'Please click the link below to activate your account', 'bricks' ) . ':';
+			$email['message'] .= $is_html ? "<br>$activation_link" : "\n$activation_url";
+		}
+
+		// STEP: Send email
+		$email_sent = wp_mail( $user->user_email, $email['subject'], $email['message'], $headers );
+
+		// Log email send error
+		if ( ! $email_sent ) {
+			self::maybe_log( 'Bricks: Failed to send user activation email: ' . print_r( error_get_last(), true ) );
+		}
+
+		// STEP: Return
+		return $email_sent;
+	}
+
+	/**
+	 * Set user meta: activation key and status
+	 *
+	 * @param int $user_id
+	 *
+	 * @since 2.1
+	 */
+	public static function set_activation_meta( $user_id ) {
+		$activation_key = null;
+
+		// "Link" activation key
+		$activation_key = wp_generate_password( 20, false );
+
+		// Update user meta with activation key and status
+		update_user_meta( $user_id, 'bricks_user_activation_key', $activation_key );
+		update_user_meta( $user_id, 'bricks_user_activation_status', 'pending' );
+
+		return $activation_key;
+	}
+
+	/**
+	 * Private function, that will replace the available parameters for user activation email
+	 *
+	 * @param string $content
+	 * @param object $user
+	 * @param array  $additional_params Optional additional parameters
+	 * @param bool   $is_html Optional flag to indicate if the content is HTML
+	 *
+	 * @since 2.1
+	 * @return string
+	 */
+	private static function replace_user_activation_email_parameters( $content, $user, $additional_params = [], $is_html = false ) {
+		if ( ! $content || ! $user ) {
+			return $content;
+		}
+
+		// Site parameters
+		$site_name    = get_bloginfo( 'name' );
+		$site_tagline = get_bloginfo( 'description' );
+		$site_url     = home_url();
+
+		// User parameters
+		$username          = $user->user_login;
+		$user_display_name = $user->display_name;
+		$user_first_name   = $user->first_name;
+		$user_last_name    = $user->last_name;
+		$user_email        = $user->user_email;
+
+		// Additional parameters (activation link, activation url,...)
+		$activation_link = isset( $additional_params['activation_link'] ) ? $additional_params['activation_link'] : '';
+		$activation_url  = isset( $additional_params['activation_url'] ) ? $additional_params['activation_url'] : '';
+
+		// Replace parameters
+		$search = [
+			'{{site_name}}',
+			'{{site_tagline}}',
+			'{{site_url}}',
+			'{{username}}',
+			'{{user_display_name}}',
+			'{{user_first_name}}',
+			'{{user_last_name}}',
+			'{{user_email}}',
+			'{{activation_link}}',
+			'{{activation_url}}',
+		];
+
+		$replace = [
+			$site_name,         // Replaces {{site_name}}
+			$site_tagline,      // Replaces {{site_tagline}}
+			$site_url,          // Replaces {{site_url}}
+			$username,          // Replaces {{username}}
+			$user_display_name, // Replaces {{user_display_name}}
+			$user_first_name,   // Replaces {{user_first_name}}
+			$user_last_name,    // Replaces {{user_last_name}}
+			$user_email,        // Replaces {{user_email}}
+			$activation_link,   // Replaces {{activation_link}}
+			$activation_url,        // Replaces {{activation_url}}
+		];
+
+		// Apply replacement
+		$content = str_replace( $search, $replace, $content );
+
+		return $content;
+	}
+
+	/**
+	 * Process settings to update variable references
 	 *
 	 * @param array  $settings Settings to process.
 	 * @param string $old_name Old variable name.
 	 * @param string $new_name New variable name.
 	 *
 	 * @return array Updated settings.
+	 * @since 2.0
 	 */
 	public static function process_settings_for_variable_rename( $settings, $old_name, $new_name ) {
 		if ( ! is_array( $settings ) ) {
@@ -4433,5 +4668,33 @@ class Helpers {
 				self::collect_descendants( $child_id, $element_map, $ids_to_remove );
 			}
 		}
+	}
+
+	/**
+	 * If a query is set to use a global query, replace its settings with the global query settings
+	 *
+	 * @param array $query_settings The query settings to check and potentially replace
+	 * @return array The updated query settings
+	 * @since 2.1
+	 */
+	public static function maybe_get_global_query_settings( $query_settings ) {
+		$global_queries  = Database::$global_data['globalQueries'] ?? [];
+		$global_query_id = $query_settings['id'] ?? '';
+
+		// Find global query by 'id'
+		if ( $global_query_id && ! empty( $global_queries ) ) {
+			$global_query_index = array_search( $global_query_id, array_column( $global_queries, 'id' ) );
+
+			if ( $global_query_index !== false ) {
+				$global_query = $global_queries[ $global_query_index ];
+
+				// Use global query settings
+				if ( isset( $global_query['settings'] ) && is_array( $global_query['settings'] ) ) {
+					$query_settings = $global_query['settings'];
+				}
+			}
+		}
+
+		return $query_settings;
 	}
 }

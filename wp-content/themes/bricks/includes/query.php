@@ -94,6 +94,12 @@ class Query {
 				$this->$key = $value;
 			}
 		} else {
+
+			// STEP: Get global query settings (@since 2.1)
+			if ( isset( $element['settings']['query'] ) ) {
+				$element['settings']['query'] = Helpers::maybe_get_global_query_settings( $element['settings']['query'] ?? [] );
+			}
+
 			$this->object_type = ! empty( $element['settings']['query']['objectType'] ) ? $element['settings']['query']['objectType'] : 'post';
 
 			// Remove object type from query vars to avoid future conflicts
@@ -130,7 +136,7 @@ class Query {
 			 *
 			 * @since 1.9.1
 			 */
-			if ( in_array( $this->object_type, [ 'post', 'term', 'user' ] ) && ! $force_run ) {
+			if ( in_array( $this->object_type, [ 'post', 'term', 'user', 'api' ] ) && ! $force_run ) {
 				$this->add_to_history();
 			}
 		}
@@ -537,6 +543,18 @@ class Query {
 					}
 				}
 
+				// Performance boost (@since 2.x)
+				if ( isset( $query_vars['disable_update_post_meta_cache'] ) ) {
+					$query_vars['update_post_meta_cache'] = false;
+					unset( $query_vars['disable_update_post_meta_cache'] );
+				}
+
+				// Performance boost (@since 2.x)
+				if ( isset( $query_vars['disable_update_post_term_cache'] ) ) {
+					$query_vars['update_post_term_cache'] = false;
+					unset( $query_vars['disable_update_post_term_cache'] );
+				}
+
 				// Post__in parse dynamic data (@since 1.12)
 				$query_vars = self::set_post_in_vars( $query_vars );
 
@@ -663,6 +681,20 @@ class Query {
 
 				// @see: https://academy.bricksbuilder.io/article/filter-bricks-users-query_vars/
 				$query_vars = apply_filters( 'bricks/users/query_vars', $query_vars, $settings, $element_id, $element_name );
+				break;
+
+			// @since 2.1
+			case 'api':
+				// Unset everything except paged for security purposes
+				foreach ( $query_vars as $key => $value ) {
+					if ( $key === 'paged' ) {
+						continue;
+					}
+					unset( $query_vars[ $key ] );
+				}
+
+				// Only set the paged query var
+				$query_vars['paged'] = self::get_paged_query_var( $query_vars );
 				break;
 		}
 
@@ -813,6 +845,25 @@ class Query {
 					}
 
 				}
+				break;
+
+			// Query API (@since 2.1)
+			case 'api':
+				$count         = 0;
+				$max_num_pages = 1; // Default to 1 page for API queries
+
+				// Run the API query
+				$data = $this->run_query_api_query();
+
+				$result = $data['results'] ?? [];
+
+				// If the result is an array, count the number of items
+				if ( ! empty( $result ) && is_array( $result ) ) {
+					$count = count( $result );
+
+					$max_num_pages = ! empty( $data['total_pages'] ) ? $data['total_pages'] : 1;
+				}
+
 				break;
 
 			default:
@@ -2853,5 +2904,40 @@ class Query {
 		}
 
 		return $original_query_vars;
+	}
+
+	/**
+	 * Run query API
+	 *
+	 * @since 2.1
+	 */
+	public function run_query_api_query() {
+		$settings = $this->settings['query'] ?? [];
+
+		// Create API instance
+		$api = new Query_API( $settings, $this->element_id );
+
+		 // Add pagination parameter if it exists
+		if ( isset( $this->query_vars['paged'] ) && is_numeric( $this->query_vars['paged'] ) ) {
+			$api->set_pagination( absint( $this->query_vars['paged'] ) );
+		}
+
+		// Make the request
+		$response = $api->request();
+
+		// For builder.php to collect the response data and show in the popup
+		do_action( 'bricks/query/query_api_response', $response, $this->element_id );
+
+		if ( ! $response ) {
+			return [
+				'results'     => [],
+				'total_pages' => 1,
+			];
+		}
+
+		return [
+			'results'     => $api->get_extracted_data() ?? [],
+			'total_pages' => $api->get_total_pages() ?? 1,
+		];
 	}
 }

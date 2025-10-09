@@ -2249,6 +2249,11 @@ class Query_Filters {
 		$tax_found = false;
 
 		foreach ( $tax_query as $tax ) {
+			// Skip non-array items or arrays without 'taxonomy' key (@since 2.1)
+			if ( ! is_array( $tax ) || ! isset( $tax['taxonomy'] ) ) {
+				continue;
+			}
+
 			if ( $tax['taxonomy'] == $page_filters_tax ) {
 				$tax_found = true;
 				break;

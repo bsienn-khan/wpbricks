@@ -405,6 +405,13 @@ class Providers {
 		$args         = $parsed['args'];
 		$original_tag = $parsed['original_tag'];
 
+		// Return original tag if "raw" argument is set (#86c5heted; @since 2.1)
+		if ( is_array( $args ) && in_array( 'raw', $args ) ) {
+			// Remove all :raw from original tag
+			$original_tag = str_replace( ':raw', '', $original_tag );
+			return '&#123;' . $original_tag . '&#125;'; // Use HTML entities to avoid parser rerun
+		}
+
 		$tags = $this->get_tags();
 
 		if ( ! array_key_exists( $tag, $tags ) ) {

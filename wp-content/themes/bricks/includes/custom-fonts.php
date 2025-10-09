@@ -359,7 +359,6 @@ class Custom_Fonts {
 
 			// Collect all class settings (@since 2.0.2)
 			$element_class_ids = ! empty( $element_settings['_cssGlobalClasses'] ) && is_array( $element_settings['_cssGlobalClasses'] ) ? $element_settings['_cssGlobalClasses'] : false;
-
 			if ( $element_class_ids ) {
 				foreach ( $element_class_ids as $class_id ) {
 					// Get global class settings by ID
@@ -369,6 +368,18 @@ class Custom_Fonts {
 					if ( is_array( $class_settings ) ) {
 						foreach ( $class_settings as $class_key => $class_value ) {
 							$element_settings[ "class.$class_id.$class_key" ] = $class_value;
+						}
+					}
+				}
+			}
+
+			// Collect all component settings (@since 2.1)
+			$component_instance = ! empty( $element['cid'] ) ? Helpers::get_component_instance( $element ) : false;
+			if ( $component_instance ) {
+				foreach ( $component_instance['elements'] as $component_element ) {
+					if ( ! empty( $component_element['settings'] ) && is_array( $component_element['settings'] ) ) {
+						foreach ( $component_element['settings'] as $comp_key => $comp_value ) {
+							$element_settings[ "{$element['id']}.{$component_element['id']}.$comp_key" ] = $comp_value;
 						}
 					}
 				}

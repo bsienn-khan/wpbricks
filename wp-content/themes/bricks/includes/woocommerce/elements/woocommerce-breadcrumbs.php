@@ -43,11 +43,47 @@ class Woocommerce_Breadcrumbs extends Element {
 			'placeholder' => esc_html__( 'Home', 'bricks' ),
 		];
 
-		// homeIcon (@since 2.0.2)
 		$this->controls['homeIcon'] = [
 			'label'    => esc_html__( 'Home', 'bricks' ) . ': ' . esc_html__( 'Icon', 'bricks' ),
 			'type'     => 'icon',
+			'css'      => [
+				[
+					'selector' => 'svg.home',
+				],
+			],
 			'rerender' => true,
+		];
+
+		$this->controls['homeIconGap'] = [
+			'label' => esc_html__( 'Home', 'bricks' ) . ': ' . esc_html__( 'Gap', 'bricks' ),
+			'type'  => 'number',
+			'units' => true,
+			'css'   => [
+				[
+					'property' => 'gap',
+					'selector' => '.navigation > a:has(.home)',
+				],
+			],
+		];
+
+		$this->controls['homeIconSize'] = [
+			'label' => esc_html__( 'Home', 'bricks' ) . ': ' . esc_html__( 'Icon Size', 'bricks' ),
+			'type'  => 'number',
+			'units' => true,
+			'css'   => [
+				[
+					'property' => 'font-size',
+					'selector' => 'i.home',
+				],
+				[
+					'property' => 'width',
+					'selector' => 'svg.home',
+				],
+				[
+					'property' => 'height',
+					'selector' => 'svg.home',
+				],
+			],
 		];
 
 		$this->controls['hideHomeLabel'] = [
@@ -95,6 +131,11 @@ class Woocommerce_Breadcrumbs extends Element {
 			'group'    => 'separator',
 			'label'    => esc_html__( 'Icon', 'bricks' ),
 			'type'     => 'icon',
+			'css'      => [
+				[
+					'selector' => 'svg.separator',
+				],
+			],
 			'rerender' => true,
 			'required' => [ 'separatorType', '=', 'icon' ],
 		];
@@ -106,7 +147,7 @@ class Woocommerce_Breadcrumbs extends Element {
 			'css'      => [
 				[
 					'property' => 'font',
-					'selector' => 'i:not(.home)',
+					'selector' => '.separator',
 				],
 			],
 			'exclude'  => [

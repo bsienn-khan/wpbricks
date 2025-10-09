@@ -562,7 +562,7 @@ class Filter_Element extends Element {
 			$data_source = $flattened_source;
 		}
 
-		// STEP: Get count source for each option (@since 1.11)
+		// STEP: Get count source for each option
 		if ( ! empty( $active_filters ) || ! empty( $page_filters ) ) {
 			// Get all active filters that will affect the count
 			$filters_affecting_count = array_filter(
@@ -1241,25 +1241,24 @@ class Filter_Element extends Element {
 				'type'          => 'select',
 				'label'         => esc_html__( 'Taxonomy', 'bricks' ),
 				'inline'        => true,
-				'options'       => Setup::get_taxonomies_options(),
+				'options'       => Setup::$control_options['taxonomies'],
 				'placeholder'   => esc_html__( 'Select', 'bricks' ),
 				'required'      => [
 					[ 'filterQueryId', '!=', '' ],
 					[ 'filterAction', '=', [ '', 'filter' ] ],
 					[ 'filterSource', '=', 'taxonomy' ],
 				],
-				'clearOnChange' => [  // @since 1.11
+				'clearOnChange' => [
 					'filterTermInclude',
 					'filterTermExclude',
 				],
 			];
 
-			// @since 1.11
 			$controls['filterTaxonomyOrderBy'] = [
 				'type'        => 'select',
 				'label'       => esc_html__( 'Order by', 'bricks' ),
 				'inline'      => true,
-				'options'     => Setup::get_control_options( 'termsOrderBy' ),
+				'options'     => Setup::$control_options['termsOrderBy'],
 				'placeholder' => esc_html__( 'Name', 'bricks' ),
 				'required'    => [
 					[ 'filterQueryId', '!=', '' ],
@@ -1268,7 +1267,6 @@ class Filter_Element extends Element {
 				],
 			];
 
-			// @since 1.12.2
 			$controls['filterTaxonomyOrderMetaKey'] = [
 				'type'           => 'text',
 				'label'          => esc_html__( 'Order meta key', 'bricks' ),
@@ -1297,7 +1295,7 @@ class Filter_Element extends Element {
 				],
 			];
 
-			// Include terms (@since 1.11)
+			// Include terms
 			$controls['filterTermInclude'] = [
 				'type'        => 'select',
 				'label'       => esc_html__( 'Terms', 'bricks' ) . ': ' . esc_html__( 'Include', 'bricks' ),
@@ -1318,7 +1316,7 @@ class Filter_Element extends Element {
 				'placeholder' => esc_html__( 'None', 'bricks' ),
 			];
 
-			// Exclude terms (@since 1.11)
+			// Exclude terms
 			$controls['filterTermExclude'] = [
 				'type'        => 'select',
 				'label'       => esc_html__( 'Terms', 'bricks' ) . ': ' . esc_html__( 'Exclude', 'bricks' ),
@@ -1339,7 +1337,7 @@ class Filter_Element extends Element {
 				'placeholder' => esc_html__( 'None', 'bricks' ),
 			];
 
-			// Top level terms only (@since 1.11)
+			// Top level terms only
 			$controls['filterTermTopLevel'] = [
 				'type'     => 'checkbox',
 				'label'    => esc_html__( 'Top level terms only', 'bricks' ),
@@ -1459,6 +1457,7 @@ class Filter_Element extends Element {
 					'options'     => Integrations\Query_Filters\Fields::get_active_provider_list(),
 					'required'    => [
 						[ 'filterQueryId', '!=', '' ],
+						[ 'filterAction', '=', [ '', 'filter' ] ],
 						[ 'filterSource', '=', 'customField' ],
 					],
 					'placeholder' => 'WordPress',
@@ -1469,6 +1468,7 @@ class Filter_Element extends Element {
 					'content'  => esc_html__( 'Use the dynamic picker in the "Meta key" control below to select the desired custom field. The dynamic data tag is used to retrieves the field settings, it is not parsed.', 'bricks' ),
 					'required' => [
 						[ 'filterQueryId', '!=', '' ],
+						[ 'filterAction', '=', [ '', 'filter' ] ],
 						[ 'filterSource', '=', 'customField' ],
 						[ 'fieldProvider', '!=', [ '', 'none' ] ],
 					],
@@ -1482,6 +1482,7 @@ class Filter_Element extends Element {
 				'hasDynamicData' => false,
 				'required'       => [
 					[ 'filterQueryId', '!=', '' ],
+					[ 'filterAction', '=', [ '', 'filter' ] ],
 					[ 'filterSource', '=', 'customField' ],
 				],
 			];
@@ -1528,11 +1529,16 @@ class Filter_Element extends Element {
 
 			// Options (@since 2.0.2)
 			$controls['optionSep'] = [
-				'label' => esc_html__( 'Options', 'bricks' ),
-				'type'  => 'separator',
+				'label'    => esc_html__( 'Options', 'bricks' ),
+				'type'     => 'separator',
+				'required' => [
+					[ 'filterQueryId', '!=', '' ],
+					[ 'filterAction', '=', [ '', 'filter' ] ],
+					[ 'filterSource', '!=', '' ],
+				],
 			];
 
-			// Radio Hide "All" option (@since 1.11)
+			// Radio Hide "All" option
 			if ( $this->name === 'filter-radio' ) {
 				$controls['filterHideAllOption'] = [
 					'type'     => 'checkbox',
@@ -1556,7 +1562,7 @@ class Filter_Element extends Element {
 						[ 'filterQueryId', '!=', '' ],
 						[ 'filterAction', '=', [ '', 'filter' ] ],
 						[ 'filterSource', '!=', '' ],
-						[ 'filterHideAllOption', '!=', true ], // Hide All option for radio (@since 1.11)
+						[ 'filterHideAllOption', '!=', true ], // Hide All option for radio
 					],
 				];
 			}

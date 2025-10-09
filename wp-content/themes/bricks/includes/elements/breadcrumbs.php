@@ -142,16 +142,24 @@ class Breadcrumbs extends Element {
 			'type'  => 'icon',
 		];
 
-		$this->controls['hideHomeLabel'] = [
+		// @since 2.x - new control to set gap between icon and label
+		$this->controls['hideIconGap'] = [
 			'group'    => 'home',
-			'label'    => esc_html__( 'Hide label', 'bricks' ),
-			'type'     => 'checkbox',
+			'label'    => esc_html__( 'Icon', 'bricks' ) . ': ' . esc_html__( 'Gap', 'bricks' ),
+			'type'     => 'number',
+			'units'    => true,
+			'css'      => [
+				[
+					'selector' => '.item:has(> svg), .item:has(> i)',
+					'property' => 'gap',
+				],
+			],
 			'required' => [ 'homeIcon', '!=', '' ],
 		];
 
 		$this->controls['homeIconPosition'] = [
 			'group'       => 'home',
-			'label'       => esc_html__( 'Icon position', 'bricks' ),
+			'label'       => esc_html__( 'Icon', 'bricks' ) . ': ' . esc_html__( 'Position', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [
 				'before' => esc_html__( 'Before', 'bricks' ),
@@ -160,6 +168,13 @@ class Breadcrumbs extends Element {
 			'inline'      => true,
 			'placeholder' => esc_html__( 'Before', 'bricks' ),
 			'required'    => [ 'homeIcon', '!=', '' ],
+		];
+
+		$this->controls['hideHomeLabel'] = [
+			'group'    => 'home',
+			'label'    => esc_html__( 'Hide label', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'homeIcon', '!=', '' ],
 		];
 
 		// SEPERATOR
