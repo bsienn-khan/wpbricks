@@ -2673,7 +2673,7 @@ abstract class Element {
 			$render_element = Conditions::check( $this->settings['_conditions'], $this );
 		}
 
-		// Always render element if it is the queried element in REST API call (#86c5ruqqz; @since 2.x)
+		// Always render element if it is the queried element in REST API call (#86c5ruqqz; @since 2.1)
 		if ( Api::is_bricks_rest_request() && (string) Api::$query_element_id === (string) $this->id ) {
 			$render_element = true;
 		}

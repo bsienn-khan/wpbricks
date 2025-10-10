@@ -142,7 +142,7 @@ class Breadcrumbs extends Element {
 			'type'  => 'icon',
 		];
 
-		// @since 2.x - new control to set gap between icon and label
+		// @since 2.1 - new control to set gap between icon and label
 		$this->controls['hideIconGap'] = [
 			'group'    => 'home',
 			'label'    => esc_html__( 'Icon', 'bricks' ) . ': ' . esc_html__( 'Gap', 'bricks' ),

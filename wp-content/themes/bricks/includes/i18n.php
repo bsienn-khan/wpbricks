@@ -471,7 +471,7 @@ class I18n {
 			'builtInIconSets'                             => __( 'Built-in icon sets', 'bricks' ),
 			'builderHelpTitle'                            => __( 'Need help? Found a bug? Suggest a feature?', 'bricks' ),
 			'builderHelpDescription'                      => sprintf(
-				// translators: %s: Bricks support email address (link)
+				// translators: %1$s: Bricks support email address (link), %2$s: Bricks official roadmap (link)
 				__( 'Please use your Bricks account email address for all customer support requests. To attach larger files, please send an email directly to %1$s. To see what is currently in development or submit/upvote feature requests please visit our %2$s.', 'bricks' ),
 				'<a href="mailto:help@bricksbuilder.io" target="_blank">help@bricksbuilder.io</a>',
 				'<a href="https://bricksbuilder.io/roadmap/" target="_blank" rel="noopener">' . __( 'official roadmap', 'bricks' ) . '</a>'
@@ -891,7 +891,7 @@ class I18n {
 
 			'googleFontsDisabled'                         => __( 'Google fonts have been disabled', 'bricks' ) . ': Bricks > ' . __( 'Settings', 'bricks' ) . ' > ' . __( 'Performance', 'bricks' ),
 			'gradient'                                    => __( 'Gradient', 'bricks' ),
-			// translators: %s: Color stop, %s: Colors
+			// translators: %1$s: Color stop, %2$s: Colors
 			'gradientRepeatInfo'                          => sprintf(
 				__( 'Make sure to set "%1$s" in your "%2$s" definitions below.', 'bricks' ),
 				__( 'Color stop', 'bricks' ),
@@ -1288,7 +1288,7 @@ class I18n {
 			'query'                                       => __( 'Query', 'bricks' ),
 			'queryEditor'                                 => __( 'Query editor', 'bricks' ) . ' (PHP)',
 			'queryEditorInfo'                             => sprintf(
-				// translators: %s: Posts query link, %s: Terms query link, %s: Users query link
+				// translators: %1$s: Posts query link, %2$s: Terms query link, %3$s: Users query link
 				__( 'Return query parameters in PHP array. Learn more about the query parameters for %1$s, %2$s, %3$s', 'bricks' ),
 				'<a href="https://developer.wordpress.org/reference/classes/wp_query/#post-type-parameters" target="_blank">' . __( 'Posts', 'bricks' ) . '</a>',
 				'<a href="https://developer.wordpress.org/reference/classes/wp_term_query/#source" target="_blank">' . __( 'Terms', 'bricks' ) . '</a>',

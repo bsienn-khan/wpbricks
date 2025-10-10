@@ -749,7 +749,7 @@ class Assets {
 		/**
 		 * Avoid unnecessary re-generation by checking the flag
 		 *
-		 * @pre 2.x: Re-run 'generate_inline_css_color_vars' to set self::$global_colors on file save to add color var to 'post-{ID}.min.css'
+		 * @pre 2.1: Re-run 'generate_inline_css_color_vars' to set self::$global_colors on file save to add color var to 'post-{ID}.min.css'
 		 * @since 2.1
 		 */
 		if ( ! self::$db_colors_generated ) {

@@ -63,7 +63,7 @@ class Query_Filters_Indexer {
 	/**
 	 * Schedule the cron job
 	 *
-	 * @since 2.x
+	 * @since 2.1
 	 */
 	public function schedule_cron_job() {
 		if ( ! wp_next_scheduled( 'bricks_indexer' ) ) {

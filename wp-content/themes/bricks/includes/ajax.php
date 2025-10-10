@@ -1040,8 +1040,9 @@ class Ajax {
 		 *
 		 * @since 1.12
 		 * @since 2.1: decode param 2 true to add back backslashes via wp_slash
+		 * @since 2.1: decode param 2 false as wp_slash not needed for options
 		 */
-		$components = isset( $_POST['components'] ) ? self::decode( $_POST['components'], true ) : false;
+		$components = isset( $_POST['components'] ) ? self::decode( $_POST['components'], false ) : false;
 
 		if ( is_array( $components ) ) {
 			update_option( BRICKS_DB_COMPONENTS, $components );

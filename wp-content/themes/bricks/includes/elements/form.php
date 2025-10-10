@@ -3021,8 +3021,6 @@ class Element_Form extends Element {
 			foreach ( $fields as $index => $field ) {
 				$field_value = isset( $field['value'] ) ? $this->render_dynamic_data( $field['value'] ) : '';
 
-				echo $field_value;
-
 				/**
 				 * Action: Update post
 				 *

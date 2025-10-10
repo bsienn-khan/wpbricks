@@ -403,7 +403,7 @@ class Init {
 		// STEP: Run selected form submit 'actions'
 		$available_actions = self::get_available_actions();
 
-		// Always set 'redirect' as last action if enabled (@since 2.x)
+		// Always set 'redirect' as last action if enabled (@since 2.1)
 		if ( in_array( 'redirect', $this->form_settings['actions'], true ) ) {
 			// Remove 'redirect' from actions
 			$this->form_settings['actions'] = array_diff( $this->form_settings['actions'], [ 'redirect' ] );

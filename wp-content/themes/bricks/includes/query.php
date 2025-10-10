@@ -543,13 +543,13 @@ class Query {
 					}
 				}
 
-				// Performance boost (@since 2.x)
+				// Performance boost (@since 2.1)
 				if ( isset( $query_vars['disable_update_post_meta_cache'] ) ) {
 					$query_vars['update_post_meta_cache'] = false;
 					unset( $query_vars['disable_update_post_meta_cache'] );
 				}
 
-				// Performance boost (@since 2.x)
+				// Performance boost (@since 2.1)
 				if ( isset( $query_vars['disable_update_post_term_cache'] ) ) {
 					$query_vars['update_post_term_cache'] = false;
 					unset( $query_vars['disable_update_post_term_cache'] );

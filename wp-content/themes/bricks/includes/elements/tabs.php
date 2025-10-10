@@ -429,7 +429,7 @@ class Element_Tabs extends Element {
 		foreach ( $settings['tabs'] as $index => $tab ) {
 			// If accordion is enabled, add the accordion title right above the tab content
 			if ( $accordion_layout_at_breakpoint ) {
-				$accordion_title_classes = [ 'tab-title', 'repeater-item', 'accordion-title' ]; // Add 'accordion-title' for specific styling if needed
+				$accordion_title_classes = [ 'tab-title', 'repeater-item' ];
 
 				if ( ! empty( $tab['iconPosition'] ) ) {
 					$accordion_title_classes[] = "icon-{$tab['iconPosition']}";
@@ -440,6 +440,9 @@ class Element_Tabs extends Element {
 				$this->set_attribute( "accordion-title-$index", 'aria-expanded', $index === 0 ? 'true' : 'false' );
 				$this->set_attribute( "accordion-title-$index", 'aria-controls', "panel-$this->id-$index" );
 				$this->set_attribute( "accordion-title-$index", 'tabindex', '0' );
+
+				// Accordion layout on mobile (@since 2.1)
+				$this->set_attribute( "accordion-title-$index", 'data-brx-tab-mode', 'accordion' );
 
 				$output .= "<li {$this->render_attributes( "accordion-title-$index" )}>";
 

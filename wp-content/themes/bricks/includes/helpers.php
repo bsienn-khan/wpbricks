@@ -1104,7 +1104,7 @@ class Helpers {
 
 		$component = $components[ $component_index ] ?? false;
 
-		if ( \Bricks\Integrations\Wpml\Wpml::is_wpml_active() && $component ) { // @since 2.x
+		if ( \Bricks\Integrations\Wpml\Wpml::is_wpml_active() && $component ) { // @since 2.1
 			$component = \Bricks\Integrations\Wpml\Wpml::get_translated_component( $component );
 		}
 

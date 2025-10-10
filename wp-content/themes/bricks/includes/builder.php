@@ -1224,7 +1224,7 @@ class Builder {
 		// Components
 		if ( ! empty( $global_data['components'] ) ) {
 			// STEP: Upgrade components to use latest data structure and add to load_data
-			$load_data['components'] = Components::upgrade_components( $global_data['components'] );
+			$load_data['components'] = Components::upgrade_components( $global_data['components'], false );
 		}
 
 		// Add color palettes to load_data

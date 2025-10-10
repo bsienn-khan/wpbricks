@@ -91,7 +91,7 @@ class Wpml {
 		/**
 		 * Component translation support using WPML String Packages
 		 *
-		 * @since 2.x
+		 * @since 2.1
 		 */
 		// Declare string package kind for components
 		add_filter( 'wpml_active_string_package_kinds', [ $this, 'declare_component_string_package_kind' ] );
@@ -372,7 +372,7 @@ class Wpml {
 		$element_controls = ! empty( $element_config['controls'] ) ? $element_config['controls'] : false;
 		$element_label    = ! empty( $element_config['label'] ) ? $element_config['label'] : $element_name;
 
-		// Handle component properties (@since 2.x)
+		// Handle component properties (@since 2.1)
 		if ( isset( $element['cid'] ) && isset( $element['properties'] ) && is_array( $element['properties'] ) ) {
 			$this->process_component_properties( $element, $post_or_package );
 		}
@@ -395,7 +395,7 @@ class Wpml {
 	 * @param array                   $element The element containing component properties.
 	 * @param \WP_Post|stdClass|array $post_or_package The post object or package data.
 	 *
-	 * @since 2.x
+	 * @since 2.1
 	 */
 	private function process_component_properties( $element, $post_or_package ) {
 		if ( ! isset( $element['id'] ) || ! isset( $element['cid'] ) || ! isset( $element['properties'] ) ) {
@@ -1091,7 +1091,7 @@ class Wpml {
 	 * @param mixed $old_value The old option value.
 	 * @param mixed $value     The new option value.
 	 *
-	 * @since 2.x
+	 * @since 2.1
 	 */
 	public function register_components_string_packages( $old_value, $value ) {
 		if ( ! is_array( $value ) || empty( $value ) ) {
@@ -1141,7 +1141,7 @@ class Wpml {
 	 * @param array $properties The component properties array.
 	 * @param array $package    The string package data.
 	 *
-	 * @since 2.x
+	 * @since 2.1
 	 */
 	private function process_component_properties_defaults( $properties, $package ) {
 		foreach ( $properties as $property ) {
@@ -1222,7 +1222,7 @@ class Wpml {
 	 * @param array $active_string_package_kinds
 	 * @return array
 	 *
-	 * @since 2.x
+	 * @since 2.1
 	 */
 	public function declare_component_string_package_kind( $active_string_package_kinds ) {
 		$active_string_package_kinds['bricks-components'] = [
@@ -1240,7 +1240,7 @@ class Wpml {
 	 * @param array $component The component to translate.
 	 * @return array The component with translated strings.
 	 *
-	 * @since 2.x
+	 * @since 2.1
 	 */
 	public static function get_translated_component( $component ) {
 		$current_language = self::get_current_language();
@@ -1289,7 +1289,7 @@ class Wpml {
 	 * @param array $package  The WPML package data.
 	 * @return array The translated elements.
 	 *
-	 * @since 2.x
+	 * @since 2.1
 	 */
 	private static function get_translated_elements( $elements, $package ) {
 		if ( ! is_array( $elements ) ) {
@@ -1385,7 +1385,7 @@ class Wpml {
 	 * @param array $package    The WPML package data.
 	 * @return array The translated properties.
 	 *
-	 * @since 2.x
+	 * @since 2.1
 	 */
 	private static function get_translated_component_properties( $properties, $package ) {
 		if ( ! is_array( $properties ) ) {

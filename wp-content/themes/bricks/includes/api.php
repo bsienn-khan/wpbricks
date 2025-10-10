@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 class Api {
 
 	const API_NAMESPACE             = 'bricks/v1';
-	public static $query_element_id = null; // Holds the current query element ID during a REST API request (@since 2.x)
+	public static $query_element_id = null; // Holds the current query element ID during a REST API request (@since 2.1)
 
 	/**
 	 * WordPress REST API help docs:
@@ -758,7 +758,7 @@ class Api {
 			);
 		}
 
-		// Set current query element ID in the Api request, use in base.php and fore render the element (@since 2.x)
+		// Set current query element ID in the Api request, use in base.php and fore render the element (@since 2.1)
 		self::$query_element_id = $query_element_id;
 
 		// STEP: Set the query element pagination
@@ -775,7 +775,7 @@ class Api {
 			}
 		}
 
-		// STEP: Get global query settings (@since 2.x)
+		// STEP: Get global query settings (@since 2.1)
 		if ( isset( $query_element['settings']['query'] ) ) {
 			$query_element['settings']['query'] = Helpers::maybe_get_global_query_settings( $query_element['settings']['query'] ?? [] );
 		}
@@ -1499,7 +1499,7 @@ class Api {
 			);
 		}
 
-		// Set current query element ID in the Api request, use in base.php and fore render the element (@since 2.x)
+		// Set current query element ID in the Api request, use in base.php and fore render the element (@since 2.1)
 		self::$query_element_id = $query_element_id;
 
 		// STEP: Set the query element pagination

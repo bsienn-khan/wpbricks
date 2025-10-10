@@ -1817,7 +1817,7 @@ function bricksQueryLoadPage(el, noDelay = false, nonceRefreshed = false) {
 					// Update Page on query info
 					window.bricksData.queryLoopInstances[queryElementId].page = page
 
-					// Update queryLoopInstances.maxPages if updatedQuery.max_num_pages exists, sometimes it might be changed (@since 2.x)
+					// Update queryLoopInstances.maxPages if updatedQuery.max_num_pages exists, sometimes it might be changed (@since 2.1)
 					if (updatedQuery?.max_num_pages !== undefined) {
 						window.bricksData.queryLoopInstances[queryElementId].maxPages = parseInt(
 							updatedQuery.max_num_pages
@@ -2790,29 +2790,35 @@ function bricksTabsAccordionLayoutOnMobile() {
 			// Hide the entire tab menu
 			tabMenu.style.display = 'none'
 
-			tabElement.querySelectorAll('.tab-title:not(.accordion-title)').forEach((el, index) => {
-				const accordionTitle = tabElement.querySelectorAll('.accordion-title')[index]
+			tabElement
+				.querySelectorAll('.tab-title:not([data-brx-tab-mode="accordion"])')
+				.forEach((el, index) => {
+					const accordionTitle = tabElement.querySelectorAll('[data-brx-tab-mode="accordion"]')[
+						index
+					]
 
-				// Check if title has been transferred
-				if (!el.hasAttribute('data-transferred')) {
-					const titleSpan = el.querySelector('span')
-					if (titleSpan) {
-						accordionTitle.insertBefore(titleSpan.cloneNode(true), accordionTitle.firstChild)
-						titleSpan.remove()
+					// Check if title has been transferred
+					if (!el.hasAttribute('data-transferred')) {
+						const titleSpan = el.querySelector('span')
+						if (titleSpan) {
+							accordionTitle.insertBefore(titleSpan.cloneNode(true), accordionTitle.firstChild)
+							titleSpan.remove()
 
-						// Set .brx-open
-						if (el.classList.contains('brx-open')) {
-							accordionTitle.classList.add('brx-open')
-						} else {
-							accordionTitle.classList.remove('brx-open')
+							// Set .brx-open
+							if (el.classList.contains('brx-open')) {
+								accordionTitle.classList.add('brx-open')
+							} else {
+								accordionTitle.classList.remove('brx-open')
+							}
 						}
+
+						el.setAttribute('data-transferred', 'true')
 					}
+				})
 
-					el.setAttribute('data-transferred', 'true')
-				}
-			})
-
-			tabElement.querySelectorAll('.accordion-title').forEach((el) => (el.style.display = 'block'))
+			tabElement
+				.querySelectorAll('[data-brx-tab-mode="accordion"]')
+				.forEach((el) => (el.style.display = 'block'))
 
 			// Remove tabindex from tab panels in accordion mode
 			tabElement.querySelectorAll('.tab-pane').forEach((pane) => {
@@ -2820,7 +2826,7 @@ function bricksTabsAccordionLayoutOnMobile() {
 			})
 
 			// Attach events to accordion titles
-			const accordionTitles = tabElement.querySelectorAll('.accordion-title')
+			const accordionTitles = tabElement.querySelectorAll('[data-brx-tab-mode="accordion"]')
 			const firstPane = tabElement.querySelector('.tab-pane')
 			const panes = firstPane
 				? Array.from(firstPane.parentNode.children).filter((el) =>
@@ -2834,8 +2840,10 @@ function bricksTabsAccordionLayoutOnMobile() {
 			// Revert the tab menu to its original display value
 			tabMenu.style.display = ''
 
-			tabElement.querySelectorAll('.accordion-title').forEach((el, index) => {
-				const tabTitle = tabElement.querySelectorAll('.tab-title:not(.accordion-title)')[index]
+			tabElement.querySelectorAll('[data-brx-tab-mode="accordion"]').forEach((el, index) => {
+				const tabTitle = tabElement.querySelectorAll(
+					'.tab-title:not([data-brx-tab-mode="accordion"])'
+				)[index]
 
 				// Check if title needs to be reverted
 				if (tabTitle.hasAttribute('data-transferred')) {
@@ -2858,7 +2866,9 @@ function bricksTabsAccordionLayoutOnMobile() {
 				tabTitle.style.display = 'block'
 			})
 
-			tabElement.querySelectorAll('.accordion-title').forEach((el) => (el.style.display = 'none'))
+			tabElement
+				.querySelectorAll('[data-brx-tab-mode="accordion"]')
+				.forEach((el) => (el.style.display = 'none'))
 
 			// Restore tabindex to tab panels in tabs mode (e.g. after window resize from accordion mode to tabs mode)
 			tabElement.querySelectorAll('.tab-pane').forEach((pane) => {
@@ -2866,7 +2876,7 @@ function bricksTabsAccordionLayoutOnMobile() {
 			})
 
 			// Detach events from accordion titles only
-			const accordionTitles = tabElement.querySelectorAll('.accordion-title')
+			const accordionTitles = tabElement.querySelectorAll('[data-brx-tab-mode="accordion"]')
 			detachEventsFromTitles(accordionTitles)
 		}
 	})
@@ -11066,12 +11076,12 @@ function bricksSubmenuWindowResizeHandler() {
 	/**
 	 * Resize event handler
 	 * - Only execute if width actually changed (ignore height changes mobile address bar/height changes)
-	 * - Also trigger if body width changed (e.g. no-scroll classe on body) (@since 2.x)
+	 * - Also trigger if body width changed (e.g. no-scroll classe on body) (@since 2.1)
 	 */
 	const handleResize = () => {
 		const currentWidth = window.innerWidth
 		const currentHeight = window.innerHeight
-		const currentBodyWidth = document.body.clientWidth // (@since2.x)
+		const currentBodyWidth = document.body.clientWidth // (@since 2.1)
 
 		// Only recalculate if width changes
 		if (currentWidth === lastWidth && currentBodyWidth === lastBodyWidth) {
@@ -11117,7 +11127,7 @@ function bricksSubmenuWindowResizeHandler() {
 	// Initial check
 	waitForStableViewport()
 
-	// Body resize observer (in case body width changes without window resize, e.g. no-scroll class added to body) (@since 2.x)
+	// Body resize observer (in case body width changes without window resize, e.g. no-scroll class added to body) (@since 2.1)
 	if (window.bricksData && !window.bricksData.bodyResizeObserver) {
 		window.bricksData.bodyResizeObserver = new ResizeObserver((entries) => {
 			for (let entry of entries) {

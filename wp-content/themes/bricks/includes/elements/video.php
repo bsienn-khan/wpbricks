@@ -1255,7 +1255,7 @@ class Element_Video extends Element {
 		 *
 		 * Regex from @see: https://gist.github.com/ghalusa/6c7f3a00fd2383e5ef33
 		 *
-		 * @since 2.x: Support for YouTube Shorts and Live URLs
+		 * @since 2.1: Support for YouTube Shorts and Live URLs
 		 */
 		if ( preg_match( '%(?:youtube(?:-nocookie)?\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|shorts/|live/|.*[?&]v=)|youtu\.be/)([^"&?/ ]{11})%i', $meta_video_url, $matches ) ) {
 			$settings['youTubeId'] = $matches[1];
