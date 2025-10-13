@@ -1165,7 +1165,11 @@ if (typeof window !== 'undefined') {
  *
  * @since 2.1
  */
-if (document.body.classList.contains('block-editor-page')) {
+function bricksBlockEditorIntegration() {
+	if (!document.body.classList.contains('block-editor-page')) {
+		return
+	}
+
 	const waitForEditor = () => {
 		const editorContainer = document.querySelector('.wp-block-post-content')
 
@@ -10861,174 +10865,111 @@ const bricksSubmenuPositionFn = new BricksFunction({
 			return
 		}
 
-		// Clean up existing observer before creating new one (@since 2.1)
-		if (menuItem._bricksVisibilityObserver) {
-			menuItem._bricksVisibilityObserver.disconnect()
-			delete menuItem._bricksVisibilityObserver
-		}
+		let docWidth = document.body.clientWidth // document width without scrollbar
 
-		// Regular positioning logic for visible elements
-		if (bricksIsElementAndParentsVisible(menuItem)) {
-			performSubmenuPositioning(submenuToggle, menuItem, submenu)
-		}
+		// STEP: Mega menu
+		let hasMegamenu = menuItem.classList.contains('brx-has-megamenu')
 
-		// Only create observer for elements that might become visible (@since 2.1)
-		else {
-			const observer = new IntersectionObserver(
-				(entries) => {
-					entries.forEach((entry) => {
-						if (entry.isIntersecting && bricksIsElementAndParentsVisible(menuItem)) {
-							performSubmenuPositioning(submenuToggle, menuItem, submenu)
+		if (hasMegamenu) {
+			// Get mega menu settings
+			let referenceNodeSelector = menuItem.dataset.megaMenu
+			let verticalReferenceNodeSelector = menuItem.dataset.megaMenuVertical
+
+			// Get reference node
+			let referenceNode = document.body // Default: Cover entire body width
+			if (referenceNodeSelector) {
+				let customReferenceNode = document.querySelector(referenceNodeSelector)
+				if (customReferenceNode) {
+					referenceNode = customReferenceNode
+				}
+			}
+
+			// Get node rects for calculation
+			let menuItemRect = menuItem.getBoundingClientRect()
+			let referenceNodeRect = referenceNode.getBoundingClientRect()
+
+			// Set horizontal position and width
+			submenu.style.left = `-${menuItemRect.left - referenceNodeRect.left}px`
+			submenu.style.minWidth = `${referenceNodeRect.width}px`
+
+			// Set vertical position (if selector was added and node exists)
+			if (verticalReferenceNodeSelector) {
+				let verticalReferenceNode = document.querySelector(verticalReferenceNodeSelector)
+				if (verticalReferenceNode) {
+					let verticalReferenceNodeRect = verticalReferenceNode.getBoundingClientRect()
+					submenu.style.top = `${
+						menuItemRect.height + verticalReferenceNodeRect.bottom - menuItemRect.bottom
+					}px`
+				}
+			}
+
+			// Dispatch custom event after repositioning the mega menu (@since 2.0)
+			if (bricksIsFrontend) {
+				document.dispatchEvent(
+					new CustomEvent('bricks/megamenu/repositioned', {
+						detail: {
+							menuItem: menuItem,
+							submenu: submenu
 						}
 					})
-				},
-				{
-					threshold: 0.1,
-					rootMargin: '50px' // 50px buffer around viewport
-				}
-			)
-
-			// Store observer reference for cleanup
-			menuItem._bricksVisibilityObserver = observer
-			observer.observe(menuItem)
-		}
-
-		// Check if element and all its parents are visible (@since 2.1)
-		function bricksIsElementAndParentsVisible(element) {
-			let current = element
-			while (current && current !== document.body) {
-				const rect = current.getBoundingClientRect()
-				const style = window.getComputedStyle(current)
-
-				if (
-					rect.width === 0 ||
-					rect.height === 0 ||
-					style.display === 'none' ||
-					style.visibility === 'hidden'
-				) {
-					return false
-				}
-				current = current.parentElement
+				)
 			}
-			return true
 		}
 
-		// Separate function for submenu positioning logic for observer (@since 2.1)
-		function performSubmenuPositioning(submenuToggle, menuItem, submenu) {
-			let docWidth = document.body.clientWidth // document width without scrollbar
+		// STEP: Default submenu
+		else {
+			// Remove overflow class to reapply logic on window resize
+			if (submenu.classList.contains('brx-multilevel-overflow-right')) {
+				submenu.classList.remove('brx-multilevel-overflow-right')
+			}
 
-			// STEP: Mega menu
-			let hasMegamenu = menuItem.classList.contains('brx-has-megamenu')
+			if (submenu.classList.contains('brx-submenu-overflow-right')) {
+				submenu.classList.remove('brx-submenu-overflow-right')
+			}
 
-			if (hasMegamenu) {
-				const currentMenuItemRect = menuItem.getBoundingClientRect()
+			if (submenu.classList.contains('brx-sub-submenu-overflow-right')) {
+				submenu.classList.remove('brx-sub-submenu-overflow-right')
+			}
 
-				// Skip megamenu positioning if menuItem is not visible (display: none, etc.) (#86c5he0b1; @since 2.1)
-				if (currentMenuItemRect.width === 0 && currentMenuItemRect.height === 0) {
-					return
+			// Check if submenu is nested inside another brx-dropdown
+			let isToplevel =
+				!menuItem.parentNode.closest('.menu-item') && !menuItem.parentNode.closest('.brxe-dropdown')
+
+			// STEP: Re-position in case of viewport overflow
+			let submenuRect = submenu.getBoundingClientRect()
+			let submenuWidth = submenuRect.width
+			let submenuRight = submenuRect.right
+			let submenuLeft = Math.ceil(submenuRect.left)
+
+			// STEP: Submenu wider than viewport: Set submenu to viewport width
+			if (submenuWidth > docWidth) {
+				submenu.style.left = `-${submenuLeft}px`
+				submenu.style.minWidth = `${docWidth}px`
+			}
+
+			// STEP: Dropdown content overflows viewport to the right: Re-position to prevent horizontal scrollbar
+			else if (submenuRight > docWidth) {
+				let multilevel = submenu.closest('.brx-has-multilevel')
+
+				// Top level of multilevel menu: Position all menus to the right
+				if (multilevel) {
+					submenu.classList.add('brx-multilevel-overflow-right')
 				}
 
-				// Get mega menu settings
-				let referenceNodeSelector = menuItem.dataset.megaMenu
-				let verticalReferenceNodeSelector = menuItem.dataset.megaMenuVertical
-
-				// Get reference node
-				let referenceNode = document.body // Default: Cover entire body width
-				if (referenceNodeSelector) {
-					let customReferenceNode = document.querySelector(referenceNodeSelector)
-					if (customReferenceNode) {
-						referenceNode = customReferenceNode
+				// Default submenu
+				else {
+					if (isToplevel) {
+						submenu.classList.add('brx-submenu-overflow-right')
+					} else {
+						submenu.classList.add('brx-sub-submenu-overflow-right')
 					}
-				}
-
-				// Get node rects for calculation
-				let menuItemRect = menuItem.getBoundingClientRect()
-				let referenceNodeRect = referenceNode.getBoundingClientRect()
-
-				// Set horizontal position and width
-				submenu.style.left = `-${menuItemRect.left - referenceNodeRect.left}px`
-				submenu.style.minWidth = `${referenceNodeRect.width}px`
-
-				// Set vertical position (if selector was added and node exists)
-				if (verticalReferenceNodeSelector) {
-					let verticalReferenceNode = document.querySelector(verticalReferenceNodeSelector)
-					if (verticalReferenceNode) {
-						let verticalReferenceNodeRect = verticalReferenceNode.getBoundingClientRect()
-						submenu.style.top = `${
-							menuItemRect.height + verticalReferenceNodeRect.bottom - menuItemRect.bottom
-						}px`
-					}
-				}
-
-				// Dispatch custom event after repositioning the mega menu (@since 2.0)
-				if (bricksIsFrontend) {
-					document.dispatchEvent(
-						new CustomEvent('bricks/megamenu/repositioned', {
-							detail: {
-								menuItem: menuItem,
-								submenu: submenu
-							}
-						})
-					)
 				}
 			}
 
-			// STEP: Default submenu
-			else {
-				// Remove overflow class to reapply logic on window resize
-				if (submenu.classList.contains('brx-multilevel-overflow-right')) {
-					submenu.classList.remove('brx-multilevel-overflow-right')
-				}
-
-				if (submenu.classList.contains('brx-submenu-overflow-right')) {
-					submenu.classList.remove('brx-submenu-overflow-right')
-				}
-
-				if (submenu.classList.contains('brx-sub-submenu-overflow-right')) {
-					submenu.classList.remove('brx-sub-submenu-overflow-right')
-				}
-
-				// Check if submenu is nested inside another brx-dropdown
-				let isToplevel =
-					!menuItem.parentNode.closest('.menu-item') &&
-					!menuItem.parentNode.closest('.brxe-dropdown')
-
-				// STEP: Re-position in case of viewport overflow
-				let submenuRect = submenu.getBoundingClientRect()
-				let submenuWidth = submenuRect.width
-				let submenuRight = submenuRect.right
-				let submenuLeft = Math.ceil(submenuRect.left)
-
-				// STEP: Submenu wider than viewport: Set submenu to viewport width
-				if (submenuWidth > docWidth) {
-					submenu.style.left = `-${submenuLeft}px`
-					submenu.style.minWidth = `${docWidth}px`
-				}
-
-				// STEP: Dropdown content overflows viewport to the right: Re-position to prevent horizontal scrollbar
-				else if (submenuRight > docWidth) {
-					let multilevel = submenu.closest('.brx-has-multilevel')
-
-					// Top level of multilevel menu: Position all menus to the right
-					if (multilevel) {
-						submenu.classList.add('brx-multilevel-overflow-right')
-					}
-
-					// Default submenu
-					else {
-						if (isToplevel) {
-							submenu.classList.add('brx-submenu-overflow-right')
-						} else {
-							submenu.classList.add('brx-sub-submenu-overflow-right')
-						}
-					}
-				}
-
-				// STEP: Dropdown content overflows viewport on the left
-				else if (submenuLeft < 0) {
-					submenu.style.left = !isToplevel ? '100%' : '0' // Position submenu to the right of the parent menu item (@since 2.0)
-					submenu.style.right = 'auto'
-				}
+			// STEP: Dropdown content overflows viewport on the left
+			else if (submenuLeft < 0) {
+				submenu.style.left = !isToplevel ? '100%' : '0' // Position submenu to the right of the parent menu item (@since 2.0)
+				submenu.style.right = 'auto'
 			}
 		}
 	}
@@ -12123,6 +12064,8 @@ let bricksTimeouts = {}
 
 document.addEventListener('DOMContentLoaded', (event) => {
 	bricksIsFrontend = document.body.classList.contains('bricks-is-frontend')
+
+	bricksBlockEditorIntegration()
 
 	// Nav menu & Dropdown (@since 1.8)
 	bricksNavMenu()
