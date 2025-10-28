@@ -433,12 +433,6 @@ class Setup {
 			wp_register_script( 'bricks-turnstile', 'https://challenges.cloudflare.com/turnstile/v0/api.js', null, true );
 		}
 
-		// Map element
-		if ( ! empty( Database::$global_settings['apiKeyGoogleMaps'] ) ) {
-			wp_register_script( 'bricks-google-maps', 'https://maps.googleapis.com/maps/api/js?callback=bricksMap&v=3.exp&key={' . Database::$global_settings['apiKeyGoogleMaps'] . '}', [ 'bricks-scripts' ], null, true );
-			wp_register_script( 'bricks-google-maps-infobox', BRICKS_URL_ASSETS . 'js/libs/infobox.min.js', [ 'bricks-google-maps' ], null, true );
-		}
-
 		// Map element: Leaflet (@since 2.1)
 		wp_register_script( 'bricks-leaflet', BRICKS_URL_ASSETS . 'js/libs/leaflet.js', [], '1.9.4', true );
 
