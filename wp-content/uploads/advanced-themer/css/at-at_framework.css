@@ -1,0 +1,78 @@
+
+
+
+
+
+.brxe-block>p {
+  margin: 0;
+}
+
+
+body {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+}
+
+
+
+:where(.at-section--alt-odd #brx-content > section:nth-child(odd)) {
+  background: var(--at-section--alt-background);
+}
+
+:where(.at-section--alt-even #brx-content > section:nth-child(even)) {
+  background: var(--at-section--alt-background);
+}
+
+
+
+@media(max-width: 477px) {
+  body {
+    --at-header-height: 150px;
+    
+  }
+}
+
+@media(max-width: 766px) {
+  body {
+    --at-header-height: 150px;
+    
+  }
+}
+
+@media(max-width: 990px) {
+  body {
+    --at-header-height: 150px;
+    
+  }
+}
+
+@media(min-width: 991px) {
+  body {
+    --at-header-height: 150px;
+    
+  }
+}
+
+
+
+
+body.bricks-is-frontend :focus-visible {
+  outline-offset: var(--at-focus-outline-offset);
+  z-index: 1;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  
+  [class*=fade-],
+  [class*=-fade] {
+    opacity: 1 !important;
+  }
+}
