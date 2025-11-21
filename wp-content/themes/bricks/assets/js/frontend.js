@@ -3921,7 +3921,7 @@ function bricksGetLightboxVideoNode(videoUrl, controls, muted) {
 			videoUrl = videoData.url
 
 			if (videoData.id) {
-				// Add parameters (check if URL already has parameters from bricksGetYouTubeVideoLinkData) (@since 2.x)
+				// Add parameters (check if URL already has parameters from bricksGetYouTubeVideoLinkData) (@since 2.1.3)
 				const separator = videoUrl.indexOf('?') !== -1 ? '&' : '?'
 				videoUrl += separator + 'autoplay=1'
 				videoUrl += '&rel=0'
@@ -4192,7 +4192,7 @@ const bricksAccordionFn = new BricksFunction({
 
 				// No independent toggle: slideUp .open item (if it's currently not open)
 				if (!independentToggle) {
-					// Select only direct children items, not nested accordion items (@since 2.x)
+					// Select only direct children items, not nested accordion items (@since 2.1.3)
 					let openItems = accordion.querySelectorAll(':scope > .brx-open')
 
 					if (openItems.length) {
@@ -5863,6 +5863,13 @@ function bricksSubmitForm(elementId, form, files, recaptchaToken, nonceRefreshed
 			console.warn('bricks_form_submit', xhr, res)
 		}
 
+		// Unknown reason but we should allow user to resubmit (@since 2.x)
+		if (!res) {
+			submitButton.classList.remove('sending')
+			submitButton.disabled = false
+			form.dataset.submitting = 'false'
+		}
+
 		// Return: No response or response not yet DONE (@since 1.9.6)
 		if (!res || xhr?.readyState != 4) {
 			return
@@ -5885,6 +5892,8 @@ function bricksSubmitForm(elementId, form, files, recaptchaToken, nonceRefreshed
 		if (res?.data?.code === 'invalid_nonce') {
 			// Refresh form nonce and resubmit form (if refresh has not yet been attempted)
 			if (!nonceRefreshed) {
+				// Set submitting state to false to allow resubmit (@since 2.x)
+				form.dataset.submitting = 'false'
 				bricksRegenerateNonceAndResubmit(elementId, form, files, recaptchaToken)
 				return
 			}
@@ -8548,7 +8557,7 @@ function bricksInteractionCallbackExecution(sourceEl, config) {
 
 			break
 
-		// Click element (@since 2.x)
+		// Click element (@since 2.1.3)
 		case 'click':
 			if (target && target.length) {
 				target.forEach((clickTarget) => {
@@ -12026,7 +12035,7 @@ function bricksGetYouTubeVideoLinkData(url) {
 		// Create embed URL with video ID
 		let embedUrl = `https://www.youtube.com/embed/${videoId}`
 
-		// Preserve query parameters from the original URL (@since 2.x)
+		// Preserve query parameters from the original URL (@since 2.1.3)
 		try {
 			const urlObj = new URL(url)
 			const params = new URLSearchParams(urlObj.search)

@@ -23,7 +23,7 @@ class Product_Gallery extends Element {
 		 *
 		 * Otherwise the gallery is not working correctly on non-single product pages.
 		 *
-		 * @since 2.x
+		 * @since 2.1.3
 		 */
 		wp_enqueue_script( 'wc-single-product' );
 

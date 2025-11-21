@@ -572,7 +572,7 @@ class Interactions {
 					}
 				}
 
-				// WPML: Translate popup template IDs in interactions (@since 2.x)
+				// WPML: Translate popup template IDs in interactions (@since 2.1.3)
 				if ( \Bricks\Integrations\Wpml\Wpml::$is_active &&
 					isset( $element_interactions['action'] ) &&
 					isset( $element_interactions['target'] ) &&
@@ -676,7 +676,7 @@ class Interactions {
 			// STEP: Parse dynamic data
 			$interactions = map_deep( $template_settings['template_interactions'], [ 'Bricks\Integrations\Dynamic_Data\Providers', 'render_content' ] );
 
-			// WPML: Translate popup template IDs in template interactions (@since 2.x)
+			// WPML: Translate popup template IDs in template interactions (@since 2.1.3)
 			if ( \Bricks\Integrations\Wpml\Wpml::$is_active ) {
 				foreach ( $interactions as $index => $interaction ) {
 					if ( isset( $interaction['action'] ) &&

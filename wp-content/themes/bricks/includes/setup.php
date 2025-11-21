@@ -1381,7 +1381,13 @@ class Setup {
 				continue;
 			}
 
-			$post_type = isset( $tax->object_type[0] ) ? ' (' . ucwords( $tax->object_type[0] ) . ')' : '';
+			// Show all post types the taxonomy is registered to (#86c47ukrw; @since 2.x)
+			if ( isset( $tax->object_type ) && is_array( $tax->object_type ) && count( $tax->object_type ) > 0 ) {
+				$post_types = array_map( 'ucwords', $tax->object_type );
+				$post_type  = ' (' . implode( '/', $post_types ) . ')';
+			} else {
+				$post_type = '';
+			}
 
 			$taxonomies_options[ $taxonomy ] = $tax->label . $post_type;
 		}

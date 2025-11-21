@@ -213,7 +213,7 @@ class Update_Post extends Base {
 				// Since it's a file upload, no sanitization is applied here
 			}
 
-			// Handle date picker field (@since 2.x)
+			// Handle date picker field (@since 2.1.3)
 			elseif ( $is_date_picker ) {
 				// Handle date picker field
 				$meta_value = $form->get_field_value( $field_id );
@@ -238,7 +238,7 @@ class Update_Post extends Base {
 			// Update ACF field using update_field
 			$acf_field_key = \Bricks\Integrations\Form\Init::get_acf_field_key_from_meta_key( $meta_key, $post_id );
 			if ( $acf_field_key && function_exists( 'update_field' ) ) {
-				// Get ACF field configuration to handle different field types properly (@since 2.x)
+				// Get ACF field configuration to handle different field types properly (@since 2.1.3)
 				$acf_field_config = function_exists( 'acf_get_field' ) ? acf_get_field( $acf_field_key ) : false;
 
 				if ( $acf_field_config ) {

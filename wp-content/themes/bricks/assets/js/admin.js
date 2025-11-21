@@ -144,7 +144,7 @@ function bricksAdminImport() {
  * Save & revalidate license key
  *
  * @since 1.0
- * @since 2.x Re-validate license button added
+ * @since 2.1.3 Re-validate license button added
  */
 
 function bricksAdminSaveLicenseKey() {
@@ -198,7 +198,7 @@ function bricksAdminSaveLicenseKey() {
 		})
 	})
 
-	// Re-validate license button handler (@since 2.x)
+	// Re-validate license button handler (@since 2.1.3)
 	if (revalidateButton) {
 		revalidateButton.addEventListener('click', function (e) {
 			e.preventDefault()

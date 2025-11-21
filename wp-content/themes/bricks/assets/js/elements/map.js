@@ -843,9 +843,10 @@ const bricksMapFn = new BricksFunction({
 
 		// Register addressId and mapId for interaction elements to simplify addressId and mapId retrieval
 		const registerInteractionAddresses = () => {
+			// Note: Although some addresses might already registered, we should re-register again as the map addresses ID will be different in Load More/Infinite Scroll (#86c6dg7dd; @since 2.x)
 			const interactionElements = document.querySelectorAll(
-				'[data-interactions*="openAddress"]:not([data-brx-infobox-map-id]), [data-interactions*="closeAddress"]:not([data-brx-infobox-map-id])'
-			) // With brx-infobox-map-id attribute means already registered
+				'[data-interactions*="openAddress"], [data-interactions*="closeAddress"]'
+			)
 
 			if (interactionElements.length < 1) return
 

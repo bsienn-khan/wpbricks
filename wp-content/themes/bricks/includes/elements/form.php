@@ -2775,7 +2775,7 @@ class Element_Form extends Element {
 				}
 
 				if ( isset( $field['fileUploadAllowedTypes'] ) ) {
-					// We need to render dynamic data here (@since 2.x)
+					// We need to render dynamic data here (@since 2.1.3)
 					$types = str_replace( '.', '', strtolower( $this->render_dynamic_data( $field['fileUploadAllowedTypes'] ) ) );
 					$types = array_map( 'trim', explode( ',', $types ) );
 
@@ -2829,7 +2829,7 @@ class Element_Form extends Element {
 					// 'maxDate' => 'January 01, 2020',
 				];
 
-				// Populate default date from postmeta (@since 2.x)
+				// Populate default date from postmeta (@since 2.1.3)
 				foreach ( $update_post_meta as $post_meta ) {
 					if ( ! empty( $post_meta['metaKey'] ) && ! empty( $post_meta['metaValue'] ) && $post_meta['metaValue'] === $field['id'] ) {
 						$default_date = get_post_meta( $update_post_id, $post_meta['metaKey'], true );

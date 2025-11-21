@@ -385,7 +385,7 @@ class License {
 	 *
 	 * Clears the license status transient and re-validates the license without deactivating it.
 	 *
-	 * @since 2.x
+	 * @since 2.1.3
 	 * @return void
 	 */
 	public static function revalidate_license() {

@@ -6,7 +6,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-27 12:01+0000\n"
+"POT-Creation-Date: 2025-11-10 11:56+0000\n"
 "X-Poedit-Basepath: ..\n"
 "X-Poedit-KeywordsList: __;_e;_ex:1,2c;_n:1,2;_n_noop:1,2;_nx:1,2,4c;_nx_noop:1,2,3c;_x:1,2c;esc_attr__;esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c\n"
 "X-Poedit-SearchPath-0: .\n"
@@ -67,7 +67,7 @@ msgstr ""
 msgid "All template types"
 msgstr ""
 
-#: ../includes/admin.php:493, ../includes/admin.php:708, ../includes/admin.php:731, ../includes/admin.php:786, ../includes/admin.php:2201, ../includes/admin.php:2228, ../includes/admin.php:2250, ../includes/admin.php:2307, ../includes/admin.php:2597, ../includes/admin.php:2782, ../includes/admin.php:2816, ../includes/admin.php:2847, ../includes/admin.php:2886, ../includes/ajax.php:187, ../includes/ajax.php:431, ../includes/ajax.php:471, ../includes/ajax.php:3082, ../includes/ajax.php:3190, ../includes/ajax.php:3237, ../includes/converter.php:154, ../includes/converter.php:202, ../includes/custom-fonts.php:650, ../includes/custom-fonts.php:788, ../includes/interactions.php:186, ../includes/elements/svg.php:209
+#: ../includes/admin.php:493, ../includes/admin.php:708, ../includes/admin.php:731, ../includes/admin.php:786, ../includes/admin.php:2202, ../includes/admin.php:2229, ../includes/admin.php:2251, ../includes/admin.php:2308, ../includes/admin.php:2598, ../includes/admin.php:2783, ../includes/admin.php:2817, ../includes/admin.php:2848, ../includes/admin.php:2887, ../includes/ajax.php:187, ../includes/ajax.php:431, ../includes/ajax.php:471, ../includes/ajax.php:3082, ../includes/ajax.php:3190, ../includes/ajax.php:3237, ../includes/converter.php:154, ../includes/converter.php:202, ../includes/custom-fonts.php:650, ../includes/custom-fonts.php:788, ../includes/interactions.php:186, ../includes/elements/svg.php:209
 msgid "Not allowed"
 msgstr ""
 
@@ -203,7 +203,7 @@ msgstr ""
 msgid "Reset password"
 msgstr ""
 
-#: ../includes/admin.php:1067, ../includes/builder.php:1130, ../includes/capabilities.php:867, ../includes/capabilities.php:870, ../includes/capabilities.php:877, ../includes/capabilities.php:884, ../includes/capabilities.php:891, ../includes/i18n.php:117, ../includes/i18n.php:625, ../includes/setup.php:1314, ../includes/admin/admin-screen-settings.php:444, ../includes/admin/admin-screen-settings.php:747, ../includes/admin/admin-screen-settings.php:762, ../includes/admin/admin-screen-settings.php:776, ../includes/admin/admin-screen-settings.php:790, ../includes/admin/admin-screen-settings.php:1042, ../includes/admin/admin-screen-settings.php:1558, ../includes/admin/admin-screen-settings.php:1581, ../includes/admin/admin-screen-settings.php:1590, ../includes/admin/admin-screen-settings.php:2066, ../includes/elements/button.php:40, ../includes/elements/button.php:50, ../includes/elements/filter-active-filters.php:68, ../includes/elements/filter-base.php:1785, ../includes/elements/filter-submit.php:106, ../includes/elements/form.php:1297, ../includes/elements/form.php:1307, ../includes/elements/form.php:1394, ../includes/elements/form.php:1412, ../includes/elements/form.php:1453, ../includes/elements/form.php:1461, ../includes/elements/form.php:1468, ../includes/elements/form.php:1478, ../includes/elements/map-leaflet.php:144, ../includes/elements/post-author.php:205, ../includes/elements/post-comments.php:493, ../includes/elements/post-taxonomy.php:63, ../includes/elements/related-posts.php:112, ../includes/elements/related-posts.php:329, ../includes/elements/slider-nested.php:68, ../includes/elements/slider-nested.php:72, ../includes/elements/video.php:232, ../includes/elements/video.php:260, ../includes/elements/video.php:351, ../includes/woocommerce/helpers.php:36, ../includes/theme-styles/controls/element-button.php:8, ../includes/theme-styles/controls/element-heading.php:8, ../includes/theme-styles/controls/element-text-basic.php:8
+#: ../includes/admin.php:1067, ../includes/builder.php:1130, ../includes/capabilities.php:867, ../includes/capabilities.php:870, ../includes/capabilities.php:877, ../includes/capabilities.php:884, ../includes/capabilities.php:891, ../includes/i18n.php:117, ../includes/i18n.php:625, ../includes/setup.php:1314, ../includes/admin/admin-screen-settings.php:444, ../includes/admin/admin-screen-settings.php:747, ../includes/admin/admin-screen-settings.php:762, ../includes/admin/admin-screen-settings.php:776, ../includes/admin/admin-screen-settings.php:790, ../includes/admin/admin-screen-settings.php:1042, ../includes/admin/admin-screen-settings.php:1558, ../includes/admin/admin-screen-settings.php:1581, ../includes/admin/admin-screen-settings.php:1590, ../includes/admin/admin-screen-settings.php:2066, ../includes/elements/button.php:40, ../includes/elements/button.php:50, ../includes/elements/filter-active-filters.php:68, ../includes/elements/filter-base.php:1785, ../includes/elements/filter-submit.php:106, ../includes/elements/form.php:1297, ../includes/elements/form.php:1307, ../includes/elements/form.php:1394, ../includes/elements/form.php:1412, ../includes/elements/form.php:1453, ../includes/elements/form.php:1461, ../includes/elements/form.php:1468, ../includes/elements/form.php:1478, ../includes/elements/map-leaflet.php:145, ../includes/elements/post-author.php:205, ../includes/elements/post-comments.php:493, ../includes/elements/post-taxonomy.php:63, ../includes/elements/related-posts.php:112, ../includes/elements/related-posts.php:329, ../includes/elements/slider-nested.php:68, ../includes/elements/slider-nested.php:72, ../includes/elements/video.php:232, ../includes/elements/video.php:260, ../includes/elements/video.php:351, ../includes/woocommerce/helpers.php:36, ../includes/theme-styles/controls/element-button.php:8, ../includes/theme-styles/controls/element-heading.php:8, ../includes/theme-styles/controls/element-text-basic.php:8
 msgid "Default"
 msgstr ""
 
@@ -211,278 +211,278 @@ msgstr ""
 msgid "Exclude"
 msgstr ""
 
-#: ../includes/admin.php:1569, ../includes/admin.php:1570, ../includes/admin.php:1648, ../includes/admin.php:1649, ../includes/elements/form.php:2438, ../includes/integrations/form/submission-table.php:579
+#: ../includes/admin.php:1570, ../includes/admin.php:1571, ../includes/admin.php:1649, ../includes/admin.php:1650, ../includes/elements/form.php:2438, ../includes/integrations/form/submission-table.php:579
 msgid "Form Submissions"
 msgstr ""
 
-#: ../includes/admin.php:1600, ../includes/admin.php:1601, ../includes/admin/admin-screen-getting-started.php:25
+#: ../includes/admin.php:1601, ../includes/admin.php:1602, ../includes/admin/admin-screen-getting-started.php:25
 msgid "Getting Started"
 msgstr ""
 
-#: ../includes/admin.php:1609, ../includes/admin.php:1610, ../includes/builder-permissions.php:55, ../includes/i18n.php:1517, ../includes/setup.php:674, ../includes/admin/admin-screen-getting-started.php:40, ../includes/admin/admin-screen-settings.php:163, ../includes/admin/admin-screen-settings.php:1202
+#: ../includes/admin.php:1610, ../includes/admin.php:1611, ../includes/builder-permissions.php:55, ../includes/i18n.php:1517, ../includes/setup.php:674, ../includes/admin/admin-screen-getting-started.php:40, ../includes/admin/admin-screen-settings.php:163, ../includes/admin/admin-screen-settings.php:1202
 msgid "Templates"
 msgstr ""
 
-#: ../includes/admin.php:1617, ../includes/admin.php:1618, ../includes/admin.php:1884, ../includes/capabilities.php:873, ../includes/capabilities.php:880, ../includes/capabilities.php:887, ../includes/capabilities.php:894, ../includes/i18n.php:713, ../includes/i18n.php:847, ../includes/i18n.php:885, ../includes/i18n.php:896, ../includes/i18n.php:1444, ../includes/i18n.php:1449, ../includes/i18n.php:1583, ../includes/maintenance.php:252, ../includes/setup.php:665, ../includes/admin/admin-screen-settings.php:136, ../includes/admin/admin-screen-settings.php:2558, ../includes/elements/animated-typing.php:22, ../includes/elements/carousel.php:36, ../includes/elements/code.php:73, ../includes/elements/code.php:185, ../includes/elements/form.php:1541, ../includes/elements/form.php:1644, ../includes/elements/form.php:2263, ../includes/elements/form.php:2283, ../includes/elements/form.php:2332, ../includes/elements/image.php:371, ../includes/elements/instagram-feed.php:25, ../includes/elements/map.php:68, ../includes/elements/slider.php:25, ../includes/elements/svg.php:79, ../includes/elements/testimonials.php:30, ../includes/elements/video.php:237, ../includes/woocommerce/elements/product-add-to-cart.php:985
+#: ../includes/admin.php:1618, ../includes/admin.php:1619, ../includes/admin.php:1885, ../includes/capabilities.php:873, ../includes/capabilities.php:880, ../includes/capabilities.php:887, ../includes/capabilities.php:894, ../includes/i18n.php:713, ../includes/i18n.php:847, ../includes/i18n.php:885, ../includes/i18n.php:896, ../includes/i18n.php:1444, ../includes/i18n.php:1449, ../includes/i18n.php:1583, ../includes/maintenance.php:252, ../includes/setup.php:665, ../includes/admin/admin-screen-settings.php:136, ../includes/admin/admin-screen-settings.php:2558, ../includes/elements/animated-typing.php:22, ../includes/elements/carousel.php:36, ../includes/elements/code.php:73, ../includes/elements/code.php:185, ../includes/elements/form.php:1541, ../includes/elements/form.php:1644, ../includes/elements/form.php:2263, ../includes/elements/form.php:2283, ../includes/elements/form.php:2332, ../includes/elements/image.php:371, ../includes/elements/instagram-feed.php:25, ../includes/elements/map.php:68, ../includes/elements/slider.php:25, ../includes/elements/svg.php:79, ../includes/elements/testimonials.php:30, ../includes/elements/video.php:237, ../includes/woocommerce/elements/product-add-to-cart.php:985
 msgid "Settings"
 msgstr ""
 
-#: ../includes/admin.php:1626, ../includes/admin.php:1627, ../includes/ajax.php:574, ../includes/frontend.php:657, ../includes/i18n.php:690, ../includes/theme-styles.php:93, ../includes/admin/admin-screen-settings.php:2400, ../includes/admin/admin-screen-settings.php:2401, ../includes/admin/admin-screen-settings.php:2402
+#: ../includes/admin.php:1627, ../includes/admin.php:1628, ../includes/ajax.php:574, ../includes/frontend.php:657, ../includes/i18n.php:690, ../includes/theme-styles.php:93, ../includes/admin/admin-screen-settings.php:2400, ../includes/admin/admin-screen-settings.php:2401, ../includes/admin/admin-screen-settings.php:2402
 msgid "Elements"
 msgstr ""
 
-#: ../includes/admin.php:1635, ../includes/admin.php:1636, ../includes/builder.php:641, ../includes/custom-fonts.php:732, ../includes/custom-fonts.php:744
+#: ../includes/admin.php:1636, ../includes/admin.php:1637, ../includes/builder.php:641, ../includes/custom-fonts.php:732, ../includes/custom-fonts.php:744
 msgid "Custom Fonts"
 msgstr ""
 
-#: ../includes/admin.php:1660, ../includes/admin.php:1661, ../includes/admin/admin-screen-sidebars.php:61
+#: ../includes/admin.php:1661, ../includes/admin.php:1662, ../includes/admin/admin-screen-sidebars.php:61
 msgid "Sidebars"
 msgstr ""
 
-#: ../includes/admin.php:1669, ../includes/admin.php:1670, ../includes/admin/admin-screen-system-information.php:310
+#: ../includes/admin.php:1670, ../includes/admin.php:1671, ../includes/admin/admin-screen-system-information.php:310
 msgid "System Information"
 msgstr ""
 
-#: ../includes/admin.php:1678, ../includes/admin.php:1679, ../includes/admin/admin-screen-license.php:11
+#: ../includes/admin.php:1679, ../includes/admin.php:1680, ../includes/admin/admin-screen-license.php:11
 msgid "License"
 msgstr ""
 
-#: ../includes/admin.php:1744
+#: ../includes/admin.php:1745
 msgid "You are now running the latest version"
 msgstr ""
 
-#: ../includes/admin.php:1745
+#: ../includes/admin.php:1746
 msgid "Your CSS files were automatically generated in the background."
 msgstr ""
 
-#: ../includes/admin.php:1746
+#: ../includes/admin.php:1747
 msgid "Manually regenerate CSS files"
 msgstr ""
 
-#: ../includes/admin.php:1747
+#: ../includes/admin.php:1748
 msgid "View changelog"
 msgstr ""
 
-#: ../includes/admin.php:1792
+#: ../includes/admin.php:1793
 msgid "Code execution: Disabled by default"
 msgstr ""
 
-#: ../includes/admin.php:1794
+#: ../includes/admin.php:1795
 msgid "Code execution, if needed, must be explicitly enabled."
 msgstr ""
 
-#: ../includes/admin.php:1795, ../includes/admin.php:1806, ../includes/i18n.php:553, ../includes/i18n.php:890, ../includes/i18n.php:1029, ../includes/i18n.php:1198, ../includes/i18n.php:1276, ../includes/interactions.php:387, ../includes/templates.php:517, ../includes/admin/admin-screen-settings.php:575, ../includes/admin/admin-screen-settings.php:997, ../includes/admin/admin-screen-settings.php:1024, ../includes/admin/admin-screen-settings.php:1400, ../includes/elements/form.php:208, ../includes/elements/form.php:398, ../includes/elements/form.php:1319, ../includes/elements/form.php:1490, ../includes/elements/form.php:1859, ../includes/elements/map-leaflet.php:296, ../includes/elements/map.php:318, ../includes/elements/slider.php:201, ../includes/settings/settings-page.php:133, ../includes/settings/settings-template.php:606, ../includes/theme-styles/controls/contextual-spacing.php:29, ../includes/theme-styles/controls/element-video.php:79
+#: ../includes/admin.php:1796, ../includes/admin.php:1807, ../includes/i18n.php:553, ../includes/i18n.php:890, ../includes/i18n.php:1029, ../includes/i18n.php:1198, ../includes/i18n.php:1276, ../includes/interactions.php:387, ../includes/templates.php:517, ../includes/admin/admin-screen-settings.php:575, ../includes/admin/admin-screen-settings.php:997, ../includes/admin/admin-screen-settings.php:1024, ../includes/admin/admin-screen-settings.php:1400, ../includes/elements/form.php:208, ../includes/elements/form.php:398, ../includes/elements/form.php:1319, ../includes/elements/form.php:1490, ../includes/elements/form.php:1859, ../includes/elements/map-leaflet.php:297, ../includes/elements/map.php:318, ../includes/elements/slider.php:201, ../includes/settings/settings-page.php:133, ../includes/settings/settings-template.php:606, ../includes/theme-styles/controls/contextual-spacing.php:29, ../includes/theme-styles/controls/element-video.php:79
 msgid "Learn more"
 msgstr ""
 
-#: ../includes/admin.php:1797
+#: ../includes/admin.php:1798
 msgid "Enable code execution if your site uses Code elements, SVG elements (source: code), Query editors, or \"echo\" tags."
 msgstr ""
 
-#: ../includes/admin.php:1799
+#: ../includes/admin.php:1800
 msgid "New feature"
 msgstr ""
 
-#: ../includes/admin.php:1799, ../includes/i18n.php:536, ../includes/admin/admin-screen-settings.php:2433, ../includes/admin/admin-screen-settings.php:2842
+#: ../includes/admin.php:1800, ../includes/i18n.php:536, ../includes/admin/admin-screen-settings.php:2433, ../includes/admin/admin-screen-settings.php:2842
 msgid "Code signatures"
 msgstr ""
 
-#: ../includes/admin.php:1800
+#: ../includes/admin.php:1801
 msgid "All Code elements, SVG elements (source: code), and Query editor instances now require code signatures."
 msgstr ""
 
-#: ../includes/admin.php:1802
+#: ../includes/admin.php:1803
 msgid "Please review your code and generate code signatures."
 msgstr ""
 
-#: ../includes/admin.php:1804
+#: ../includes/admin.php:1805
 msgid "Echo tags: Allow functions via filter"
 msgstr ""
 
-#: ../includes/admin.php:1805
+#: ../includes/admin.php:1806
 msgid "Function names called through the \"echo\" tag must be whitelisted via the new %s filter."
 msgstr ""
 
-#: ../includes/admin.php:1809, ../includes/i18n.php:910, ../includes/setup.php:665, ../includes/setup.php:674
+#: ../includes/admin.php:1810, ../includes/i18n.php:910, ../includes/setup.php:665, ../includes/setup.php:674
 msgid "Go to"
 msgstr ""
 
-#: ../includes/admin.php:1809, ../includes/admin/admin-screen-settings.php:168, ../includes/elements/code.php:73, ../includes/elements/code.php:185, ../includes/elements/svg.php:79, ../includes/settings/settings-page.php:41
+#: ../includes/admin.php:1810, ../includes/admin/admin-screen-settings.php:168, ../includes/elements/code.php:73, ../includes/elements/code.php:185, ../includes/elements/svg.php:79, ../includes/settings/settings-page.php:41
 msgid "Custom code"
 msgstr ""
 
-#: ../includes/admin.php:1813
+#: ../includes/admin.php:1814
 msgid "Dismiss"
 msgstr ""
 
-#: ../includes/admin.php:1834
+#: ../includes/admin.php:1835
 msgid "Please update your WordPress URLs under Settings > General to use https:// instead of http:// for optimal performance & functionality. Valid SSL certificate required."
 msgstr ""
 
-#: ../includes/admin.php:1853
+#: ../includes/admin.php:1854
 msgid "Settings saved"
 msgstr ""
 
-#: ../includes/admin.php:1859, ../includes/i18n.php:1446
+#: ../includes/admin.php:1860, ../includes/i18n.php:1446
 msgid "Settings resetted"
 msgstr ""
 
 #. translators: %s: user role, %s: theme name
-#: ../includes/admin.php:1869
+#: ../includes/admin.php:1870
 msgid "Your user role \"%1$s\" is not allowed to edit this post type with %2$s. Please get in touch with the site admin to change it."
 msgstr ""
 
 #. translators: %s: post type, %s: theme name, %s: settings page
-#: ../includes/admin.php:1880
+#: ../includes/admin.php:1881
 msgid "%1$s is not enabled for post type \"%2$s\". Go to \"%3$s > %4$s\" to enable this post type."
 msgstr ""
 
 #. translators: %s: post title
-#: ../includes/admin.php:1890
+#: ../includes/admin.php:1891
 msgid "%1$s data for \"%2$s\" deleted."
 msgstr ""
 
-#: ../includes/admin.php:2089, ../includes/i18n.php:367
+#: ../includes/admin.php:2090, ../includes/i18n.php:367
 msgid "Visual"
 msgstr ""
 
-#: ../includes/admin.php:2090, ../includes/i18n.php:349, ../includes/i18n.php:1520, ../includes/admin/admin-screen-settings.php:3027, ../includes/elements/animated-typing.php:75, ../includes/elements/back-to-top.php:179, ../includes/elements/base.php:4539, ../includes/elements/base.php:4623, ../includes/elements/breadcrumbs.php:133, ../includes/elements/breadcrumbs.php:187, ../includes/elements/breadcrumbs.php:192, ../includes/elements/dropdown.php:55, ../includes/elements/dropdown.php:639, ../includes/elements/filter-submit.php:95, ../includes/elements/form.php:181, ../includes/elements/form.php:1065, ../includes/elements/form.php:2043, ../includes/elements/form.php:2050, ../includes/elements/form.php:2217, ../includes/elements/form.php:2225, ../includes/elements/heading.php:34, ../includes/elements/instagram-feed.php:341, ../includes/elements/logo.php:73, ../includes/elements/map-leaflet.php:134, ../includes/elements/map.php:327, ../includes/elements/map.php:388, ../includes/elements/nav-menu.php:1573, ../includes/elements/nav-nested.php:421, ../includes/elements/nav-nested.php:800, ../includes/elements/pie-chart.php:76, ../includes/elements/pie-chart.php:94, ../includes/elements/post-author.php:191, ../includes/elements/post-comments.php:290, ../includes/elements/post-comments.php:366, ../includes/elements/post-comments.php:479, ../includes/elements/pricing-tables.php:535, ../includes/elements/search.php:226, ../includes/woocommerce/elements/product-rating.php:63, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:114, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:118, ../includes/woocommerce/elements/woocommerce-cart-coupon.php:110, ../includes/woocommerce/elements/woocommerce-checkout-coupon.php:62, ../includes/woocommerce/elements/woocommerce-checkout-coupon.php:114, ../includes/woocommerce/elements/woocommerce-checkout-login.php:70, ../includes/woocommerce/elements/woocommerce-checkout-login.php:122
+#: ../includes/admin.php:2091, ../includes/i18n.php:349, ../includes/i18n.php:1520, ../includes/admin/admin-screen-settings.php:3027, ../includes/elements/animated-typing.php:75, ../includes/elements/back-to-top.php:179, ../includes/elements/base.php:4539, ../includes/elements/base.php:4623, ../includes/elements/breadcrumbs.php:133, ../includes/elements/breadcrumbs.php:187, ../includes/elements/breadcrumbs.php:192, ../includes/elements/dropdown.php:55, ../includes/elements/dropdown.php:639, ../includes/elements/filter-submit.php:95, ../includes/elements/form.php:181, ../includes/elements/form.php:1065, ../includes/elements/form.php:2043, ../includes/elements/form.php:2050, ../includes/elements/form.php:2217, ../includes/elements/form.php:2225, ../includes/elements/heading.php:34, ../includes/elements/instagram-feed.php:341, ../includes/elements/logo.php:73, ../includes/elements/map-leaflet.php:135, ../includes/elements/map.php:327, ../includes/elements/map.php:388, ../includes/elements/nav-menu.php:1573, ../includes/elements/nav-nested.php:421, ../includes/elements/nav-nested.php:800, ../includes/elements/pie-chart.php:76, ../includes/elements/pie-chart.php:94, ../includes/elements/post-author.php:191, ../includes/elements/post-comments.php:290, ../includes/elements/post-comments.php:366, ../includes/elements/post-comments.php:479, ../includes/elements/pricing-tables.php:535, ../includes/elements/search.php:226, ../includes/woocommerce/elements/product-rating.php:63, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:114, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:118, ../includes/woocommerce/elements/woocommerce-cart-coupon.php:110, ../includes/woocommerce/elements/woocommerce-checkout-coupon.php:62, ../includes/woocommerce/elements/woocommerce-checkout-coupon.php:114, ../includes/woocommerce/elements/woocommerce-checkout-login.php:70, ../includes/woocommerce/elements/woocommerce-checkout-login.php:122
 msgid "Text"
 msgstr ""
 
 #. translators: %s: "Bricks" (theme name)
 #. translators: %s = "Bricks" (theme name)
-#: ../includes/admin.php:2101, ../includes/admin.php:2169, ../includes/i18n.php:138, ../includes/setup.php:606, ../includes/setup.php:797, ../includes/admin/admin-screen-settings.php:216
+#: ../includes/admin.php:2102, ../includes/admin.php:2170, ../includes/i18n.php:138, ../includes/setup.php:606, ../includes/setup.php:797, ../includes/admin/admin-screen-settings.php:216
 msgid "Edit with %s"
 msgstr ""
 
 #. translators: %s: post type
 #. translators: %s: Post type name
-#: ../includes/admin.php:2108, ../includes/setup.php:687
+#: ../includes/admin.php:2109, ../includes/setup.php:687
 msgid "Are you sure you want to delete the Bricks-generated data for this %s?"
 msgstr ""
 
-#: ../includes/admin.php:2109, ../includes/setup.php:683, ../includes/admin/admin-screen-settings.php:423
+#: ../includes/admin.php:2110, ../includes/setup.php:683, ../includes/admin/admin-screen-settings.php:423
 msgid "Delete Bricks data"
 msgstr ""
 
-#: ../includes/admin.php:2132, ../includes/i18n.php:132, ../includes/i18n.php:671, ../includes/admin/admin-screen-settings.php:1076, ../includes/admin/admin-screen-settings.php:1619
+#: ../includes/admin.php:2133, ../includes/i18n.php:132, ../includes/i18n.php:671, ../includes/admin/admin-screen-settings.php:1076, ../includes/admin/admin-screen-settings.php:1619
 msgid "Duplicate"
 msgstr ""
 
-#: ../includes/admin.php:2160
+#: ../includes/admin.php:2161
 msgid "Export Template"
 msgstr ""
 
-#: ../includes/admin.php:2215
+#: ../includes/admin.php:2216
 msgid "Form submission table could not be deleted."
 msgstr ""
 
-#: ../includes/admin.php:2213
+#: ../includes/admin.php:2214
 msgid "Form submission table deleted successfully."
 msgstr ""
 
-#: ../includes/admin.php:2237
+#: ../includes/admin.php:2238
 msgid "Form submissions table could not be resetted."
 msgstr ""
 
-#: ../includes/admin.php:2235
+#: ../includes/admin.php:2236
 msgid "Form submissions table resetted successfully."
 msgstr ""
 
-#: ../includes/admin.php:2260
+#: ../includes/admin.php:2261
 msgid "Form submissions could not be deleted."
 msgstr ""
 
-#: ../includes/admin.php:2258
+#: ../includes/admin.php:2259
 msgid "Form submissions deleted."
 msgstr ""
 
-#: ../includes/admin.php:2323, ../includes/admin.php:2369
+#: ../includes/admin.php:2324, ../includes/admin.php:2370
 msgid "Something went wrong."
 msgstr ""
 
-#: ../includes/admin.php:2316
+#: ../includes/admin.php:2317
 msgid "Query filters reindex job started."
 msgstr ""
 
-#: ../includes/admin.php:2340, ../includes/ajax.php:173, ../includes/i18n.php:742
+#: ../includes/admin.php:2341, ../includes/ajax.php:173, ../includes/i18n.php:742
 msgid "Code signatures are locked."
 msgstr ""
 
-#: ../includes/admin.php:2361
+#: ../includes/admin.php:2362
 msgid "Code signatures regenerated successfully."
 msgstr ""
 
-#: ../includes/admin.php:2604
+#: ../includes/admin.php:2605
 msgid "Invalid action"
 msgstr ""
 
-#: ../includes/admin.php:2611, ../includes/ajax.php:477
+#: ../includes/admin.php:2612, ../includes/ajax.php:477
 msgid "Post could not be duplicated"
 msgstr ""
 
-#: ../includes/admin.php:2643, ../includes/i18n.php:589
+#: ../includes/admin.php:2644, ../includes/i18n.php:589
 msgid "Copy"
 msgstr ""
 
-#: ../includes/admin.php:2804
+#: ../includes/admin.php:2805
 msgid "Template screenshots deleted"
 msgstr ""
 
-#: ../includes/admin.php:2820, ../includes/admin.php:2851, ../includes/admin.php:2890
+#: ../includes/admin.php:2821, ../includes/admin.php:2852, ../includes/admin.php:2891
 msgid "Query filters are disabled"
 msgstr ""
 
-#: ../includes/admin.php:2858
+#: ../includes/admin.php:2859
 msgid "All index jobs removed"
 msgstr ""
 
-#: ../includes/admin.php:2896
+#: ../includes/admin.php:2897
 msgid "Corrupted filter element database has been fixed"
 msgstr ""
 
-#: ../includes/admin.php:2899
+#: ../includes/admin.php:2900
 msgid "Unable to fix corrupted filter element database"
 msgstr ""
 
-#: ../includes/admin.php:3028, ../includes/admin.php:2985, ../includes/admin.php:2940, ../includes/helpers.php:1992, ../includes/helpers.php:2046, ../includes/admin/admin-screen-settings.php:2438, ../includes/elements/svg.php:236
+#: ../includes/admin.php:3029, ../includes/admin.php:2986, ../includes/admin.php:2941, ../includes/helpers.php:1992, ../includes/helpers.php:2046, ../includes/admin/admin-screen-settings.php:2438, ../includes/elements/svg.php:236
 msgid "No signature"
 msgstr ""
 
-#: ../includes/admin.php:3041, ../includes/admin.php:2998, ../includes/admin.php:2954, ../includes/helpers.php:1994, ../includes/helpers.php:2048, ../includes/elements/svg.php:234
+#: ../includes/admin.php:3042, ../includes/admin.php:2999, ../includes/admin.php:2955, ../includes/helpers.php:1994, ../includes/helpers.php:2048, ../includes/elements/svg.php:234
 msgid "Invalid signature"
 msgstr ""
 
-#: ../includes/admin.php:3035, ../includes/admin.php:2992, ../includes/admin.php:2948
+#: ../includes/admin.php:3036, ../includes/admin.php:2993, ../includes/admin.php:2949
 msgid "Valid signature"
 msgstr ""
 
-#: ../includes/admin.php:3091
+#: ../includes/admin.php:3092
 msgid "Activation status"
 msgstr ""
 
-#: ../includes/admin.php:3110
+#: ../includes/admin.php:3111
 msgid "Mark as active"
 msgstr ""
 
-#: ../includes/admin.php:3115
+#: ../includes/admin.php:3116
 msgid "Mark as inactive"
 msgstr ""
 
-#: ../includes/admin.php:3120
+#: ../includes/admin.php:3121
 msgid "Resend activation email"
 msgstr ""
 
-#: ../includes/admin.php:3145
+#: ../includes/admin.php:3146
 msgid "Inactive"
 msgstr ""
 
-#: ../includes/admin.php:3137, ../includes/i18n.php:379, ../includes/admin/admin-screen-elements.php:30, ../includes/admin/admin-screen-elements.php:107, ../includes/admin/admin-screen-elements.php:105, ../includes/elements/accordion-nested.php:155, ../includes/elements/base.php:4623, ../includes/elements/base.php:4744, ../includes/elements/dropdown.php:534, ../includes/elements/filter-base.php:1852, ../includes/elements/filter-range.php:297, ../includes/elements/nav-menu.php:201, ../includes/elements/nav-menu.php:638, ../includes/elements/nav-menu.php:1070, ../includes/elements/nav-menu.php:1103, ../includes/elements/nav-menu.php:1144, ../includes/elements/nav-menu.php:1289, ../includes/elements/nav-menu.php:1318, ../includes/elements/nav-nested.php:313, ../includes/elements/post-toc.php:131, ../includes/elements/slider-nested.php:956, ../includes/elements/tabs-nested.php:155, ../includes/settings/settings-page.php:438, ../includes/woocommerce/elements/product-add-to-cart.php:321, ../includes/woocommerce/elements/product-add-to-cart.php:370, ../includes/woocommerce/elements/product-add-to-cart.php:394, ../includes/woocommerce/elements/product-add-to-cart.php:418, ../includes/woocommerce/elements/product-add-to-cart.php:477, ../includes/woocommerce/elements/product-gallery.php:189, ../includes/woocommerce/elements/product-gallery.php:222, ../includes/woocommerce/elements/woocommerce-account-page.php:236
+#: ../includes/admin.php:3138, ../includes/i18n.php:379, ../includes/admin/admin-screen-elements.php:30, ../includes/admin/admin-screen-elements.php:107, ../includes/admin/admin-screen-elements.php:105, ../includes/elements/accordion-nested.php:155, ../includes/elements/base.php:4623, ../includes/elements/base.php:4744, ../includes/elements/dropdown.php:534, ../includes/elements/filter-base.php:1852, ../includes/elements/filter-range.php:297, ../includes/elements/nav-menu.php:201, ../includes/elements/nav-menu.php:638, ../includes/elements/nav-menu.php:1070, ../includes/elements/nav-menu.php:1103, ../includes/elements/nav-menu.php:1144, ../includes/elements/nav-menu.php:1289, ../includes/elements/nav-menu.php:1318, ../includes/elements/nav-nested.php:313, ../includes/elements/post-toc.php:131, ../includes/elements/slider-nested.php:956, ../includes/elements/tabs-nested.php:155, ../includes/settings/settings-page.php:438, ../includes/woocommerce/elements/product-add-to-cart.php:321, ../includes/woocommerce/elements/product-add-to-cart.php:370, ../includes/woocommerce/elements/product-add-to-cart.php:394, ../includes/woocommerce/elements/product-add-to-cart.php:418, ../includes/woocommerce/elements/product-add-to-cart.php:477, ../includes/woocommerce/elements/product-gallery.php:189, ../includes/woocommerce/elements/product-gallery.php:222, ../includes/woocommerce/elements/woocommerce-account-page.php:236
 msgid "Active"
 msgstr ""
 
-#: ../includes/admin.php:3168
+#: ../includes/admin.php:3169
 msgid "Invalid request"
 msgstr ""
 
@@ -1058,7 +1058,7 @@ msgstr ""
 msgid "Upload SVG"
 msgstr ""
 
-#: ../includes/capabilities.php:395, ../includes/capabilities.php:387, ../includes/capabilities.php:413, ../includes/capabilities.php:405, ../includes/capabilities.php:431, ../includes/capabilities.php:423, ../includes/capabilities.php:454, ../includes/capabilities.php:446, ../includes/capabilities.php:870, ../includes/capabilities.php:877, ../includes/capabilities.php:884, ../includes/capabilities.php:891, ../includes/capabilities.php:928, ../includes/capabilities.php:941, ../includes/capabilities.php:955, ../includes/capabilities.php:966, ../includes/conditions.php:527, ../includes/conditions.php:547, ../includes/i18n.php:652, ../includes/admin/admin-screen-elements.php:32, ../includes/admin/admin-screen-elements.php:126, ../includes/admin/admin-screen-elements.php:124, ../includes/admin/admin-screen-settings.php:1546, ../includes/admin/admin-screen-settings.php:2027, ../includes/elements/form.php:735, ../includes/elements/form.php:2349, ../includes/elements/map-leaflet.php:246, ../includes/elements/slider-nested.php:586, ../includes/woocommerce/elements/woocommerce-mini-cart.php:336
+#: ../includes/capabilities.php:395, ../includes/capabilities.php:387, ../includes/capabilities.php:413, ../includes/capabilities.php:405, ../includes/capabilities.php:431, ../includes/capabilities.php:423, ../includes/capabilities.php:454, ../includes/capabilities.php:446, ../includes/capabilities.php:870, ../includes/capabilities.php:877, ../includes/capabilities.php:884, ../includes/capabilities.php:891, ../includes/capabilities.php:928, ../includes/capabilities.php:941, ../includes/capabilities.php:955, ../includes/capabilities.php:966, ../includes/conditions.php:527, ../includes/conditions.php:547, ../includes/i18n.php:652, ../includes/admin/admin-screen-elements.php:32, ../includes/admin/admin-screen-elements.php:126, ../includes/admin/admin-screen-elements.php:124, ../includes/admin/admin-screen-settings.php:1546, ../includes/admin/admin-screen-settings.php:2027, ../includes/elements/form.php:735, ../includes/elements/form.php:2349, ../includes/elements/map-leaflet.php:247, ../includes/elements/slider-nested.php:586, ../includes/woocommerce/elements/woocommerce-mini-cart.php:336
 msgid "Disabled"
 msgstr ""
 
@@ -1074,7 +1074,7 @@ msgstr ""
 msgid "Form submission access"
 msgstr ""
 
-#: ../includes/capabilities.php:873, ../includes/capabilities.php:880, ../includes/capabilities.php:887, ../includes/capabilities.php:894, ../includes/capabilities.php:927, ../includes/capabilities.php:940, ../includes/capabilities.php:954, ../includes/capabilities.php:965, ../includes/conditions.php:526, ../includes/conditions.php:546, ../includes/i18n.php:142, ../includes/elements/map-leaflet.php:244, ../includes/elements/map-leaflet.php:245
+#: ../includes/capabilities.php:873, ../includes/capabilities.php:880, ../includes/capabilities.php:887, ../includes/capabilities.php:894, ../includes/capabilities.php:927, ../includes/capabilities.php:940, ../includes/capabilities.php:954, ../includes/capabilities.php:965, ../includes/conditions.php:526, ../includes/conditions.php:546, ../includes/i18n.php:142, ../includes/elements/map-leaflet.php:245, ../includes/elements/map-leaflet.php:246
 msgid "Enabled"
 msgstr ""
 
@@ -1274,7 +1274,7 @@ msgstr ""
 msgid "Product new status"
 msgstr ""
 
-#: ../includes/conditions.php:469, ../includes/helpers.php:4365, ../includes/i18n.php:1122, ../includes/woocommerce.php:771
+#: ../includes/conditions.php:469, ../includes/helpers.php:4366, ../includes/i18n.php:1122, ../includes/woocommerce.php:771
 msgid "New"
 msgstr ""
 
@@ -1841,11 +1841,11 @@ msgstr ""
 msgid "Template bundle"
 msgstr ""
 
-#: ../includes/helpers.php:3916, ../includes/admin/admin-screen-settings.php:947
+#: ../includes/helpers.php:3917, ../includes/admin/admin-screen-settings.php:947
 msgid "Activate your account"
 msgstr ""
 
-#: ../includes/helpers.php:3920, ../includes/admin/admin-screen-settings.php:952
+#: ../includes/helpers.php:3921, ../includes/admin/admin-screen-settings.php:952
 msgid "Please click the link below to activate your account"
 msgstr ""
 
@@ -2405,7 +2405,7 @@ msgstr ""
 msgid "Greater than or equal"
 msgstr ""
 
-#: ../includes/i18n.php:186, ../includes/i18n.php:921, ../includes/popups.php:442, ../includes/admin/admin-screen-settings.php:1211, ../includes/elements/base.php:421, ../includes/elements/base.php:1240, ../includes/elements/base.php:3083, ../includes/elements/base.php:3266, ../includes/elements/base.php:3589, ../includes/elements/base.php:4704, ../includes/elements/base.php:4753, ../includes/elements/divider.php:20, ../includes/elements/facebook-page.php:30, ../includes/elements/filter-range.php:265, ../includes/elements/form.php:548, ../includes/elements/form.php:749, ../includes/elements/heading.php:141, ../includes/elements/icon-box.php:168, ../includes/elements/image.php:303, ../includes/elements/instagram-feed.php:92, ../includes/elements/list.php:396, ../includes/elements/list.php:627, ../includes/elements/logo.php:41, ../includes/elements/map-leaflet.php:119, ../includes/elements/map-leaflet.php:160, ../includes/elements/map-leaflet.php:178, ../includes/elements/map.php:466, ../includes/elements/nav-menu.php:901, ../includes/elements/nav-nested.php:893, ../includes/elements/offcanvas.php:77, ../includes/elements/pagination.php:42, ../includes/elements/post-navigation.php:240, ../includes/elements/posts.php:582, ../includes/elements/progress-bar.php:68, ../includes/elements/related-posts.php:350, ../includes/elements/search.php:79, ../includes/elements/search.php:251, ../includes/elements/shortcode.php:37, ../includes/elements/slider-nested.php:161, ../includes/elements/slider-nested.php:440, ../includes/elements/slider-nested.php:882, ../includes/elements/slider-nested.php:964, ../includes/elements/svg.php:87, ../includes/elements/text-link.php:89, ../includes/elements/toggle.php:132, ../includes/settings/settings-page.php:368, ../includes/settings/settings-page.php:446, ../includes/theme-styles/controls/element-divider.php:5, ../includes/theme-styles/controls/element-heading.php:61, ../includes/theme-styles/controls/element-list.php:326, ../includes/theme-styles/controls/element-progress-bar.php:5, ../includes/theme-styles/controls/element-svg.php:5, ../includes/theme-styles/controls/general.php:251, ../includes/woocommerce/elements/product-add-to-cart.php:451, ../includes/woocommerce/elements/product-gallery.php:246, ../includes/woocommerce/elements/product-gallery.php:401, ../includes/woocommerce/elements/woocommerce-cart-items.php:231, ../includes/woocommerce/elements/woocommerce-mini-cart.php:166, ../includes/woocommerce/elements/woocommerce-mini-cart.php:343
+#: ../includes/i18n.php:186, ../includes/i18n.php:921, ../includes/popups.php:442, ../includes/admin/admin-screen-settings.php:1211, ../includes/elements/base.php:421, ../includes/elements/base.php:1240, ../includes/elements/base.php:3083, ../includes/elements/base.php:3266, ../includes/elements/base.php:3589, ../includes/elements/base.php:4704, ../includes/elements/base.php:4753, ../includes/elements/divider.php:20, ../includes/elements/facebook-page.php:30, ../includes/elements/filter-range.php:265, ../includes/elements/form.php:548, ../includes/elements/form.php:749, ../includes/elements/heading.php:141, ../includes/elements/icon-box.php:168, ../includes/elements/image.php:303, ../includes/elements/instagram-feed.php:92, ../includes/elements/list.php:396, ../includes/elements/list.php:627, ../includes/elements/logo.php:41, ../includes/elements/map-leaflet.php:120, ../includes/elements/map-leaflet.php:161, ../includes/elements/map-leaflet.php:179, ../includes/elements/map.php:466, ../includes/elements/nav-menu.php:901, ../includes/elements/nav-nested.php:893, ../includes/elements/offcanvas.php:77, ../includes/elements/pagination.php:42, ../includes/elements/post-navigation.php:240, ../includes/elements/posts.php:582, ../includes/elements/progress-bar.php:68, ../includes/elements/related-posts.php:350, ../includes/elements/search.php:79, ../includes/elements/search.php:251, ../includes/elements/shortcode.php:37, ../includes/elements/slider-nested.php:161, ../includes/elements/slider-nested.php:440, ../includes/elements/slider-nested.php:882, ../includes/elements/slider-nested.php:964, ../includes/elements/svg.php:87, ../includes/elements/text-link.php:89, ../includes/elements/toggle.php:132, ../includes/settings/settings-page.php:368, ../includes/settings/settings-page.php:446, ../includes/theme-styles/controls/element-divider.php:5, ../includes/theme-styles/controls/element-heading.php:61, ../includes/theme-styles/controls/element-list.php:326, ../includes/theme-styles/controls/element-progress-bar.php:5, ../includes/theme-styles/controls/element-svg.php:5, ../includes/theme-styles/controls/general.php:251, ../includes/woocommerce/elements/product-add-to-cart.php:451, ../includes/woocommerce/elements/product-gallery.php:246, ../includes/woocommerce/elements/product-gallery.php:401, ../includes/woocommerce/elements/woocommerce-cart-items.php:231, ../includes/woocommerce/elements/woocommerce-mini-cart.php:166, ../includes/woocommerce/elements/woocommerce-mini-cart.php:343
 msgid "Height"
 msgstr ""
 
@@ -2988,11 +2988,11 @@ msgstr ""
 msgid "View"
 msgstr ""
 
-#: ../includes/i18n.php:369, ../includes/i18n.php:1643, ../includes/popups.php:170, ../includes/popups.php:403, ../includes/admin/admin-screen-settings.php:1206, ../includes/elements/base.php:374, ../includes/elements/base.php:1248, ../includes/elements/base.php:2776, ../includes/elements/base.php:3282, ../includes/elements/base.php:3610, ../includes/elements/base.php:4711, ../includes/elements/base.php:4760, ../includes/elements/divider.php:38, ../includes/elements/facebook-page.php:41, ../includes/elements/filter-range.php:230, ../includes/elements/form.php:531, ../includes/elements/form.php:756, ../includes/elements/form.php:1109, ../includes/elements/heading.php:116, ../includes/elements/icon-box.php:186, ../includes/elements/image.php:296, ../includes/elements/instagram-feed.php:105, ../includes/elements/list.php:382, ../includes/elements/list.php:607, ../includes/elements/logo.php:57, ../includes/elements/map-leaflet.php:127, ../includes/elements/map-leaflet.php:168, ../includes/elements/map.php:159, ../includes/elements/nav-menu.php:887, ../includes/elements/nav-nested.php:880, ../includes/elements/offcanvas.php:65, ../includes/elements/pagination.php:55, ../includes/elements/post-navigation.php:256, ../includes/elements/posts.php:597, ../includes/elements/pricing-tables.php:439, ../includes/elements/pricing-tables.php:770, ../includes/elements/related-posts.php:365, ../includes/elements/related-posts.php:395, ../includes/elements/search.php:92, ../includes/elements/search.php:264, ../includes/elements/search.php:411, ../includes/elements/shortcode.php:30, ../includes/elements/slider-nested.php:455, ../includes/elements/slider-nested.php:903, ../includes/elements/slider-nested.php:978, ../includes/elements/svg.php:98, ../includes/elements/tabs-nested.php:73, ../includes/elements/team-members.php:195, ../includes/elements/text-link.php:75, ../includes/settings/settings-page.php:382, ../includes/settings/settings-page.php:460, ../includes/theme-styles/controls/element-block.php:73, ../includes/theme-styles/controls/element-container.php:75, ../includes/theme-styles/controls/element-div.php:73, ../includes/theme-styles/controls/element-heading.php:43, ../includes/theme-styles/controls/element-list.php:314, ../includes/theme-styles/controls/element-section.php:75, ../includes/theme-styles/controls/element-svg.php:16, ../includes/theme-styles/controls/general.php:245, ../includes/woocommerce/elements/base.php:155, ../includes/woocommerce/elements/base.php:256, ../includes/woocommerce/elements/product-add-to-cart.php:437, ../includes/woocommerce/elements/product-add-to-cart.php:769, ../includes/woocommerce/elements/product-add-to-cart.php:879, ../includes/woocommerce/elements/product-additional-information.php:62, ../includes/woocommerce/elements/product-additional-information.php:91, ../includes/woocommerce/elements/product-gallery.php:415, ../includes/woocommerce/elements/woocommerce-account-view-order.php:297, ../includes/woocommerce/elements/woocommerce-cart-collaterals.php:163, ../includes/woocommerce/elements/woocommerce-cart-coupon.php:58, ../includes/woocommerce/elements/woocommerce-cart-coupon.php:117, ../includes/woocommerce/elements/woocommerce-cart-items.php:215, ../includes/woocommerce/elements/woocommerce-checkout-order-payment.php:230, ../includes/woocommerce/elements/woocommerce-checkout-order-review.php:331, ../includes/woocommerce/elements/woocommerce-mini-cart.php:181, ../includes/woocommerce/elements/woocommerce-mini-cart.php:361
+#: ../includes/i18n.php:369, ../includes/i18n.php:1643, ../includes/popups.php:170, ../includes/popups.php:403, ../includes/admin/admin-screen-settings.php:1206, ../includes/elements/base.php:374, ../includes/elements/base.php:1248, ../includes/elements/base.php:2776, ../includes/elements/base.php:3282, ../includes/elements/base.php:3610, ../includes/elements/base.php:4711, ../includes/elements/base.php:4760, ../includes/elements/divider.php:38, ../includes/elements/facebook-page.php:41, ../includes/elements/filter-range.php:230, ../includes/elements/form.php:531, ../includes/elements/form.php:756, ../includes/elements/form.php:1109, ../includes/elements/heading.php:116, ../includes/elements/icon-box.php:186, ../includes/elements/image.php:296, ../includes/elements/instagram-feed.php:105, ../includes/elements/list.php:382, ../includes/elements/list.php:607, ../includes/elements/logo.php:57, ../includes/elements/map-leaflet.php:128, ../includes/elements/map-leaflet.php:169, ../includes/elements/map.php:159, ../includes/elements/nav-menu.php:887, ../includes/elements/nav-nested.php:880, ../includes/elements/offcanvas.php:65, ../includes/elements/pagination.php:55, ../includes/elements/post-navigation.php:256, ../includes/elements/posts.php:597, ../includes/elements/pricing-tables.php:439, ../includes/elements/pricing-tables.php:770, ../includes/elements/related-posts.php:365, ../includes/elements/related-posts.php:395, ../includes/elements/search.php:92, ../includes/elements/search.php:264, ../includes/elements/search.php:411, ../includes/elements/shortcode.php:30, ../includes/elements/slider-nested.php:455, ../includes/elements/slider-nested.php:903, ../includes/elements/slider-nested.php:978, ../includes/elements/svg.php:98, ../includes/elements/tabs-nested.php:73, ../includes/elements/team-members.php:195, ../includes/elements/text-link.php:75, ../includes/settings/settings-page.php:382, ../includes/settings/settings-page.php:460, ../includes/theme-styles/controls/element-block.php:73, ../includes/theme-styles/controls/element-container.php:75, ../includes/theme-styles/controls/element-div.php:73, ../includes/theme-styles/controls/element-heading.php:43, ../includes/theme-styles/controls/element-list.php:314, ../includes/theme-styles/controls/element-section.php:75, ../includes/theme-styles/controls/element-svg.php:16, ../includes/theme-styles/controls/general.php:245, ../includes/woocommerce/elements/base.php:155, ../includes/woocommerce/elements/base.php:256, ../includes/woocommerce/elements/product-add-to-cart.php:437, ../includes/woocommerce/elements/product-add-to-cart.php:769, ../includes/woocommerce/elements/product-add-to-cart.php:879, ../includes/woocommerce/elements/product-additional-information.php:62, ../includes/woocommerce/elements/product-additional-information.php:91, ../includes/woocommerce/elements/product-gallery.php:415, ../includes/woocommerce/elements/woocommerce-account-view-order.php:297, ../includes/woocommerce/elements/woocommerce-cart-collaterals.php:163, ../includes/woocommerce/elements/woocommerce-cart-coupon.php:58, ../includes/woocommerce/elements/woocommerce-cart-coupon.php:117, ../includes/woocommerce/elements/woocommerce-cart-items.php:215, ../includes/woocommerce/elements/woocommerce-checkout-order-payment.php:230, ../includes/woocommerce/elements/woocommerce-checkout-order-review.php:331, ../includes/woocommerce/elements/woocommerce-mini-cart.php:181, ../includes/woocommerce/elements/woocommerce-mini-cart.php:361
 msgid "Width"
 msgstr ""
 
-#: ../includes/i18n.php:370, ../includes/i18n.php:1657, ../includes/setup.php:1309, ../includes/elements/base.php:773, ../includes/elements/carousel.php:212, ../includes/elements/carousel.php:218, ../includes/elements/carousel.php:228, ../includes/elements/image-gallery.php:216, ../includes/elements/image-gallery.php:222, ../includes/elements/image-gallery.php:231, ../includes/elements/image.php:313, ../includes/elements/map-leaflet.php:222, ../includes/elements/map-leaflet.php:231, ../includes/elements/map-leaflet.php:240
+#: ../includes/i18n.php:370, ../includes/i18n.php:1657, ../includes/setup.php:1309, ../includes/elements/base.php:773, ../includes/elements/carousel.php:212, ../includes/elements/carousel.php:218, ../includes/elements/carousel.php:228, ../includes/elements/image-gallery.php:216, ../includes/elements/image-gallery.php:222, ../includes/elements/image-gallery.php:231, ../includes/elements/image.php:313, ../includes/elements/map-leaflet.php:223, ../includes/elements/map-leaflet.php:232, ../includes/elements/map-leaflet.php:241
 msgid "Zoom"
 msgstr ""
 
@@ -3422,7 +3422,7 @@ msgstr ""
 msgid "Categories imported"
 msgstr ""
 
-#: ../includes/i18n.php:504, ../includes/elements/divider.php:172, ../includes/elements/divider.php:176, ../includes/elements/map-leaflet.php:245, ../includes/elements/map.php:436, ../includes/elements/map.php:444, ../includes/elements/map.php:452, ../includes/elements/posts.php:393, ../includes/elements/posts.php:555, ../includes/elements/pricing-tables.php:300, ../includes/elements/pricing-tables.php:697, ../includes/theme-styles/controls/element-tabs.php:111, ../includes/theme-styles/controls/element-team-members.php:132, ../includes/theme-styles/controls/element-testimonials.php:11
+#: ../includes/i18n.php:504, ../includes/elements/divider.php:172, ../includes/elements/divider.php:176, ../includes/elements/map-leaflet.php:246, ../includes/elements/map.php:436, ../includes/elements/map.php:444, ../includes/elements/map.php:452, ../includes/elements/posts.php:393, ../includes/elements/posts.php:555, ../includes/elements/pricing-tables.php:300, ../includes/elements/pricing-tables.php:697, ../includes/theme-styles/controls/element-tabs.php:111, ../includes/theme-styles/controls/element-team-members.php:132, ../includes/theme-styles/controls/element-testimonials.php:11
 msgid "Center"
 msgstr ""
 
@@ -4515,7 +4515,7 @@ msgstr ""
 msgid "Footer"
 msgstr ""
 
-#: ../includes/i18n.php:864, ../includes/elements/countdown.php:118, ../includes/elements/form.php:3417, ../includes/elements/map-leaflet.php:100, ../includes/elements/map-leaflet.php:193, ../includes/elements/query-results-summary.php:30
+#: ../includes/i18n.php:864, ../includes/elements/countdown.php:118, ../includes/elements/form.php:3417, ../includes/elements/map-leaflet.php:100, ../includes/elements/map-leaflet.php:194, ../includes/elements/query-results-summary.php:30
 msgid "Format"
 msgstr ""
 
@@ -4744,7 +4744,7 @@ msgstr ""
 msgid "Hue"
 msgstr ""
 
-#: ../includes/i18n.php:942, ../includes/elements/accordion.php:125, ../includes/elements/back-to-top.php:168, ../includes/elements/breadcrumbs.php:141, ../includes/elements/breadcrumbs.php:148, ../includes/elements/breadcrumbs.php:162, ../includes/elements/breadcrumbs.php:188, ../includes/elements/breadcrumbs.php:206, ../includes/elements/button.php:78, ../includes/elements/button.php:83, ../includes/elements/divider.php:128, ../includes/elements/divider.php:134, ../includes/elements/dropdown.php:24, ../includes/elements/dropdown.php:80, ../includes/elements/filter-active-filters.php:124, ../includes/elements/filter-active-filters.php:129, ../includes/elements/filter-search.php:84, ../includes/elements/filter-search.php:89, ../includes/elements/filter-submit.php:129, ../includes/elements/form.php:222, ../includes/elements/form.php:231, ../includes/elements/form.php:1176, ../includes/elements/icon-box.php:17, ../includes/elements/icon-box.php:59, ../includes/elements/icon.php:12, ../includes/elements/icon.php:17, ../includes/elements/icon.php:63, ../includes/elements/image.php:361, ../includes/elements/image.php:376, ../includes/elements/instagram-feed.php:167, ../includes/elements/instagram-feed.php:233, ../includes/elements/instagram-feed.php:358, ../includes/elements/list.php:25, ../includes/elements/list.php:53, ../includes/elements/list.php:368, ../includes/elements/map-leaflet.php:111, ../includes/elements/map-leaflet.php:119, ../includes/elements/map-leaflet.php:127, ../includes/elements/map-leaflet.php:152, ../includes/elements/map-leaflet.php:160, ../includes/elements/map-leaflet.php:168, ../includes/elements/nav-menu.php:311, ../includes/elements/nav-menu.php:316, ../includes/elements/nav-menu.php:721, ../includes/elements/nav-menu.php:726, ../includes/elements/nav-menu.php:1177, ../includes/elements/nav-nested.php:445, ../includes/elements/pie-chart.php:75, ../includes/elements/pie-chart.php:86, ../includes/elements/post-sharing.php:66, ../includes/elements/post-taxonomy.php:88, ../includes/elements/pricing-tables.php:304, ../includes/elements/rating.php:54, ../includes/elements/rating.php:58, ../includes/elements/search.php:23, ../includes/elements/search.php:38, ../includes/elements/search.php:233, ../includes/elements/social-icons.php:33, ../includes/elements/social-icons.php:38, ../includes/elements/social-icons.php:48, ../includes/elements/social-icons.php:61, ../includes/elements/social-icons.php:158, ../includes/elements/social-icons.php:171, ../includes/elements/tabs.php:36, ../includes/elements/text-link.php:23, ../includes/elements/text-link.php:42, ../includes/elements/toggle.php:22, ../includes/elements/video.php:32, ../includes/elements/video.php:460, ../includes/elements/wordpress.php:44, ../includes/theme-styles/controls/element-accordion.php:7, ../includes/theme-styles/controls/element-image.php:10, ../includes/theme-styles/controls/element-video.php:34, ../includes/woocommerce/elements/product-add-to-cart.php:934, ../includes/woocommerce/elements/product-add-to-cart.php:1008, ../includes/woocommerce/elements/product-add-to-cart.php:1075, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:47, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:115, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:132, ../includes/woocommerce/elements/woocommerce-checkout-coupon.php:125, ../includes/woocommerce/elements/woocommerce-checkout-login.php:133, ../includes/woocommerce/elements/woocommerce-mini-cart.php:51, ../includes/woocommerce/elements/woocommerce-mini-cart.php:583, ../includes/woocommerce/elements/woocommerce-products-filter.php:422, ../includes/woocommerce/elements/woocommerce-products-filter.php:525
+#: ../includes/i18n.php:942, ../includes/elements/accordion.php:125, ../includes/elements/back-to-top.php:168, ../includes/elements/breadcrumbs.php:141, ../includes/elements/breadcrumbs.php:148, ../includes/elements/breadcrumbs.php:162, ../includes/elements/breadcrumbs.php:188, ../includes/elements/breadcrumbs.php:206, ../includes/elements/button.php:78, ../includes/elements/button.php:83, ../includes/elements/divider.php:128, ../includes/elements/divider.php:134, ../includes/elements/dropdown.php:24, ../includes/elements/dropdown.php:80, ../includes/elements/filter-active-filters.php:124, ../includes/elements/filter-active-filters.php:129, ../includes/elements/filter-search.php:84, ../includes/elements/filter-search.php:89, ../includes/elements/filter-submit.php:129, ../includes/elements/form.php:222, ../includes/elements/form.php:231, ../includes/elements/form.php:1176, ../includes/elements/icon-box.php:17, ../includes/elements/icon-box.php:59, ../includes/elements/icon.php:12, ../includes/elements/icon.php:17, ../includes/elements/icon.php:63, ../includes/elements/image.php:361, ../includes/elements/image.php:376, ../includes/elements/instagram-feed.php:167, ../includes/elements/instagram-feed.php:233, ../includes/elements/instagram-feed.php:358, ../includes/elements/list.php:25, ../includes/elements/list.php:53, ../includes/elements/list.php:368, ../includes/elements/map-leaflet.php:112, ../includes/elements/map-leaflet.php:120, ../includes/elements/map-leaflet.php:128, ../includes/elements/map-leaflet.php:153, ../includes/elements/map-leaflet.php:161, ../includes/elements/map-leaflet.php:169, ../includes/elements/nav-menu.php:311, ../includes/elements/nav-menu.php:316, ../includes/elements/nav-menu.php:721, ../includes/elements/nav-menu.php:726, ../includes/elements/nav-menu.php:1177, ../includes/elements/nav-nested.php:445, ../includes/elements/pie-chart.php:75, ../includes/elements/pie-chart.php:86, ../includes/elements/post-sharing.php:66, ../includes/elements/post-taxonomy.php:88, ../includes/elements/pricing-tables.php:304, ../includes/elements/rating.php:54, ../includes/elements/rating.php:58, ../includes/elements/search.php:23, ../includes/elements/search.php:38, ../includes/elements/search.php:233, ../includes/elements/social-icons.php:33, ../includes/elements/social-icons.php:38, ../includes/elements/social-icons.php:48, ../includes/elements/social-icons.php:61, ../includes/elements/social-icons.php:158, ../includes/elements/social-icons.php:171, ../includes/elements/tabs.php:36, ../includes/elements/text-link.php:23, ../includes/elements/text-link.php:42, ../includes/elements/toggle.php:22, ../includes/elements/video.php:32, ../includes/elements/video.php:460, ../includes/elements/wordpress.php:44, ../includes/theme-styles/controls/element-accordion.php:7, ../includes/theme-styles/controls/element-image.php:10, ../includes/theme-styles/controls/element-video.php:34, ../includes/woocommerce/elements/product-add-to-cart.php:934, ../includes/woocommerce/elements/product-add-to-cart.php:1008, ../includes/woocommerce/elements/product-add-to-cart.php:1075, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:47, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:115, ../includes/woocommerce/elements/woocommerce-breadcrumbs.php:132, ../includes/woocommerce/elements/woocommerce-checkout-coupon.php:125, ../includes/woocommerce/elements/woocommerce-checkout-login.php:133, ../includes/woocommerce/elements/woocommerce-mini-cart.php:51, ../includes/woocommerce/elements/woocommerce-mini-cart.php:583, ../includes/woocommerce/elements/woocommerce-products-filter.php:422, ../includes/woocommerce/elements/woocommerce-products-filter.php:525
 msgid "Icon"
 msgstr ""
 
@@ -5630,7 +5630,7 @@ msgstr ""
 msgid "Popular"
 msgstr ""
 
-#: ../includes/i18n.php:1240, ../includes/interactions.php:292, ../includes/interactions.php:333, ../includes/setup.php:1179, ../includes/theme-styles.php:89, ../includes/elements/map-connector.php:58, ../includes/elements/map-connector.php:62, ../includes/elements/map-leaflet.php:134, ../includes/elements/map.php:262, ../includes/elements/map.php:266, ../includes/settings/settings-template.php:18, ../includes/settings/settings-template.php:410
+#: ../includes/i18n.php:1240, ../includes/interactions.php:292, ../includes/interactions.php:333, ../includes/setup.php:1179, ../includes/theme-styles.php:89, ../includes/elements/map-connector.php:58, ../includes/elements/map-connector.php:62, ../includes/elements/map-leaflet.php:135, ../includes/elements/map.php:262, ../includes/elements/map.php:266, ../includes/settings/settings-template.php:18, ../includes/settings/settings-template.php:410
 msgid "Popup"
 msgstr ""
 
@@ -10161,7 +10161,7 @@ msgstr ""
 msgid "Screen reader label for the marker. Set for better accessibility."
 msgstr ""
 
-#: ../includes/elements/base.php:4539, ../includes/elements/base.php:4544, ../includes/elements/base.php:4623, ../includes/elements/base.php:4629, ../includes/elements/base.php:4695, ../includes/elements/base.php:4744, ../includes/elements/map-leaflet.php:144, ../includes/elements/map.php:376, ../includes/elements/map.php:839, ../includes/elements/map.php:841
+#: ../includes/elements/base.php:4539, ../includes/elements/base.php:4544, ../includes/elements/base.php:4623, ../includes/elements/base.php:4629, ../includes/elements/base.php:4695, ../includes/elements/base.php:4744, ../includes/elements/map-leaflet.php:145, ../includes/elements/map.php:376, ../includes/elements/map.php:839, ../includes/elements/map.php:841
 msgid "Marker"
 msgstr ""
 
@@ -10814,11 +10814,11 @@ msgstr ""
 msgid "Decimal places"
 msgstr ""
 
-#: ../includes/elements/filter-range.php:114, ../includes/elements/filter-range.php:175, ../includes/elements/filter-range.php:825, ../includes/elements/form.php:288, ../includes/elements/map-leaflet.php:208, ../includes/elements/map.php:639
+#: ../includes/elements/filter-range.php:114, ../includes/elements/filter-range.php:175, ../includes/elements/filter-range.php:825, ../includes/elements/form.php:288, ../includes/elements/map-leaflet.php:209, ../includes/elements/map.php:639
 msgid "Min"
 msgstr ""
 
-#: ../includes/elements/filter-range.php:121, ../includes/elements/filter-range.php:183, ../includes/elements/filter-range.php:826, ../includes/elements/form.php:296, ../includes/elements/map-leaflet.php:215, ../includes/elements/map.php:649
+#: ../includes/elements/filter-range.php:121, ../includes/elements/filter-range.php:183, ../includes/elements/filter-range.php:826, ../includes/elements/form.php:296, ../includes/elements/map-leaflet.php:216, ../includes/elements/map.php:649
 msgid "Max"
 msgstr ""
 
@@ -11954,11 +11954,11 @@ msgstr ""
 msgid "No latitude/longitude or address provided. Use dynamic data tags to retrieve the coordinates/address from your query loop results."
 msgstr ""
 
-#: ../includes/elements/map-connector.php:39, ../includes/elements/map-leaflet.php:100, ../includes/elements/map-leaflet.php:193, ../includes/elements/map.php:95, ../includes/elements/map.php:436
+#: ../includes/elements/map-connector.php:39, ../includes/elements/map-leaflet.php:100, ../includes/elements/map-leaflet.php:194, ../includes/elements/map.php:95, ../includes/elements/map.php:436
 msgid "Latitude"
 msgstr ""
 
-#: ../includes/elements/map-connector.php:45, ../includes/elements/map-leaflet.php:100, ../includes/elements/map-leaflet.php:193, ../includes/elements/map.php:102, ../includes/elements/map.php:444
+#: ../includes/elements/map-connector.php:45, ../includes/elements/map-leaflet.php:100, ../includes/elements/map-leaflet.php:194, ../includes/elements/map.php:102, ../includes/elements/map.php:444
 msgid "Longitude"
 msgstr ""
 
@@ -12010,51 +12010,51 @@ msgstr ""
 msgid "To distinguish markers in the builder."
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:192, ../includes/elements/map.php:428
+#: ../includes/elements/map-leaflet.php:193, ../includes/elements/map.php:428
 msgid "Map center"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:200, ../includes/elements/map-leaflet.php:208, ../includes/elements/map-leaflet.php:215, ../includes/elements/map.php:479, ../includes/elements/map.php:639, ../includes/elements/map.php:649
+#: ../includes/elements/map-leaflet.php:201, ../includes/elements/map-leaflet.php:209, ../includes/elements/map-leaflet.php:216, ../includes/elements/map.php:479, ../includes/elements/map.php:639, ../includes/elements/map.php:649
 msgid "Zoom level"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:200
+#: ../includes/elements/map-leaflet.php:201
 msgid "Initial"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:222
+#: ../includes/elements/map-leaflet.php:223
 msgid "Snap"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:231
+#: ../includes/elements/map-leaflet.php:232
 msgid "Delta"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:240
+#: ../includes/elements/map-leaflet.php:241
 msgid "Double-click"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:252
+#: ../includes/elements/map-leaflet.php:253
 msgid "Box Zoom"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:260, ../includes/elements/map.php:631
+#: ../includes/elements/map-leaflet.php:261, ../includes/elements/map.php:631
 msgid "Zoom Control"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:268
+#: ../includes/elements/map-leaflet.php:269
 msgid "Attribution Control"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:276
+#: ../includes/elements/map-leaflet.php:277
 msgid "Close popup on click"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:284
+#: ../includes/elements/map-leaflet.php:285
 msgid "Dragging"
 msgstr ""
 
-#: ../includes/elements/map-leaflet.php:292
+#: ../includes/elements/map-leaflet.php:293
 msgid "Track resize"
 msgstr ""
 

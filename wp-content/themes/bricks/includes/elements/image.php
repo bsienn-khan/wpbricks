@@ -289,7 +289,7 @@ class Element_Image extends Element {
 		/**
 		 * Custom lightbox image size (when image set via custom URL, etc.)
 		 *
-		 * @since 2.x
+		 * @since 2.1.3
 		 */
 		$this->controls['lightboxWidth'] = [
 			'tab'      => 'content',
@@ -982,11 +982,11 @@ class Element_Image extends Element {
 					$this->set_attribute( 'link', 'href', $lightbox_image[0] );
 					$this->set_attribute( 'link', 'data-pswp-src', $lightbox_image[0] );
 
-					// Use custom width if set, otherwise use image width (@since 2.x)
+					// Use custom width if set, otherwise use image width (@since 2.1.3)
 					$lightbox_width = ! empty( $settings['lightboxWidth'] ) ? intval( $settings['lightboxWidth'] ) : $lightbox_image[1];
 					$this->set_attribute( 'link', 'data-pswp-width', $lightbox_width );
 
-					// Use custom height if set, otherwise use image height (@since 2.x)
+					// Use custom height if set, otherwise use image height (@since 2.1.3)
 					$lightbox_height = ! empty( $settings['lightboxHeight'] ) ? intval( $settings['lightboxHeight'] ) : $lightbox_image[2];
 					$this->set_attribute( 'link', 'data-pswp-height', $lightbox_height );
 				}

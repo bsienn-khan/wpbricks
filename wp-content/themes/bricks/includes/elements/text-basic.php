@@ -21,7 +21,7 @@ class Element_Text_Basic extends Element {
 			'description' => esc_html__( 'Select text on canvas to format it. To add headings, paragraphs, and images use the "Rich Text" element.', 'bricks' ),
 		];
 
-		$default_tag = $this->theme_styles['tag'] ?? 'div'; // Default tag fallback to 'div' (@since 2.x)
+		$default_tag = $this->theme_styles['tag'] ?? 'div'; // Default tag fallback to 'div' (@since 2.1.3)
 
 		$this->controls['tag'] = [
 			'label'       => esc_html__( 'HTML tag', 'bricks' ),

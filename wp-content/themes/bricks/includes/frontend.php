@@ -1166,7 +1166,7 @@ class Frontend {
 		 *
 		 * Example: User lands on the activation page without an activation link.
 		 *
-		 * @since 2.x
+		 * @since 2.1.3
 		 */
 		if ( ! isset( $_GET['activation_key'] ) || ! isset( $_GET['user_id'] ) ) {
 			return;
