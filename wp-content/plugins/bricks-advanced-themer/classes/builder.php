@@ -192,51 +192,6 @@ class AT__Builder{
         global $brxc_acf_fields;
 
         if( !function_exists('bricks_is_builder') || ! bricks_is_builder() || !function_exists('bricks_is_builder_iframe') || bricks_is_builder_iframe() || !\Bricks\Capabilities::current_user_has_full_access() === true) return;
-
-        $css = '';
-
-        if(AT__Helpers::is_builder_tweaks_category_activated() && AT__Helpers::in_array('pseudo-shortcut', $brxc_acf_fields, 'elements_shortcut_icons') ){
-        // Show Open in new tab Icon
-        $css .= '#bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header{
-            gap: 2px;
-            padding-top: var(--builder-spacing);
-        }
-        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header .actions,
-        #bricks-structure #bricks-panel-header .actions{
-            width: 100%;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(24px, 1fr));
-            justify-content: space-between;
-            width: 100%;
-            gap: 5px;
-            margin-bottom: 22px;
-        }
-        #bricks-structure #bricks-panel-header .actions{
-            margin-bottom: 16px;
-        }
-            
-        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header input,
-        #bricks-structure #bricks-panel-header input {
-            height: auto;
-            line-height: var(--builder-input-height);
-        }
-        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header .actions,
-        #bricks-structure #bricks-panel-header .actions {
-            flex-wrap: wrap;
-        }
-        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header .actions li.brxc-header-icon__before svg {
-            transform: rotate(90deg);
-            scale: 1.1;
-         }
-         
-         #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header .actions li.brxc-header-icon__after svg {
-            transform: rotate(-90deg);
-            scale: 1.1;
-         }';
-        }
-        
-
-        wp_add_inline_style('bricks-advanced-themer-builder', $css, 'after');
         
 
         $option = get_option('bricks_advanced_themer_builder_settings', []);

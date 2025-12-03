@@ -1,4 +1,13 @@
 <?php
+/**
+ * @package ACF
+ * @author  WP Engine
+ *
+ * © 2025 Advanced Custom Fields (ACF®). All rights reserved.
+ * "ACF" is a trademark of WP Engine.
+ * Licensed under the GNU General Public License v2 or later.
+ * https://www.gnu.org/licenses/gpl-2.0.html
+ */
 
 if ( ! class_exists( 'acf_pro' ) ) :
 
@@ -185,11 +194,6 @@ if ( ! class_exists( 'acf_pro' ) ) :
 		 * @since 6.2.1
 		 */
 		public function maybe_show_license_status_error() {
-			$date_created_option = get_option('brxc_license_date_created');
-			if(is_numeric($date_created_option) && brxc_check_license_date($date_created_option)){
-				return;
-			}
-			
 			$license_status         = acf_pro_get_license_status();
 			$defined_license_errors = acf_pro_get_activation_failure_transient();
 			$manage_url             = false;

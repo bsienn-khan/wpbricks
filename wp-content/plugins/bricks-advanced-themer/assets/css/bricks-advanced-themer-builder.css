@@ -336,7 +336,7 @@ body.filterable-structure #bricks-structure #bricks-panel-header{
 
  .brxc-overlay__wrapper.sidebar .brxc-overlay__inner{
    max-height: unset !important;
-    height: calc(100vh - 40px);
+    height: calc(100vh - 48px);
     width: 300px;
     border-radius: 0;
     box-shadow: unset;

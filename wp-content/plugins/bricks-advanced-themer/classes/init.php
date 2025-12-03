@@ -72,6 +72,7 @@ class AT__Init {
         add_action( 'init', 'Advanced_Themer_Bricks\AT__Admin::register_scripts' );
         add_action( 'wp_enqueue_scripts', 'Advanced_Themer_Bricks\AT__Admin::enqueue_theme_variables');
         add_action( 'admin_enqueue_scripts', 'Advanced_Themer_Bricks\AT__Admin::admin_enqueue_scripts' );
+        add_action( 'init', 'Advanced_Themer_Bricks\AT__Admin::enqueue_builder_styles' );
         add_action( 'get_footer', 'Advanced_Themer_Bricks\AT__Admin::enqueue_builder_scripts' );
         add_action( 'get_footer', 'Advanced_Themer_Bricks\AT__Admin::enqueue_builder_scripts_strict_editor' );
         add_action( 'acf/input/admin_enqueue_scripts', 'Advanced_Themer_Bricks\AT__ACF::acf_admin_enqueue_scripts' );
@@ -98,7 +99,7 @@ class AT__Init {
         Add Admin Bar Menu Item
         --------------------------------------*/
         add_action( 'init', 'Advanced_Themer_Bricks\AT__Builder::populate_imported_classes' );
-        add_action( 'wp_footer', 'Advanced_Themer_Bricks\AT__Builder::add_modal_after_body_wrapper' );
+        add_action( 'get_footer', 'Advanced_Themer_Bricks\AT__Builder::add_modal_after_body_wrapper' );
 
         /*--------------------------------------
         Register New Bricks Elements

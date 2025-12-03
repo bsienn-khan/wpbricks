@@ -29,6 +29,16 @@ Valid license key should be entered for the plugin to function and to receive au
 
 
 == Changelog ==
+= 3.3.11 ( DEC 3, 2025)
+* FIX: Incorrect version of builder.css could cause the server to misidentify the file and fail to parse it as CSS.
+
+= 3.3.10 ( DEC 3, 2025)
+* FIX: AT styles not loaded inside the builder with WordPress 6.9
+* FIX: AT version is now programmatically loaded in the Theme Settings
+* FIX: SCSS code wasn't visible in Advanced CSS when breakpoints were set on Mobile-First
+* FIX: CSS conflict with the plugin Frontend Admin
+* FIX: Orphaned elements could break the Structure Helper modal
+* SECURITY: ACF updated to v6.6.2
 
 = 3.3.9 ( OCT 28, 2025)
 * HOTFIX: Missing headers and footers templates on the frontend

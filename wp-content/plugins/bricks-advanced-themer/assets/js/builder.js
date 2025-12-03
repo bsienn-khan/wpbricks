@@ -26172,6 +26172,9 @@ window.ADMINBRXC = {
             element.children.forEach(id => {
                 const childOriginalElement = self.helpers.getElementObject(id, true);
                 const settings = self.helpers.getElementObject(id);
+
+                if(!childOriginalElement || !settings) return;
+                
                 const childIsComponent = isComponent || 
                     (self.vueState.hasOwnProperty('components') && 
                      self.vueState.components.find(el => el.id === settings.id));

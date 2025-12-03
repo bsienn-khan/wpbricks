@@ -34,7 +34,7 @@ $base_breakpoint = array_filter($breakpoints, function($breakpoint) {
 
 $base_key = !empty($base_breakpoint) ? reset($base_breakpoint)['key'] : '';
 $css_key = 'customCss' . ($base_key === 'desktop' ? '' : ':' . $base_key);
-$sass_key = 'customSass' . ($base_key === 'desktop' ? '' : ':' . $base_key);
+$sass_key = 'customSass';
 
 // PAGE
 $page_id = get_the_ID();

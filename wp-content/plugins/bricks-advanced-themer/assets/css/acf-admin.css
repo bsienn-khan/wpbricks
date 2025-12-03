@@ -918,8 +918,6 @@ body.bricks_page_bricks-advanced-themer .btn-container .acf-input{
 
 
 .wp-admin.bricks_page_bricks-advanced-themer{
-
-    --ats-version: 'V3.3.8-beta';
     --ats-logo-position: 90px;
     --ats-version-position: 25px;
     
@@ -1013,6 +1011,7 @@ body.bricks_page_bricks-advanced-themer .btn-container .acf-input{
 
     .acf-postbox>.inside {
     display: flex;
+    flex-wrap: nowrap;
 
     &>.acf-field-group{
         flex-basis: calc(100% - var(--ats-sidebar-width));

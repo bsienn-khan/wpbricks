@@ -960,13 +960,18 @@ Witty',
     public static function acf_admin_enqueue_scripts() {
 
         if( !is_user_logged_in() ) {
-
             return;
-
         }
 
         wp_enqueue_style( 'brxc_acf_admin', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/acf-admin.css', false, filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/acf-admin.css') );
         wp_enqueue_script( 'brxc_acf_admin', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/acf-admin.js', false, filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/acf-admin.js') );
+        
+        // Add version CSS variable
+        $custom_css = ".wp-admin.bricks_page_bricks-advanced-themer {
+            --ats-version: '" . BRICKS_ADVANCED_THEMER_VERSION . "';
+        }";
+        wp_add_inline_style('brxc_acf_admin', $custom_css);
+        
         $nonce = wp_create_nonce('export_advanced_options_nonce');
         wp_localize_script('brxc_acf_admin', 'exportOptions', array(
             'ajax_url' => admin_url('admin-ajax.php'),

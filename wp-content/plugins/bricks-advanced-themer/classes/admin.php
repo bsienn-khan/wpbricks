@@ -106,37 +106,37 @@ class AT__Admin{
 
     // Register Scripts
     public static function register_scripts(){
-        wp_register_script( 'sass-at', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/sass.js', ['sass-worker-at'], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/sass.js' ) );
+        wp_register_script( 'sass-at', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/sass.js', ['sass-worker-at'], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/sass.js' ) );
         wp_register_script( 'sass-worker-at', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/sass.worker.js', [], '1.0.1' );
         
         // Styles
-        wp_register_style( 'bricks-advanced-themer', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/bricks-advanced-themer.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/bricks-advanced-themer.css' ) );
-        wp_register_style( 'bricks-advanced-themer-builder', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/bricks-advanced-themer-builder.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/bricks-advanced-themer-builder.css' ) );
+        wp_register_style( 'bricks-advanced-themer', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/bricks-advanced-themer.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/bricks-advanced-themer.css' ) );
+        wp_register_style( 'bricks-advanced-themer-builder', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/bricks-advanced-themer-builder.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/bricks-advanced-themer-builder.css' ) );
         wp_register_style( 'bricks-advanced-themer-backend', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/bricks-advanced-themer-backend.css', [], \BRICKS_ADVANCED_THEMER_VERSION );
         wp_enqueue_style( 'bricks-advanced-themer' );
-        wp_register_style( 'alwan', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/alwan.min.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/alwan.min.css' ) );
-        wp_register_style( 'brxc-darkmode-toggle', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/darkmode-toggle.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/darkmode-toggle.css' ) );
-        wp_register_style( 'brxc-darkmode-btn', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/darkmode-btn.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/darkmode-btn.css' ) );
-        wp_register_style( 'brxc-darkmode-btn-nestable', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/darkmode-btn-nestable.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/darkmode-btn-nestable.css' ) );
-        wp_register_style( 'brxc-darkmode-toggle-nestable', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/darkmode-toggle-nestable.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/darkmode-toggle-nestable.css' ) );
-        wp_register_style( 'monokai', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/monokai.min.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/monokai.min.css' ) );
+        wp_register_style( 'alwan', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/alwan.min.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/alwan.min.css' ) );
+        wp_register_style( 'brxc-darkmode-toggle', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/darkmode-toggle.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/darkmode-toggle.css' ) );
+        wp_register_style( 'brxc-darkmode-btn', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/darkmode-btn.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/darkmode-btn.css' ) );
+        wp_register_style( 'brxc-darkmode-btn-nestable', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/darkmode-btn-nestable.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/darkmode-btn-nestable.css' ) );
+        wp_register_style( 'brxc-darkmode-toggle-nestable', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/darkmode-toggle-nestable.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/darkmode-toggle-nestable.css' ) );
+        wp_register_style( 'monokai', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/monokai.min.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/monokai.min.css' ) );
         wp_register_style( 'brxc-builder-new-codemirror', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/lib/codemirror.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/lib/codemirror.css' ) );
-        wp_register_style( 'bricks-strict-editor-view', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/bricks-strict-editor-view.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/bricks-strict-editor-view.css' ) );
-        wp_register_style( 'brxc-page-transition', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/page-transition.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/css/page-transition.css' ) );
+        wp_register_style( 'bricks-strict-editor-view', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/bricks-strict-editor-view.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/bricks-strict-editor-view.css' ) );
+        wp_register_style( 'brxc-page-transition', \BRICKS_ADVANCED_THEMER_URL . 'assets/css/page-transition.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/css/page-transition.css' ) );
         
         // Scripts
-        wp_register_script( 'alwan', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/alwan.min.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/alwan.min.js' ) );
-        wp_register_script( 'brxc-builder', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/builder.js', ['sortable'], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/builder.js' ) );
-        wp_register_script( 'beautifer-css', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/beautifer-css.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/beautifer-css.js' ) );
+        wp_register_script( 'alwan', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/alwan.min.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/alwan.min.js' ) );
+        wp_register_script( 'brxc-builder', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/builder.js', ['sortable'], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/builder.js' ) );
+        wp_register_script( 'beautifer-css', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/beautifer-css.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/beautifer-css.js' ) );
         wp_register_script( 'brxc-builder-new-codemirror', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/lib/codemirror.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/lib/codemirror.js' ) );
-        wp_register_script( 'brxc-darkmode-local-storage', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/darkmode-local-storage.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/darkmode-local-storage.js'), false  );
-        wp_register_script( 'brxc-darkmode', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/darkmode.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/darkmode.js'), false  );
-        wp_register_script( 'sortable', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/Sortable.min.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/Sortable.min.js' ) );
-        wp_register_script( 'contrast', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/contrast.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/contrast.js' ) );
-        wp_register_script( 'chroma', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/chroma.min.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/chroma.min.js' ) );
-        wp_register_script( 'highlight', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/highlight.min.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/highlight.min.js' ) );
-        wp_register_script( 'bricks-strict-editor-view', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/bricks-strict-editor-view.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/bricks-strict-editor-view.js' ) );
-        wp_register_script( 'brxc-scroll-timeline', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/scroll-timeline.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . '/assets/js/scroll-timeline.js' ) );
+        wp_register_script( 'brxc-darkmode-local-storage', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/darkmode-local-storage.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/darkmode-local-storage.js'), false  );
+        wp_register_script( 'brxc-darkmode', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/darkmode.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/darkmode.js'), false  );
+        wp_register_script( 'sortable', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/Sortable.min.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/Sortable.min.js' ) );
+        wp_register_script( 'contrast', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/contrast.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/contrast.js' ) );
+        wp_register_script( 'chroma', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/chroma.min.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/chroma.min.js' ) );
+        wp_register_script( 'highlight', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/highlight.min.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/highlight.min.js' ) );
+        wp_register_script( 'bricks-strict-editor-view', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/bricks-strict-editor-view.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/bricks-strict-editor-view.js' ) );
+        wp_register_script( 'brxc-scroll-timeline', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/scroll-timeline.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/scroll-timeline.js' ) );
         
     }
 
@@ -251,27 +251,25 @@ class AT__Admin{
         }
     }
 
-    public static function enqueue_builder_scripts() {
+    public static function enqueue_builder_styles() {
 
         if (!class_exists('Bricks\Capabilities') || !function_exists('bricks_is_builder') || !bricks_is_builder()) {
             return;
         }
-
+    
         wp_enqueue_style( 'bricks-advanced-themer' );
         
         if( \Bricks\Capabilities::current_user_has_full_access() !== true) {
             return;
         }
-
+    
         global $brxc_acf_fields;
-        wp_enqueue_script( 'contrast' );
-        wp_enqueue_style( 'bricks-advanced-themer-builder' );
-
+    
         $custom_css = '';
         if(AT__Helpers::is_builder_tweaks_category_activated()){
             if(AT__Helpers::is_array($brxc_acf_fields, 'element_features')){
                 if(in_array('diable-pin-on-elements', $brxc_acf_fields['element_features'])){
-
+    
                     $custom_css .= 'body .bricks-panel #bricks-panel-elements :not([data-tab="components"]) .bricks-panel-actions-icon.pin{display: none !important;}';
                 }
         
@@ -290,10 +288,68 @@ class AT__Admin{
     
                 $custom_css .= '#bricks-panel .brxce-panel-shortcut__container{top:'. esc_attr($brxc_acf_fields['tab_icons_offset']) .'px;}';
             }
+
+            if(AT__Helpers::in_array('pseudo-shortcut', $brxc_acf_fields, 'elements_shortcut_icons')){
+                $custom_css .= '#bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header{
+                            gap: 2px;
+                            padding-top: var(--builder-spacing);
+                        }
+                        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header .actions,
+                        #bricks-structure #bricks-panel-header .actions{
+                            width: 100%;
+                            display: grid;
+                            grid-template-columns: repeat(auto-fit, minmax(24px, 1fr));
+                            justify-content: space-between;
+                            width: 100%;
+                            gap: 5px;
+                            margin-bottom: 22px;
+                        }
+                        #bricks-structure #bricks-panel-header .actions{
+                            margin-bottom: 16px;
+                        }
+                            
+                        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header input,
+                        #bricks-structure #bricks-panel-header input {
+                            height: auto;
+                            line-height: var(--builder-input-height);
+                        }
+                        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header .actions,
+                        #bricks-structure #bricks-panel-header .actions {
+                            flex-wrap: wrap;
+                        }
+                        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header .actions li.brxc-header-icon__before svg {
+                            transform: rotate(90deg);
+                            scale: 1.1;
+                        }
+                        
+                        #bricks-panel #bricks-panel-element:not(.instance,.property) #bricks-panel-header .actions li.brxc-header-icon__after svg {
+                            transform: rotate(-90deg);
+                            scale: 1.1;
+                        }';
+            }
         }
-
+    
         wp_add_inline_style('bricks-advanced-themer-builder', $custom_css, 'after');
-
+    
+        wp_enqueue_style('bricks-advanced-themer-builder');
+        wp_enqueue_style('alwan');
+        wp_enqueue_style( 'brxc-builder-new-codemirror-addon-dialog', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/dialog/dialog.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/dialog/dialog.css' ) );
+        wp_enqueue_style( 'brxc-builder-new-codemirror-addon-hint', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/hint/show-hint.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/hint/show-hint.css' ) );
+    }
+    
+    public static function enqueue_builder_scripts() {
+    
+        if (!class_exists('Bricks\Capabilities') || !function_exists('bricks_is_builder') || !bricks_is_builder()) {
+            return;
+        }
+        
+        if( \Bricks\Capabilities::current_user_has_full_access() !== true) {
+            return;
+        }
+    
+        global $brxc_acf_fields;
+        wp_enqueue_script( 'contrast' );
+    
         if( !function_exists('bricks_is_builder_iframe') || bricks_is_builder_iframe() ) return;
         
         // SASS
@@ -303,9 +359,8 @@ class AT__Admin{
             wp_enqueue_script('sass-at');
             wp_add_inline_script('sass-at', "Sass.setWorkerUrl('" . esc_url(\BRICKS_ADVANCED_THEMER_URL . 'assets/js/sass.worker.js?ver=1.0.0') . "');");
         }
-
+    
         wp_enqueue_script('alwan');
-        wp_enqueue_style('alwan');
         wp_enqueue_script( 'chroma' );
         wp_enqueue_script('brxc-builder');
         wp_enqueue_script('beautifer-css');
@@ -316,14 +371,12 @@ class AT__Admin{
         wp_enqueue_script( 'brxc-builder-new-codemirror-mode-htmlmixed', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/mode/htmlmixed/htmlmixed.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/mode/htmlmixed/htmlmixed.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-mode-sass', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/mode/sass/sass.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/mode/sass/sass.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-dialog', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/dialog/dialog.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/dialog/dialog.js' ) );
-        wp_enqueue_style( 'brxc-builder-new-codemirror-addon-dialog', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/dialog/dialog.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/dialog/dialog.css' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-placeholder', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/display/placeholder.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/display/placeholder.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-closeBrackets', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/edit/closebrackets.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/edit/closebrackets.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-closeTag', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/edit/closetag.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/edit/closetag.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-matchBrackets', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/edit/matchbrackets.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/edit/matchbrackets.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-fold-xml', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/fold/xml-fold.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/fold/xml-fold.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-matchTags', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/edit/matchtags.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/edit/matchtags.js' ) );
-        wp_enqueue_style( 'brxc-builder-new-codemirror-addon-hint', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/hint/show-hint.css', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/hint/show-hint.css' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-hint', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/hint/show-hint.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/hint/show-hint.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-css-hint', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/hint/css-hint.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/hint/css-hint.js' ) );
         wp_enqueue_script( 'brxc-builder-new-codemirror-addon-xml-hint', \BRICKS_ADVANCED_THEMER_URL . 'assets/js/codemirror/addon/hint/xml-hint.js', [], filemtime( \BRICKS_ADVANCED_THEMER_PATH . 'assets/js/codemirror/addon/hint/xml-hint.js' ) );
