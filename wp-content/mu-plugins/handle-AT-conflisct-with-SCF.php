@@ -14,13 +14,11 @@
  * Which comes bundled with AT.
  */
 add_action('muplugins_loaded', function () {
-
     if (! function_exists('is_plugin_active')) {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
     }
 
-    // Adjust the plugin path if the main plugin file name is different
     if (is_plugin_active('secure-custom-fields/secure-custom-fields.php')) {
-        define('MY_ACF_PATH', WP_CONTENT_DIR . '/plugins/secure-custom-fields/');
+        define('MY_ACF_PATH', WP_PLUGIN_DIR . '/secure-custom-fields/');
     }
-}, 0);
+});
