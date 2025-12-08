@@ -161,12 +161,6 @@ const DISABLE_WP_CRON = true;
  */
 const WP_MEMORY_LIMIT = '256M';
 
-/**
- * Advanced Themer forces ACF to be used from within its own plugin directory.
- * This causes SCF to not work unless we also set this constant here.
- */
-const MY_ACF_PATH = __DIR__ . '/wp-content/plugins/secure-custom-fields/';
-
 /* That's all, stop editing! Happy publishing. */
 
 /** Absolute path to the WordPress directory. */
