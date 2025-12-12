@@ -11551,7 +11551,9 @@ __webpack_require__.r(__webpack_exports__);
                   // Check if the publish panel is open and close it if so
                   const publishPanel = document.getElementsByClassName('editor-post-publish-panel')[0];
                   if (publishPanel) {
-                    wp.data.dispatch('core/editor').togglePublishSidebar();
+                    // See https://github.com/WordPress/secure-custom-fields/pull/272
+                    // `togglePublishSidebar` was only introduced in WP 6.6, it should be optional
+                    wp.data.dispatch('core/editor').togglePublishSidebar?.();
                   }
 
                   // Add block to errors array
