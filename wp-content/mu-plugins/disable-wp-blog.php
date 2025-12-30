@@ -6,16 +6,24 @@ Version: 1.0
 Author: adeel.cs@gmail.com
 */
 
-// Remove default Posts menu
-add_action('admin_menu', function () {
-	remove_menu_page('edit.php');
-});
-
-// Hide Post Widgets from Dashboard
+// Hide Quick Draft Widgets & News Widget from Dashboard
 add_action('wp_dashboard_setup', function () {
 	remove_meta_box('dashboard_quick_press', 'dashboard', 'side');
 	remove_meta_box('dashboard_primary', 'dashboard', 'side');
 });
+
+// Filter to disable the post_type from being registered and display in admin / plugins
+add_filter( 'register_post_type_args', function ( $args, $post_type ) {
+	if ( $post_type === 'post' ) {
+		$args['public']              = false;
+		$args['show_in_menu']        = false;
+		$args['publicly_queryable']  = false;
+		$args['exclude_from_search'] = true;
+		$args['show_in_rest']        = true; // Keep this true to avoid Site Health error REST API check failures
+	}
+
+	return $args;
+}, 10, 2 );
 
 // Remove Tags and Categories from Posts
 add_action('init', function () {
@@ -39,16 +47,3 @@ add_filter('rewrite_rules_array', function ($rules) {
 	}
 	return $rules;
 });
-
-// Filter to disable the post_type from being registered and display in admin / plugins
-add_filter( 'register_post_type_args', function ( $args, $post_type ) {
-	if ( $post_type === 'post' ) {
-		$args['public']              = false;
-		$args['show_in_menu']        = false;
-		$args['publicly_queryable']  = false;
-		$args['exclude_from_search'] = true;
-		$args['show_in_rest']        = true; // Keep this true to avoid Site Health error REST API check failures
-	}
-
-	return $args;
-}, 10, 2 );
