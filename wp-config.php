@@ -92,8 +92,7 @@ const WP_DISABLE_FATAL_ERROR_HANDLER = WP_ENVIRONMENT_TYPE === 'development';
 /**
  * Sets 'bricks-child' as the default WordPress theme to be used on the site.
  * Default: 'twenty-twenty' or the latest default theme
- * Benefit: Ensures the custom 'bricks-child' theme is always used, even after updates
- * that might otherwise revert to WordPress default themes.
+ * Benefit: Suppress the notice in Tools > Site Health, "Have a default theme available"
  */
 const WP_DEFAULT_THEME = 'bricks-child';
 
@@ -116,15 +115,15 @@ const AUTOMATIC_UPDATER_DISABLED = true;
 /**
  * Prevents the installation, update, and deletion of plugins and themes from the WordPress admin.
  * Default: false (file modifications allowed)
- * Benefit: Enforces version control for all code changes rather than allowing
- * ad-hoc modifications through the admin interface, ensuring better code quality control.
- * Good for security and stability in production environments.
+ * Benefit: Good for security and stability in production environments.
  */
 const DISALLOW_FILE_MODS = true;
 
 /**
  * Sets the file system method to 'direct', allowing WordPress to write files directly.
- * Since we have DISALLOW_FILE_MODS set to true, this is just to stop "Unable to connect" errors in the admin.
+ * Default: Not set
+ * Benefit: Suppress the notice in Tools > Site Health, "Unable to connect"
+ * Since we have DISALLOW_FILE_MODS set to true, this has no extra effect.
  */
 const FS_METHOD = 'direct';
 
@@ -156,8 +155,8 @@ const DISABLE_WP_CRON = true;
 /**
  * Sets the memory limit for WordPress to 256MB, up to the maximum allowed set in the server's php.ini.
  * Default: 40MB for single-site, 64MB for multisite
- * Benefit: Provides more memory for resource-intensive operations, such as large imports,
- * complex queries, or high-traffic sites, improving performance and reducing memory-related errors.
+ * Benefit: Bricks builder is resource intensive, A minimum of 256MB is required for Bricks setup.
+ * Provides more memory for resource-intensive operations, complex queries, etc. improving performance and reducing memory-related errors.
  */
 const WP_MEMORY_LIMIT = '256M';
 
