@@ -7,6 +7,11 @@
  */
 
 add_filter( 'site_status_tests', function( $tests ) {
-	unset( $tests['async']['background_updates'] );
-	return $tests;
+    if (WP_ENVIRONMENT_TYPE === 'development') {
+        unset( $tests['direct']['debug_enabled'] );
+    }
+
+    unset( $tests['async']['background_updates'] );
+
+    return $tests;
 });
