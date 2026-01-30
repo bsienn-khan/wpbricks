@@ -1,7 +1,9 @@
 <?php
 /**
- * Plugin Name: Disable Updates Warning (MU)
- * Description: Disables the background updates check in Site Health because updates are managed manually.
+ * Plugin Name: Cleanup Site Health warnings (MU)
+ * Description: Disable Redundant Warnings
+ * 1) Disable debug mode warning in the development environment.
+ * 2) Disables the background updates because updates are managed manually.
  * Author: adeel.cs@gmail.com
  * Version: 1.0
  */
