@@ -57,6 +57,15 @@ add_filter(
  */
 add_filter( 'bricks/code/echo_function_names', static fn() => [ '@^brx_' ] );
 
+/**
+ * Retrieves and formats a list of business types from an options field.
+ *
+ * This function fetches the 'business_type' field from the options and processes it into
+ * a single string with line items separated by newline characters. If the field is not
+ * an array or is empty, an empty string is returned.
+ *
+ * @return string A newline-separated string of business type line items, or an empty string if no data is available.
+ */
 function brx_business_types() {
     $business_types = get_field( 'business_type', 'option' );
 
@@ -66,3 +75,16 @@ function brx_business_types() {
 
     return implode( PHP_EOL, array_map( static fn( $row ) => $row['line_item'], $business_types ) );
 }
+
+/**
+ * Extend allowed HTML tags in the "Custom Tag" field
+ *
+ * Define the additional tags to be added (e.g. 'form' & 'select')
+ */
+add_filter( 'bricks/allowed_html_tags', function( $allowed_html_tags ) {
+    // Allow "dynamic ACF field" as a custom tag
+    $additional_tags = ['{acf_heading_tag}'];
+
+    // Merge additional tags with the existing allowed tags
+    return array_merge( $allowed_html_tags, $additional_tags );
+} );
