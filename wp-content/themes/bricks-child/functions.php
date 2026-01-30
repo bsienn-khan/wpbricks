@@ -3,10 +3,17 @@
  * Register/enqueue custom scripts and styles
  */
 add_action('wp_enqueue_scripts', function () {
-    // Enqueue your files on the canvas & frontend, not the builder panel. Otherwise custom CSS might affect builder)
+    // Enqueue your files on the canvas & frontend, not the builder panel. Otherwise, custom CSS might affect the builder
     if (! bricks_is_builder_main()) {
-        wp_enqueue_style('bricks-child', get_stylesheet_uri(), ['bricks-frontend'],
-            filemtime(get_stylesheet_directory().'/style.css'));
+        // Enqueue CSS
+        // Dependency 'bricks-frontend'
+        // It tells WordPress: "Do not load my child CSS until the main Bricks frontend CSS has loaded."
+        // This ensures your custom styles actually override the default Bricks styles because they appear later in the HTML.
+        wp_enqueue_style('bricks-child-css', get_theme_file_uri('/style.css'), ['bricks-frontend']);
+
+        // Enqueue JS
+        // Dependency true so it loads after all other scripts in the footer
+        wp_enqueue_script('bricks-child-js', get_theme_file_uri( '/scripts.js'), true);
     }
 });
 
