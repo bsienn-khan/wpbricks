@@ -13,15 +13,16 @@
 * Hide admin bar from frontend on mobile devices
 */
 @media screen and (max-width: 782px) {
-    #wpadminbar {
-        display: none !important;
-    }
-
     html {
+        --wp-admin--admin-bar--height: 0;
         margin-top: 0 !important;
     }
 
     body.bricks-is-frontend.admin-bar #brx-header.sticky {
         top: 0 !important;
+    }
+
+    #wpadminbar {
+        display: none !important;
     }
 }
