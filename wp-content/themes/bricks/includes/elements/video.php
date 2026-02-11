@@ -60,6 +60,30 @@ class Element_Video extends Element {
 			'required' => [ 'videoType', '=', [ 'youtube', 'vimeo' ] ],
 		];
 
+		// @since 2.2
+		$this->controls['aspectRatio'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Aspect ratio', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'16/9' => '16:9 (' . esc_html__( 'Landscape', 'bricks' ) . ')',
+				'9/16' => '9:16 (' . esc_html__( 'Portrait', 'bricks' ) . '/' . esc_html__( 'Shorts', 'bricks' ) . ')',
+				'4/3'  => '4:3 (' . esc_html__( 'Standard', 'bricks' ) . ')',
+				'3/4'  => '3:4 (' . esc_html__( 'Portrait', 'bricks' ) . ')',
+				'21/9' => '21:9 (' . esc_html__( 'Ultrawide', 'bricks' ) . ')',
+				'1/1'  => '1:1 (' . esc_html__( 'Square', 'bricks' ) . ')',
+				'2/3'  => '2:3 (' . esc_html__( 'Portrait', 'bricks' ) . ')',
+				'3/2'  => '3:2 (' . esc_html__( 'Landscape', 'bricks' ) . ')',
+			],
+			'inline'      => true,
+			'placeholder' => '16:9',
+			'css'         => [
+				[
+					'property' => 'aspect-ratio',
+				],
+			],
+		];
+
 		/**
 		 * Type: YouTube
 		 */
@@ -118,6 +142,95 @@ class Element_Video extends Element {
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Do not track', 'bricks' ),
 			'type'     => 'checkbox',
+			'required' => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeStart'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Start time [s]', 'bricks' ),
+			'type'        => 'number',
+			'placeholder' => esc_html__( 'Seconds', 'bricks' ),
+			'inline'      => true,
+			'required'    => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeEnd'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'End time [s]', 'bricks' ),
+			'type'        => 'number',
+			'placeholder' => esc_html__( 'Seconds', 'bricks' ),
+			'inline'      => true,
+			'required'    => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeDisableFullscreenButton'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Disable fullscreen button', 'bricks' ),
+			'type'     => 'checkbox',
+			'default'  => true,
+			'required' => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeDisableKeyboard'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Disable keyboard controls', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeLanguage'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Interface language', 'bricks' ),
+			'type'        => 'text',
+			'placeholder' => 'en',
+			'inline'      => true,
+			'info'        => esc_html__( 'ISO 639-1 two-letter language code (e.g., en, fr, de)', 'bricks' ),
+			'required'    => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeCcLang'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Captions language', 'bricks' ),
+			'type'        => 'text',
+			'placeholder' => 'en',
+			'inline'      => true,
+			'info'        => esc_html__( 'ISO 639-1 two-letter language code for default captions', 'bricks' ),
+			'required'    => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeCcLoad'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Show captions by default', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeColor'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Progress bar color', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'red'   => esc_html__( 'Red', 'bricks' ),
+				'white' => esc_html__( 'White', 'bricks' ),
+			],
+			'placeholder' => esc_html__( 'Red', 'bricks' ),
+			'inline'      => true,
+			'required'    => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubeHideAnnotationsByDefault'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Hide video annotations by default', 'bricks' ),
+			'type'     => 'checkbox',
+			'default'  => true,
+			'required' => [ 'videoType', '=', 'youtube' ],
+		];
+
+		$this->controls['youtubePlaysinline'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Play inline', 'bricks' ) . ' (iOS)',
+			'type'     => 'checkbox',
+			'info'     => esc_html__( 'Play videos inline instead of fullscreen on iOS devices.', 'bricks' ),
 			'required' => [ 'videoType', '=', 'youtube' ],
 		];
 
@@ -661,6 +774,54 @@ class Element_Video extends Element {
 				// Add enablejsapi to autopause on bricks/popup/close (@since 1.8)
 				$video_parameters[] = 'enablejsapi=1';
 
+				// Add origin parameter for security when using enablejsapi (@since 2.2)
+				// https://developers.google.com/youtube/player_parameters#origin
+				if ( ! empty( $_SERVER['HTTP_HOST'] ) ) {
+					$protocol           = is_ssl() ? 'https://' : 'http://';
+					$video_parameters[] = 'origin=' . urlencode( $protocol . $_SERVER['HTTP_HOST'] );
+				}
+
+				// New parameters (@since 2.2)
+				if ( ! empty( $settings['youtubeStart'] ) ) {
+					$video_parameters[] = 'start=' . absint( $settings['youtubeStart'] );
+				}
+
+				if ( ! empty( $settings['youtubeEnd'] ) ) {
+					$video_parameters[] = 'end=' . absint( $settings['youtubeEnd'] );
+				}
+
+				if ( isset( $settings['youtubeDisableFullscreenButton'] ) ) {
+					$video_parameters[] = 'fs=0';
+				}
+
+				if ( isset( $settings['youtubeDisableKeyboard'] ) ) {
+					$video_parameters[] = 'disablekb=1';
+				}
+
+				if ( ! empty( $settings['youtubeLanguage'] ) ) {
+					$video_parameters[] = 'hl=' . sanitize_text_field( $settings['youtubeLanguage'] );
+				}
+
+				if ( ! empty( $settings['youtubeCcLang'] ) ) {
+					$video_parameters[] = 'cc_lang_pref=' . sanitize_text_field( $settings['youtubeCcLang'] );
+				}
+
+				if ( isset( $settings['youtubeCcLoad'] ) ) {
+					$video_parameters[] = 'cc_load_policy=1';
+				}
+
+				if ( ! empty( $settings['youtubeColor'] ) ) {
+					$video_parameters[] = 'color=' . sanitize_text_field( $settings['youtubeColor'] );
+				}
+
+				if ( ! isset( $settings['youtubeHideAnnotationsByDefault'] ) ) {
+					$video_parameters[] = 'iv_load_policy=3';
+				}
+
+				if ( isset( $settings['youtubePlaysinline'] ) ) {
+					$video_parameters[] = 'playsinline=1';
+				}
+
 				break;
 
 			case 'vimeo':
@@ -807,6 +968,7 @@ class Element_Video extends Element {
 		$icon_attributes = [
 			'class'    => [ 'bricks-video-overlay-icon' ],
 			'tabindex' => '0', // Make icon focusable for keyboard navigation (@since 1.11)
+			'role'     => 'button',
 		];
 
 		if ( ! empty( $settings['overlayAriaLabel'] ) ) {
@@ -889,8 +1051,14 @@ class Element_Video extends Element {
 		}
 
 		if ( $source === 'youtube' || $source === 'vimeo' ) {
-			$this->set_attribute( 'iframe', 'allowfullscreen' );
-			$this->set_attribute( 'iframe', 'allow', 'autoplay' );
+			// Set proper iframe attributes for YouTube/Vimeo (@since 2.2)
+			$this->set_attribute( 'iframe', 'loading', 'lazy' );
+
+			// YouTube-specific attributes to fix error 153 and enable API features (@since 2.2)
+			if ( $source === 'youtube' ) {
+				$this->set_attribute( 'iframe', 'allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share' );
+				$this->set_attribute( 'iframe', 'referrerpolicy', 'strict-origin-when-cross-origin' );
+			}
 
 			// If there is an overlay, add tabindex="-1" to iframe element  (@since 1.11)
 			// to prevent tabbing to it, when overlay is enabled
@@ -970,6 +1138,7 @@ class Element_Video extends Element {
 			if ( empty( $icon ) ) {
 				// If no icon is set, set tabindex to 0, to overlay element, so that it can be focused (@since 1.11)
 				$this->set_attribute( 'video-overlay', 'tabindex', '0' );
+				$this->set_attribute( 'video-overlay', 'role', 'button' );
 
 				// @since 1.11: Add aria-label to overlay, if there is no icon, but there is overlay
 				if ( ! empty( $settings['overlayAriaLabel'] ) ) {

@@ -461,6 +461,21 @@ class Query {
 			return $query_vars;
 		}
 
+		/**
+		 * arrayEditor
+		 *
+		 * @since 2.2
+		 */
+		if ( isset( $query_vars['arrayEditor'] ) && ! empty( $query_vars['arrayEditor'] ) && $object_type === 'array' ) {
+
+			// Pagination support
+			if ( isset( $query_vars['pagination_enabled'] ) && $query_vars['pagination_enabled'] ) {
+				$query_vars['paged'] = self::get_paged_query_var( $query_vars );
+				$query_vars          = self::get_array_pagination_query_var( $query_vars );
+			}
+			return $query_vars;
+		}
+
 		// Meta Query vars
 		$query_vars = self::parse_meta_query_vars( $query_vars );
 
@@ -515,7 +530,7 @@ class Query {
 				$query_vars['paged'] = self::get_paged_query_var( $query_vars );
 
 				// Value must be -1 or > 1 (0 is not allowed)
-				$query_vars['posts_per_page'] = ! empty( $query_vars['posts_per_page'] ) ? intval( $query_vars['posts_per_page'] ) : get_option( 'posts_per_page' );
+				$query_vars['posts_per_page'] = isset( $query_vars['posts_per_page'] ) && is_numeric( $query_vars['posts_per_page'] ) ? intval( $query_vars['posts_per_page'] ) : get_option( 'posts_per_page' );
 
 				// Exclude current post
 				if ( isset( $query_vars['exclude_current_post'] ) ) {
@@ -607,7 +622,8 @@ class Query {
 
 			case 'term':
 				// Number. Default is "0" (all) but as a safety procedure we limit the number
-				$query_vars['number'] = isset( $query_vars['number'] ) ? $query_vars['number'] : get_option( 'posts_per_page' );
+				// Sanitize number to ensure it's an integer (#86c74nf1g; @since 2.2)
+				$query_vars['number'] = isset( $query_vars['number'] ) && is_numeric( $query_vars['number'] ) ? intval( $query_vars['number'] ) : get_option( 'posts_per_page' );
 
 				// Paged - set the paged key to the correct value (#86bwqwa31)
 				$query_vars['paged'] = self::get_paged_query_var( $query_vars );
@@ -672,6 +688,9 @@ class Query {
 
 					unset( $query_vars['current_post_author'] );
 				}
+
+				// Sanitize number to ensure it's an integer, use posts_per_page to match with the placeholder logic and get_user_pagination_query_var (#86c74nf1g; @since 2.2)
+				$query_vars['number'] = isset( $query_vars['number'] ) && is_numeric( $query_vars['number'] ) ? $query_vars['number'] : get_option( 'posts_per_page' );
 
 				// Paged
 				$query_vars['paged'] = self::get_paged_query_var( $query_vars );
@@ -866,11 +885,47 @@ class Query {
 
 				break;
 
+			// Query Array (@since 2.2)
+			case 'array':
+				$array_result  = $this->run_array_query();
+				$result        = $array_result['results'] ?? [];
+				$count         = $array_result['total_items'] ?? 0;
+				$start         = $array_result['start'] ?? 0;
+				$end           = $array_result['end'] ?? 0;
+				$max_num_pages = $array_result['total_pages'] ?? 1;
+				break;
+
 			default:
 				// Allow other query providers to return a query result (Woo Cart, ACF, Metabox...)
 				$result = apply_filters( 'bricks/query/run', [], $this );
 
 				$count = ! empty( $result ) && is_array( $result ) ? count( $result ) : 0;
+
+				// STEP: Apply array_conditions if applicable (@since 2.2)
+				$array_condition_supported_tags = \Bricks\Integrations\Dynamic_Data\Providers::get_array_supported_tags_list();
+				// Just get the objectType key from the supported tags list
+				$supported_object_types = array_map(
+					function( $item ) {
+						return $item['objectType'];
+					},
+					$array_condition_supported_tags
+				);
+
+				// Ensure the $supported_object_types is an array
+				$supported_object_types = is_array( $supported_object_types ) ? $supported_object_types : [];
+
+				if (
+					in_array( $this->object_type, $supported_object_types, true ) &&
+					isset( $this->query_vars['array_conditions'] ) &&
+					is_array( $this->query_vars['array_conditions'] ) && ! empty( $this->query_vars['array_conditions'] )
+				) {
+					$filtered_result = Query_Array::apply_conditions( $result, $this->query_vars['array_conditions'], Database::$page_data['preview_or_post_id'], $this );
+					$result          = $filtered_result;
+					$count           = is_array( $result ) ? count( $result ) : 0;
+
+					// Avoid showing in frontend
+					unset( $this->query_vars['array_conditions'] );
+				}
 				break;
 		}
 
@@ -1033,6 +1088,19 @@ class Query {
 		$result = $this->get_query_cache();
 
 		if ( $result === false ) {
+			/**
+			 * As long as weighted_relevance is set, and no query filter sort flag is set, we change orderby to include and remove order
+			 *
+			 *  @since 2.2
+			 */
+			if (
+				! isset( $this->query_vars['brx_sort_applied'] ) &&
+				isset( $this->query_vars['orderby'] ) &&
+				isset( $this->query_vars['brx_orderby'] ) && $this->query_vars['brx_orderby'] === 'weighted_relevance' && ! empty( $this->query_vars['include'] ) ) {
+				$this->query_vars['orderby'] = 'include';
+				unset( $this->query_vars['order'] );
+			}
+
 			$terms_query = new \WP_Term_Query( $this->query_vars );
 			$total       = count( $terms_query->get_terms() ); // Default total count
 
@@ -1074,6 +1142,19 @@ class Query {
 				add_action( 'pre_user_query', [ $this, 'set_distinct_user_query' ] );
 			}
 
+			/**
+			 * As long as weighted_relevance is set, and no query filter sort flag is set, we change orderby to include and remove order
+			 *
+			 *  @since 2.2
+			 */
+			if (
+				! isset( $this->query_vars['brx_sort_applied'] ) &&
+				isset( $this->query_vars['orderby'] ) &&
+				isset( $this->query_vars['brx_orderby'] ) && $this->query_vars['brx_orderby'] === 'weighted_relevance' && ! empty( $this->query_vars['include'] ) ) {
+				$this->query_vars['orderby'] = 'include';
+				unset( $this->query_vars['order'] );
+			}
+
 			$users_query = new \WP_User_Query( $this->query_vars );
 
 			if ( $has_meta_query ) {
@@ -1098,6 +1179,19 @@ class Query {
 		if ( $posts_query === false ) {
 			add_action( 'pre_get_posts', [ $this, 'set_pagination_with_offset' ], 5 );
 			add_filter( 'found_posts', [ $this, 'fix_found_posts_with_offset' ], 5, 2 );
+
+			/**
+			 * As long as weighted_relevance is set, and no query filter sort flag is set, we change orderby to post__in and remove order
+			 *
+			 *  @since 2.2
+			 */
+			if (
+				! isset( $this->query_vars['brx_sort_applied'] ) &&
+				isset( $this->query_vars['orderby'] ) &&
+				isset( $this->query_vars['brx_orderby'] ) && $this->query_vars['brx_orderby'] === 'weighted_relevance' && ! empty( $this->query_vars['post__in'] ) ) {
+				$this->query_vars['orderby'] = 'post__in';
+				unset( $this->query_vars['order'] );
+			}
 
 			$use_random_seed = self::use_random_seed( $this->query_vars );
 
@@ -1179,7 +1273,10 @@ class Query {
 			return $paged;
 		}
 
-		if ( get_query_var( 'page' ) ) {
+		if ( \Bricks\Helpers::get_ajax_current_page() ) {
+			// (@since 2.2)
+			$paged = \Bricks\Helpers::get_ajax_current_page();
+		} elseif ( get_query_var( 'page' ) ) {
 			// Check for 'page' on static front page
 			$paged = get_query_var( 'page' );
 		} elseif ( get_query_var( 'paged' ) ) {
@@ -1591,6 +1688,22 @@ class Query {
 		return $query_vars;
 	}
 
+
+	public static function get_array_pagination_query_var( $query_vars ) {
+		// Pagination: Fix the offset value
+		$offset = ! empty( $query_vars['offset'] ) ? $query_vars['offset'] : 0;
+
+		// Store the original offset value
+		$query_vars['original_offset'] = $offset;
+
+		// If pagination exists, and number is limited (!= 0), use $offset as the pagination trigger
+		if ( isset( $query_vars['paged'] ) && $query_vars['paged'] !== 1 && ! empty( $query_vars['items_per_page'] ) ) {
+			$query_vars['offset'] = ( $query_vars['paged'] - 1 ) * $query_vars['items_per_page'] + $offset;
+		}
+
+		return $query_vars;
+	}
+
 	/**
 	 * By default, WordPress includes offset posts into the final post count.
 	 * This method excludes them.
@@ -1637,6 +1750,11 @@ class Query {
 			// User loop
 			case 'user':
 				$initial_index = $offset + ( isset( $this->query_vars['number'] ) && $this->query_vars['number'] > 0 ? ( $paged - 1 ) * $this->query_vars['number'] : 0 );
+				break;
+
+			// Array loop
+			case 'array':
+				$initial_index = isset( $this->query_vars['offset'] ) ? $this->query_vars['offset'] : 0;
 				break;
 		}
 
@@ -2896,6 +3014,12 @@ class Query {
 			$original_query_vars['meta_query'] = [ $original_query_vars['meta_query'] ];
 		}
 
+		// STEP: Special handle user query fields (#86c7hjhky; @since 2.2)
+		if ( $query_object_type === 'user' ) {
+			// Unset role__in from frontend.
+			unset( $original_query_vars['role__in'] );
+		}
+
 		// Original query vars as priority, check if any key found in the populated query vars but not in the original query vars
 		foreach ( $populated_query_vars as $key => $value ) {
 			// Exclude 'tax_query' and 'meta_query' as they are handled separately
@@ -2943,6 +3067,58 @@ class Query {
 		return [
 			'results'     => $api->get_extracted_data() ?? [],
 			'total_pages' => $api->get_total_pages() ?? 1,
+		];
+	}
+
+	/**
+	 * Run array query
+	 *
+	 * @since 2.2
+	 */
+	public function run_array_query() {
+		$post_id      = Database::$page_data['preview_or_post_id'];
+		$parsed_array = Query_Array::get_array_data( $this->query_vars, $post_id, $this );
+		$result       = is_array( $parsed_array ) ? $parsed_array : [];
+		$total_items  = count( $result );
+		$start        = 0;
+		$end          = 0;
+		$current_page = ! empty( $this->query_vars['paged'] ) ? (int) $this->query_vars['paged'] : 1;
+
+		// Calculate total pages
+		$items_per_page = ! empty( $this->query_vars['items_per_page'] ) ? (int) $this->query_vars['items_per_page'] : 0;
+
+		if ( $items_per_page > 0 && $total_items > 0 ) {
+			$total_pages = ceil( $total_items / $items_per_page );
+
+			// Slice the result array based on the current page
+			$offset = ( $current_page - 1 ) * $items_per_page;
+			$result = array_slice( $result, $offset, $items_per_page );
+		} else {
+			$total_pages = 1;
+		}
+
+		// Calculate the starting and ending position
+		if ( $total_items > 0 ) {
+			// Maybe user set 0 to items_per_page
+			if ( $items_per_page === 0 ) {
+				$start = 1;
+				$end   = $total_items;
+			} else {
+				$start = ( ( $current_page - 1 ) * $items_per_page ) + 1;
+				$end   = min( $start + $items_per_page - 1, $total_items );
+			}
+		}
+
+		// Avoid showing in frontend
+		unset( $this->query_vars['arrayEditor'] );
+		unset( $this->query_vars['array_conditions'] );
+
+		return [
+			'results'     => $result,
+			'total_items' => $total_items,
+			'total_pages' => $total_pages,
+			'start'       => $start,
+			'end'         => $end
 		];
 	}
 }

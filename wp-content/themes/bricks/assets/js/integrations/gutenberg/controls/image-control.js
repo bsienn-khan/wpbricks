@@ -5,21 +5,125 @@ function createBricksImageControl(property, props) {
 	try {
 		const { Button, SelectControl, TextControl, BaseControl } = window.wp.components
 		const { MediaUpload, MediaUploadCheck } = window.wp.blockEditor
-		const { createElement } = window.wp.element
+		const { createElement, useState, useEffect } = window.wp.element
 
 		// Get current image value (should be Bricks image object or empty)
 		const currentValue = props.attributes[property.id] || {}
 
 		const hasImage = currentValue.url || currentValue.id
 
-		// Available image sizes (WordPress standard sizes)
-		// TODO: Add custom sizes
-		const imageSizes = [
-			{ label: window.bricksData.i18n.thumbnail150, value: 'thumbnail' },
-			{ label: window.bricksData.i18n.medium300, value: 'medium' },
-			{ label: window.bricksData.i18n.large1024, value: 'large' },
-			{ label: window.bricksData.i18n.fullSize, value: 'full' }
-		]
+		// Get default image sizes from Gutenberg data
+		const defaultImageSizes = window.bricksGutenbergData.imageSizes || {}
+
+		// State for image-specific sizes (fetched via AJAX)
+		const [imageSizes, setImageSizes] = useState([])
+		const [isLoadingSizes, setIsLoadingSizes] = useState(false)
+
+		/**
+		 * Get default image sizes options (all registered sizes)
+		 */
+		const getDefaultImageSizesOptions = () => {
+			return Object.entries(defaultImageSizes).map(([value, label]) => ({
+				label,
+				value
+			}))
+		}
+
+		/**
+		 * Format image sizes from attachment metadata
+		 *
+		 * @param {object} sizes Image sizes object with width/height
+		 */
+		const formatImageSizesOptions = (sizes) => {
+			const options = []
+
+			Object.keys(sizes).forEach((key) => {
+				// Format label: Uppercase first letter of each word
+				let label = key
+					.split(/[-_]+/)
+					.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+					.join(' ')
+
+				// Add dimensions
+				if (sizes[key].width && sizes[key].height) {
+					label += ` (${sizes[key].width}x${sizes[key].height})`
+				}
+
+				options.push({ label, value: key })
+			})
+
+			return options
+		}
+
+		/**
+		 * Fetch image-specific sizes
+		 */
+		const fetchImageSizes = async (imageId, imageSize) => {
+			if (!imageId) {
+				setImageSizes(getDefaultImageSizesOptions())
+				return
+			}
+
+			setIsLoadingSizes(true)
+
+			try {
+				const formData = new FormData()
+				formData.append('action', 'bricks_get_image_metadata')
+				formData.append('imageId', imageId)
+				formData.append('imageSize', imageSize || 'full')
+
+				// Add nonce
+				if (window.bricksData?.nonce) {
+					formData.append('nonce', window.bricksData.nonce)
+				}
+
+				const response = await fetch(gutenbergData.ajaxUrl, {
+					method: 'POST',
+					credentials: 'same-origin',
+					body: formData
+				})
+
+				if (response.ok) {
+					const result = await response.json()
+
+					if (result.success && result.data?.full) {
+						// Build sizes object with 'full' size first
+						let sizes = {
+							full: {
+								width: result.data.full.width,
+								height: result.data.full.height
+							}
+						}
+
+						// Merge with attachment metadata sizes
+						if (result.data.sizes) {
+							sizes = { ...sizes, ...result.data.sizes }
+						}
+
+						setImageSizes(formatImageSizesOptions(sizes))
+					} else {
+						// Fallback to default sizes
+						setImageSizes(getDefaultImageSizesOptions())
+					}
+				} else {
+					setImageSizes(getDefaultImageSizesOptions())
+				}
+			} catch (error) {
+				console.error('Error fetching image sizes:', error)
+				setImageSizes(getDefaultImageSizesOptions())
+			} finally {
+				setIsLoadingSizes(false)
+			}
+		}
+
+		// Fetch image sizes when image changes (matching Vue's mounted() and watch behavior)
+		useEffect(() => {
+			if (currentValue.id && !currentValue.external) {
+				fetchImageSizes(currentValue.id, currentValue.size)
+			} else {
+				setImageSizes(getDefaultImageSizesOptions())
+			}
+		}, [currentValue.id])
 
 		const onSelectImage = function (media) {
 			try {
@@ -54,18 +158,41 @@ function createBricksImageControl(property, props) {
 			}
 		}
 
-		const onChangeSize = function (size) {
+		const onChangeSize = async function (size) {
 			try {
 				if (!hasImage || !currentValue.id) return
 
-				// Create updated image object with new size
-				const imageObject = {
-					...currentValue,
-					size: size
+				// Fetch new URL for the selected size
+				const formData = new FormData()
+				formData.append('action', 'bricks_get_image_metadata')
+				formData.append('imageId', currentValue.id)
+				formData.append('imageSize', size)
+
+				if (window.bricksData?.nonce) {
+					formData.append('nonce', window.bricksData.nonce)
 				}
 
-				// Note: We can't easily get the new URL for the size in Gutenberg
-				// The PHP side will handle URL resolution based on size
+				const response = await fetch(window.bricksGutenbergData.ajaxUrl, {
+					method: 'POST',
+					credentials: 'same-origin',
+					body: formData
+				})
+
+				let newUrl = currentValue.url
+
+				if (response.ok) {
+					const result = await response.json()
+					if (result.success && result.data?.src?.[0]) {
+						newUrl = result.data.src[0]
+					}
+				}
+
+				// Create updated image object with new size and URL
+				const imageObject = {
+					...currentValue,
+					size: size,
+					url: newUrl
+				}
 
 				const newAttributes = {}
 				newAttributes[property.id] = imageObject
@@ -188,8 +315,9 @@ function createBricksImageControl(property, props) {
 						key: 'size-select',
 						label: window.bricksData.i18n.imageSize,
 						value: currentValue.size || 'full',
-						options: imageSizes,
-						onChange: onChangeSize
+						options: imageSizes.length > 0 ? imageSizes : getDefaultImageSizesOptions(),
+						onChange: onChangeSize,
+						disabled: isLoadingSizes
 					})
 				)
 			}

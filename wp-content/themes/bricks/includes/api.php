@@ -6,7 +6,9 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 class Api {
 
 	const API_NAMESPACE             = 'bricks/v1';
+	public static $request_data     = []; // Store request data from the API request (@since 2.2)
 	public static $query_element_id = null; // Holds the current query element ID during a REST API request (@since 2.1)
+	public static $active_templates = []; // Holds the current active templates during a REST API request (@since 2.2)
 
 	/**
 	 * WordPress REST API help docs:
@@ -176,8 +178,6 @@ class Api {
 		$element_settings = $element['settings'] ?? '';
 
 		if ( $post_id ) {
-			Database::set_page_data( $post_id );
-
 			// Set context in API endpoint (@since 1.12.2)
 			global $wp_query;
 			global $post;
@@ -199,6 +199,8 @@ class Api {
 					$wp_query->is_single = true;
 				}
 			}
+
+			Database::set_page_data( $post_id );
 		}
 
 		// Include WooCommerce frontend classes and hooks to enable the WooCommerce element preview inside the builder (since 1.5)
@@ -239,7 +241,8 @@ class Api {
 		}
 
 		// Return: Current user can not access builder
-		if ( ! Capabilities::current_user_can_use_builder() ) {
+		// Provide postId or current_user_can_use_builder() unable to get correct post type (#86c64u37m; @since 2.2)
+		if ( ! Capabilities::current_user_can_use_builder( $data['postId'] ?? 0 ) ) {
 			return new \WP_Error( 'rest_current_user_can_not_use_builder', __( 'Permission error' ), [ 'status' => 403 ] );
 		}
 
@@ -594,16 +597,17 @@ class Api {
 	 * @since 1.5
 	 */
 	public function render_query_page( $request ) {
-		$request_data = $request->get_json_params();
+		$request_data = self::$request_data = $request->get_json_params();
 
-		$query_element_id = $ori_query_element_id = $request_data['queryElementId'];
-		$post_id          = $request_data['postId'];
-		$page             = $request_data['page'];
-		$query_vars       = json_decode( $request_data['queryVars'], true );
-		$language         = isset( $request_data['lang'] ) ? sanitize_key( $request_data['lang'] ) : false;
-		$pagination_id    = isset( $request_data['paginationId'] ) ? sanitize_key( $request_data['paginationId'] ) : false;
-		$base_url         = $request_data['baseUrl'] ?? '';
-		$main_query_id    = isset( $request_data['mainQueryId'] ) ? sanitize_text_field( $request_data['mainQueryId'] ) : false;
+		$query_element_id   = $ori_query_element_id = $request_data['queryElementId'];
+		$post_id            = $request_data['postId'];
+		$page               = $request_data['page'];
+		$query_vars         = json_decode( $request_data['queryVars'], true );
+		$language           = isset( $request_data['lang'] ) ? sanitize_key( $request_data['lang'] ) : false;
+		$pagination_id      = isset( $request_data['paginationId'] ) ? sanitize_key( $request_data['paginationId'] ) : false;
+		$base_url           = $request_data['baseUrl'] ?? '';
+		$main_query_id      = isset( $request_data['mainQueryId'] ) ? sanitize_text_field( $request_data['mainQueryId'] ) : false;
+		$search_template_id = isset( $request_data['activeSearchTemplate'] ) ? absint( $request_data['activeSearchTemplate'] ) : 0;
 
 		// Set current language (@since 1.9.9)
 		if ( $language ) {
@@ -613,6 +617,11 @@ class Api {
 		// Set main query ID (@since 2.0)
 		if ( $main_query_id ) {
 			Database::$main_query_id = $main_query_id;
+		}
+
+		// Set active search template ID to apply search criteria setting (@since 2.2)
+		if ( $search_template_id ) {
+			self::$active_templates['search'] = $search_template_id;
 		}
 
 		// Set post_id for use in prepare_query_vars_from_settings
@@ -791,8 +800,8 @@ class Api {
 		 */
 		$object_type = $query_element['settings']['query']['objectType'] ?? 'post';
 
-		if ( in_array( $object_type, [ 'term', 'user' ] ) ) {
-			// Don't use request's offset, Term and User query offset should be calculated Query::inside prepare_query_vars_from_settings()
+		if ( in_array( $object_type, [ 'term', 'user', 'array' ] ) ) {
+			// Don't use request's offset, Term, User and Array query offset should be calculated inside Query::prepare_query_vars_from_settings()
 			unset( $query_vars['offset'] );
 		}
 
@@ -841,6 +850,45 @@ class Api {
 			10,
 			3
 		);
+
+		if ( $search_template_id ) {
+			$has_custom_criteria = Search::search_template_has_custom_criteria( $search_template_id );
+
+			if ( $has_custom_criteria ) {
+				// Apply search criteria from the active search template
+				add_filter(
+					'bricks/posts/query_vars',
+					function( $query_vars, $settings, $element_id ) use ( $main_query_id, $search_template_id ) {
+						if ( $element_id !== $main_query_id || empty( $query_vars['s'] ) ) {
+							return $query_vars;
+						}
+
+						$search_term = $query_vars['s'];
+						$post_ids    = Search::get_search_template_criteria_post_ids( $search_template_id, $search_term );
+
+						// Remove default search query
+						unset( $query_vars['s'] );
+
+						if ( ! empty( $post_ids ) ) {
+							$query_vars['post__in'] = $post_ids;
+
+							// Set orderby to post__in to preserve the order if weight score is used. If query filter sort is applied, skip this
+							if ( Search::use_weight_score( $search_template_id ) && ! empty( $post_ids ) && ! isset( $query_vars['brx_sort_applied'] ) ) {
+								$query_vars['orderby']     = 'post__in';
+								$query_vars['brx_orderby'] = 'weighted_relevance';
+							}
+						} else {
+							// No results found
+							$query_vars['post__in'] = [ 0 ];
+						}
+
+						return $query_vars;
+					},
+					999,
+					3
+				);
+			}
+		}
 
 		// Remove the parent
 		if ( ! empty( $query_element['parent'] ) ) {
@@ -956,7 +1004,7 @@ class Api {
 	 * @since 1.9.4
 	 */
 	public function render_popup_content( $request ) {
-		$request_data = $request->get_json_params();
+		$request_data = self::$request_data = $request->get_json_params();
 
 		$post_id            = $request_data['postId'] ?? false;
 		$popup_id           = $request_data['popupId'] ?? false;
@@ -1440,7 +1488,7 @@ class Api {
 	 * @since 1.9.6
 	 */
 	public function render_query_result( $request ) {
-		$request_data = $request->get_json_params();
+		$request_data = self::$request_data = $request->get_json_params();
 
 		$query_element_id    = $request_data['queryElementId'];
 		$post_id             = $request_data['postId'];
@@ -1453,6 +1501,7 @@ class Api {
 		$infinite_page       = isset( $request_data['infinitePage'] ) ? sanitize_text_field( $request_data['infinitePage'] ) : 1;
 		$original_query_vars = isset( $request_data['originalQueryVars'] ) ? json_decode( $request_data['originalQueryVars'], true ) : [];
 		$main_query_id       = isset( $request_data['mainQueryId'] ) ? sanitize_text_field( $request_data['mainQueryId'] ) : false;
+		$search_template_id  = isset( $request_data['activeSearchTemplate'] ) ? absint( $request_data['activeSearchTemplate'] ) : 0;
 
 		// Set current language (@since 1.9.9)
 		if ( $language ) {
@@ -1462,6 +1511,11 @@ class Api {
 		// Set main query ID (@since 2.0)
 		if ( $main_query_id ) {
 			Database::$main_query_id = $main_query_id;
+		}
+
+		// Set active search template ID to apply search criteria setting (@since 2.2)
+		if ( $search_template_id ) {
+			self::$active_templates['search'] = $search_template_id;
 		}
 
 		// Set post_id for use in prepare_query_vars_from_settings
@@ -1599,6 +1653,26 @@ class Api {
 				// STEP: Original query vars should include page filters (if it's not disabled) (@since 1.11)
 				if ( ! $disable_query_merge && Query_Filters::should_apply_page_filters( $vars ) ) {
 					$vars = Query::merge_query_vars( $vars, Query_Filters::generate_query_vars_from_page_filters() );
+				}
+
+				// STEP: User query 'user_role' parameter, validate parameter if user_role defined in the settingssettings/via hook. (#86c7hjhky @since 2.2)
+				if ( $query_object_type === 'user' && isset( $vars['role__in'] ) && isset( $filter_query_vars['role__in'] ) ) {
+					$url_value     = $filter_query_vars['role__in'];
+					$setting_value = $vars['role__in'];
+
+					// url_value might be string or array
+					$url_value_array     = is_array( $url_value ) ? $url_value : [ $url_value ];
+					$setting_value_array = is_array( $setting_value ) ? $setting_value : [ $setting_value ];
+
+					// Only keep the role__in value that exists in settings
+					$filtered_roles = array_intersect( $url_value_array, $setting_value_array );
+
+					if ( ! empty( $filtered_roles ) ) {
+						$filter_query_vars['role__in'] = array_values( $filtered_roles );
+					} else {
+						// No matching role, set to impossible value to avoid returning all users
+						$filter_query_vars['role__in'] = [ 0 ];
+					}
 				}
 
 				// STEP: Save the query vars before merge only once (@since 1.11.1)

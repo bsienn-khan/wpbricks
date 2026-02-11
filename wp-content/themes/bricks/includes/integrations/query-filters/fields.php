@@ -30,11 +30,12 @@ class Fields {
 	 */
 	public function register_providers() {
 		// bricks/query_filters_cf_integration/register_providers Undocumented (@since 2.0.2)
+		// Note: In future should use the same dynamic tag prefix in ControlDynamicTagPicker.vue or it will need a mapping there
 		$providers = apply_filters(
 			'bricks/query_filters_cf_integration/register_providers',
 			[
 				'acf',
-				'metabox'
+				'metabox' // This already saved in the database, don't change the key
 			]
 		);
 

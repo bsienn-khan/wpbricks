@@ -104,9 +104,9 @@ class Element_Image_Gallery extends Element {
 			'units'       => true,
 			'css'         => [
 				[
-					'property'  => 'height',
-					'selector'  => '.image',
-					'important' => true,
+					'property' => 'height',
+					'selector' => '.image',
+					// 'important' => true, // No need to use !important here, as we have Cascade layers. Used to override height in different Layouts (@since 2.2 #86c3p8f91)
 				],
 			],
 			'placeholder' => '',
@@ -137,18 +137,19 @@ class Element_Image_Gallery extends Element {
 		 */
 		unset( $this->controls['_aspectRatio'] );
 		$this->controls['_aspectRatio'] = [
-			'tab'      => 'content',
-			'label'    => esc_html__( 'Aspect ratio', 'bricks' ),
-			'type'     => 'text',
-			'inline'   => true,
-			'dd'       => false,
-			'css'      => [
+			'tab'          => 'content',
+			'label'        => esc_html__( 'Aspect ratio', 'bricks' ),
+			'type'         => 'text',
+			'inline'       => true,
+			'dd'           => false,
+			'hasVariables' => true,
+			'css'          => [
 				[
 					'selector' => '.image',
 					'property' => 'aspect-ratio',
 				],
 			],
-			'required' => [ 'imageRatio', '=', 'custom' ],
+			'required'     => [ 'imageRatio', '=', 'custom' ],
 		];
 
 		$this->controls['caption'] = [

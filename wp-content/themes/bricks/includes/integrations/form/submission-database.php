@@ -190,7 +190,7 @@ class Submission_Database {
 
 				// If it's empty, leave it empty
 				case 'number':
-					$sanitized_form_data[ $field_id ]['value'] = $field_data['value'] === '' ? '' : intval( $field_data['value'] );
+					$sanitized_form_data[ $field_id ]['value'] = $field_data['value'] === '' ? '' : ( is_numeric( $field_data['value'] ) ? +$field_data['value'] : '' );
 					break;
 
 				// Allow HTML tags

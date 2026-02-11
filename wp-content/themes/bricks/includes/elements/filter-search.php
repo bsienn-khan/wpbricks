@@ -32,6 +32,18 @@ class Filter_Search extends Filter_Element {
 				'placeholder' => 3,
 			];
 
+			// Search Criteria (@since 2.2)
+			$filter_controls['searchCriteriaTemplateInfo'] = [
+				'content'  => esc_html__( 'You cannot set search criteria on this element. You should set it on the Search Template instead, because you are using native WordPress search URL parameter.', 'bricks' ),
+				'group'    => 'search-criteria',
+				'type'     => 'info',
+				'required' => [ 'filterNiceName', '=', 's' ],
+			];
+
+			$search_criteria_controls = Element::search_criteria_controls( 'element' );
+
+			$filter_controls = array_merge( $filter_controls, $search_criteria_controls );
+
 			$this->controls = array_merge( $this->controls, $filter_controls );
 		}
 

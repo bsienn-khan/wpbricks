@@ -111,7 +111,7 @@ class Element_Slider_Nested extends Element {
 				'ttb' => esc_html__( 'Vertical', 'bricks' ),
 			],
 			'inline'      => true,
-			'placeholder' => esc_html__( 'Left to right', 'bricks' ),
+			'placeholder' => esc_html__( 'Auto', 'bricks' ),
 			'breakpoints' => true,
 			'required'    => [ 'optionsType', '!=', 'custom' ],
 			'fullAccess'  => true,
@@ -1247,9 +1247,21 @@ class Element_Slider_Nested extends Element {
 		 */
 		$media_query = Breakpoints::$is_mobile_first ? 'min' : 'max';
 
+		// STEP: Prepare splide options. For "direction", we need to check RTL mode unless set explicitly.
+		// If we are in a builder context, we need to set it as "auto" and then handle it via JS later.
+		// because is_rtl() could be different in the builder vs. the actual site frontend.  (@since 2.2)
+		// Determine direction: Use explicit setting, fallback to RTL detection, or 'auto' in builder
+		if ( isset( $settings['direction'] ) && in_array( $settings['direction'], [ 'ltr', 'rtl', 'ttb' ], true ) ) {
+			$direction = $settings['direction'];
+		} elseif ( ! bricks_is_builder_main() ) {
+			$direction = is_rtl() ? 'rtl' : 'ltr';
+		} else {
+			$direction = 'auto';
+		}
+
 		$splide_options = [
 			'type'         => $type,
-			'direction'    => ! empty( $settings['direction'] ) ? $settings['direction'] : ( is_rtl() ? 'rtl' : 'ltr' ),
+			'direction'    => $direction,
 			'keyboard'     => ! empty( $settings['keyboard'] ) ? $settings['keyboard'] : 'global', // 'focused', false
 			'height'       => ! empty( $settings['height'] ) ? $settings['height'] : '50vh',
 			'gap'          => $gap,

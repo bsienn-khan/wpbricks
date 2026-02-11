@@ -15,6 +15,8 @@ class Assets_Color_Palettes {
 		add_action( 'add_option_bricks_color_palette', [ $this, 'updated' ], 10, 2 );
 
 		add_action( 'update_option_bricks_color_palette', [ $this, 'updated' ], 10, 2 );
+
+		add_action( 'delete_option_bricks_color_palette', [ $this, 'updated' ], 10, 2 );
 	}
 
 	/**
@@ -38,7 +40,9 @@ class Assets_Color_Palettes {
 		$css_file_path = Assets::$css_dir . "/$file_name";
 
 		if ( $color_palettes ) {
-			$css = Assets::generate_inline_css_color_vars( $color_palettes );
+			$css  = Assets::generate_inline_css_color_vars( $color_palettes );
+			$css .= Assets::generate_inline_css_color_vars( $color_palettes, 'dark' );
+
 			$css = Assets::minify_css( $css );
 
 			$file = fopen( $css_file_path, 'w' );

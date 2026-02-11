@@ -88,6 +88,11 @@ abstract class Element {
 		if ( ! empty( $element['instanceId'] ) ) {
 			$this->id  = substr( $this->id, 0, 6 );
 			$this->uid = "{$this->id}-{$this->element['instanceId']}";
+
+			// Nested component instance (#86c4zfhru; @since2.x)
+			if ( ! empty( $this->cid ) ) {
+				$this->uid = "{$this->cid}-{$this->element['instanceId']}";
+			}
 		}
 
 		// Not a component: Get nestable item and children (@since 1.12)
@@ -848,8 +853,28 @@ abstract class Element {
 			],
 		];
 
-		// Flex controls (for non-layout elements: no section, container, div)
+		// Grid & flex controls (for non-layout elements: no section, container, div)
 		if ( ! $this->is_layout_element() ) {
+			$this->controls['_gridItemSeparator'] = [
+				'tab'   => 'style',
+				'group' => '_layout',
+				'label' => esc_html__( 'Grid item', 'bricks' ),
+				'type'  => 'separator',
+			];
+
+			$this->controls['_gridItemJustifySelf'] = [
+				'tab'            => 'style',
+				'group'          => '_layout',
+				'label'          => esc_html__( 'Justify self', 'bricks' ),
+				'type'           => 'align-items',
+				'hasDynamicData' => false,
+				'css'            => [
+					[
+						'property' => 'justify-self',
+					],
+				],
+			];
+
 			$this->controls['_flexSeparator'] = [
 				'tab'   => 'style',
 				'group' => '_layout',
@@ -1911,6 +1936,12 @@ abstract class Element {
 		// @see https://academy.bricksbuilder.io/article/filter-bricks-set_root_attributes/
 		$attributes = apply_filters( 'bricks/element/set_root_attributes', $attributes, $this );
 
+		// Add data-brx-variant attribute for component instances with selected variant (@since 2.2)
+		if ( ! empty( $this->element['variant'] ) && ! empty( $this->element['cid'] ) ) {
+			// Strip 'variant-' prefix for cleaner markup
+			$attributes['data-brx-variant'] = str_replace( 'variant-', '', $this->element['variant'] );
+		}
+
 		$this->attributes['_root'] = $attributes;
 	}
 
@@ -2401,7 +2432,9 @@ abstract class Element {
 
 		// Builder: Custom attributes (@since 1.10)
 		if ( is_array( $attributes ) && count( $attributes ) ) {
-			Builder::$html_attributes[ $this->id ] = $attributes;
+			$builder_attributes                     = $attributes;
+			$builder_attributes['_original']        = $this->attributes; // Store original attributes before any modification (#86c6uagww; @since 2.2)
+			Builder::$html_attributes[ $this->uid ] = $builder_attributes; // Use element UID as key to consider multiple instances of same element (#86c6tayw9; @since 2.2)
 		}
 
 		$attribute_strings = [];
@@ -2596,8 +2629,15 @@ abstract class Element {
 	 * @since 1.0
 	 */
 	public function init() {
-		// Enqueue scripts & styles
-		$this->enqueue_scripts();
+
+		$is_builder_call          = bricks_is_builder() || bricks_is_builder_call();
+		$hide_element_in_builder  = ! empty( $this->settings['_hideElementBuilder'] ) && $is_builder_call;
+		$hide_element_in_frontend = ! empty( $this->settings['_hideElementFrontend'] ) && ! $is_builder_call;
+
+		// Enqueue scripts & styles if element is going to be rendered
+		if ( ! $hide_element_in_frontend ) {
+			$this->enqueue_scripts();
+		}
 
 		// Enqueue Masonry scripts (@since 1.11.1)
 		$this->maybe_enqueue_masonry_scripts();
@@ -2659,12 +2699,8 @@ abstract class Element {
 		$render_element = true;
 
 		// Hide element in builder: Do not render as long as it's a builder call (@since 2.0.1)
-		if ( ! empty( $this->settings['_hideElementBuilder'] ) && ( bricks_is_builder() || bricks_is_builder_call() ) ) {
-			$render_element = false;
-		}
-
 		// Hide element in frontend: Do not render as long as it's not builder call (@since 2.0.1)
-		elseif ( ! empty( $this->settings['_hideElementFrontend'] ) && ! ( bricks_is_builder() || bricks_is_builder_call() ) ) {
+		if ( $hide_element_in_builder || $hide_element_in_frontend ) {
 			$render_element = false;
 		}
 
@@ -4295,9 +4331,15 @@ abstract class Element {
 	 * If not set to 'always' or 'never'
 	 *
 	 * @since 1.5.1
+	 * @since 2.2: Support passing just breakpoint width as parameter, not only full breakpoint array
 	 */
 	public function generate_mobile_menu_inline_css( $settings = [], $breakpoint = '' ) {
-		$breakpoint_width    = ! empty( $breakpoint['width'] ) ? intval( $breakpoint['width'] ) : 0;
+		if ( is_numeric( $breakpoint ) ) {
+			$breakpoint_width = intval( $breakpoint );
+		} else {
+			$breakpoint_width = ! empty( $breakpoint['width'] ) ? intval( $breakpoint['width'] ) : 0;
+		}
+
 		$base_width          = Breakpoints::$base_width;
 		$nav_menu_inline_css = '';
 
@@ -4828,6 +4870,316 @@ abstract class Element {
 						$controls[ $control_key ][ $setting_key ] = $value;
 					}
 				}
+			}
+		}
+
+		return $controls;
+	}
+
+
+	/**
+	 * Search criteria controls
+	 * $type: 'element' | 'template'
+	 *
+	 * Used by filter-search element & search results template
+	 *
+	 * @since 2.2
+	 */
+	public static function search_criteria_controls( $type = 'element' ) {
+		$controls = [];
+
+		$controls['searchCriteriaCustom'] = [
+			'label'  => esc_html__( 'Custom search criteria', 'bricks' ),
+			'group'  => 'search-criteria',
+			'type'   => 'checkbox',
+			'inline' => true,
+			'desc'   => esc_html__( 'Enable to customize the default search criteria as used by WordPress.', 'bricks' ),
+		];
+
+		$controls['useWeightScore'] = [
+			'group'       => 'search-criteria',
+			'label'       => esc_html__( 'Use weight score', 'bricks' ),
+			'type'        => 'checkbox',
+			'required'    => [ 'searchCriteriaCustom', '=', true ],
+			// translators: %s: orderby (query argument)
+			'description' => sprintf(
+				esc_html__( 'Enable to assign weight scores to search criteria. This affects the "%s" argument of the target query.', 'bricks' ),
+				'orderby'
+			),
+		];
+
+		$controls['searchPostSep'] = [
+			'label'    => esc_html__( 'Post', 'bricks' ) . ' (' . esc_html__( 'Query search', 'bricks' ) . ')',
+			'group'    => 'search-criteria',
+			'type'     => 'separator',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchPostFields'] = [
+			'label'    => esc_html__( 'Search post fields', 'bricks' ),
+			'group'    => 'search-criteria',
+			'type'     => 'checkbox',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchPostQuery'] = [
+			'label'         => esc_html__( 'Post fields', 'bricks' ),
+			'group'         => 'search-criteria',
+			'titleProperty' => 'field',
+			'type'          => 'repeater',
+			'fields'        => [
+				'field'       => [
+					'type'        => 'select',
+					'options'     => [
+						'title'   => esc_html__( 'Title', 'bricks' ),
+						'content' => esc_html__( 'Content', 'bricks' ),
+						'excerpt' => esc_html__( 'Excerpt', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'None', 'bricks' ),
+				],
+				'weightScore' => [
+					'type'        => 'number',
+					'label'       => esc_html__( 'Weight score', 'bricks' ),
+					'placeholder' => 1,
+					'description' => esc_html__( 'Higher score shows first. Integer only. Minimum: 1. Only takes effect when "Use weight score" is enabled.', 'bricks' ),
+				],
+			],
+			'description'   => esc_html__( 'Leave post fields empty to use the default search in post title, content and excerpt.', 'bricks' ),
+			'required'      => [
+				[ 'searchCriteriaCustom', '=', true ],
+				[ 'searchPostFields', '=', true ],
+			],
+		];
+
+		$controls['searchPostMeta'] = [
+			'label'    => esc_html__( 'Search post meta fields', 'bricks' ),
+			'group'    => 'search-criteria',
+			'type'     => 'checkbox',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchPostMetaKeys'] = [
+			'label'         => esc_html__( 'Post meta keys', 'bricks' ),
+			'group'         => 'search-criteria',
+			'type'          => 'repeater',
+			'titleProperty' => 'metaKey',
+			'fields'        => [
+				'metaKey'     => [
+					'type'  => 'text',
+					'label' => esc_html__( 'Meta key', 'bricks' ),
+				],
+				'weightScore' => [
+					'type'        => 'number',
+					'label'       => esc_html__( 'Weight score', 'bricks' ),
+					'placeholder' => 1,
+					'description' => esc_html__( 'Higher score shows first. Integer only. Minimum: 1. Only takes effect when "Use weight score" is enabled.', 'bricks' ),
+				],
+			],
+			'description'   => esc_html__( 'Every added field impacts the query performance.', 'bricks' ),
+			'required'      => [
+				[ 'searchCriteriaCustom', '=', true ],
+				[ 'searchPostMeta', '=', true ],
+			],
+		];
+
+		$controls['searchPostTerms'] = [
+			'group'       => 'search-criteria',
+			'type'        => 'checkbox',
+			'label'       => esc_html__( 'Search post terms', 'bricks' ),
+			'description' => esc_html__( 'Search assigned terms (slug, name and description) of the selected taxonomies.', 'bricks' ),
+			'required'    => [
+				[ 'searchCriteriaCustom', '=', true ],
+			],
+		];
+
+		$controls['searchPostTaxonomies'] = [
+			'group'         => 'search-criteria',
+			'type'          => 'repeater',
+			'label'         => esc_html__( 'Taxonomies', 'bricks' ),
+			'titleProperty' => 'taxonomy',
+			'fields'        => [
+				'taxonomy'    => [
+					'type'        => 'select',
+					'label'       => esc_html__( 'Taxonomy', 'bricks' ),
+					'options'     => Setup::$control_options['taxonomies'],
+					'searchable'  => true,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'weightScore' => [
+					'type'        => 'number',
+					'label'       => esc_html__( 'Weight score', 'bricks' ),
+					'placeholder' => 1,
+					'description' => esc_html__( 'Higher score shows first. Integer only. Minimum: 1. Only takes effect when "Use weight score" is enabled.', 'bricks' ),
+				],
+			],
+			'description'   => esc_html__( 'Every added taxonomy impacts the query performance.', 'bricks' ),
+			'required'      => [
+				[ 'searchCriteriaCustom', '=', true ],
+				[ 'searchPostTerms', '=', true ],
+			],
+		];
+
+		// Do not add term/user search controls for template type
+		if ( $type === 'template' ) {
+			return $controls;
+		}
+
+		$controls['searchTermSep'] = [
+			'label'    => esc_html__( 'Term', 'bricks' ) . ' (' . esc_html__( 'Query search', 'bricks' ) . ')',
+			'group'    => 'search-criteria',
+			'type'     => 'separator',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchTermFields'] = [
+			'label'    => esc_html__( 'Search term fields', 'bricks' ),
+			'group'    => 'search-criteria',
+			'type'     => 'checkbox',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchTermQuery'] = [
+			'label'         => esc_html__( 'Term fields', 'bricks' ),
+			'group'         => 'search-criteria',
+			'titleProperty' => 'field',
+			'type'          => 'repeater',
+			'fields'        => [
+				'field'       => [
+					'type'        => 'select',
+					'options'     => [
+						'name'        => esc_html__( 'Name', 'bricks' ),
+						'slug'        => esc_html__( 'Slug', 'bricks' ),
+						'description' => esc_html__( 'Description', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'None', 'bricks' ),
+				],
+				'weightScore' => [
+					'type'        => 'number',
+					'label'       => esc_html__( 'Weight score', 'bricks' ),
+					'placeholder' => 1,
+					'label'       => esc_html__( 'Post', 'bricks' ) . ' (' . esc_html__( 'Query search', 'bricks' ) . ')',
+				],
+			],
+			'description'   => esc_html__( 'If none configured, name and slug will be searched.', 'bricks' ),
+			'required'      => [
+				[ 'searchCriteriaCustom', '=', true ],
+				[ 'searchTermFields', '=', true ],
+			],
+		];
+
+		$controls['searchTermMeta'] = [
+			'label'    => esc_html__( 'Search term meta fields', 'bricks' ),
+			'group'    => 'search-criteria',
+			'type'     => 'checkbox',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchTermMetaKeys'] = [
+			'label'         => esc_html__( 'Term meta keys', 'bricks' ),
+			'group'         => 'search-criteria',
+			'type'          => 'repeater',
+			'titleProperty' => 'metaKey',
+			'fields'        => [
+				'metaKey'     => [
+					'type'  => 'text',
+					'label' => esc_html__( 'Meta key', 'bricks' ),
+				],
+				'weightScore' => [
+					'type'        => 'number',
+					'label'       => esc_html__( 'Weight score', 'bricks' ),
+					'placeholder' => 1,
+					'description' => esc_html__( 'Higher score shows first. Integer only. Minimum: 1. Only takes effect when "Use weight score" is enabled.', 'bricks' ),
+				],
+			],
+			'description'   => esc_html__( 'Too many fields may slow down the query performance.', 'bricks' ),
+			'required'      => [
+				[ 'searchCriteriaCustom', '=', true ],
+				[ 'searchTermMeta', '=', true ],
+			],
+		];
+
+		$controls['searchUserSep'] = [
+			'label'    => esc_html__( 'User', 'bricks' ) . ' (' . esc_html__( 'Query search', 'bricks' ) . ')',
+			'group'    => 'search-criteria',
+			'type'     => 'separator',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchUserFields'] = [
+			'label'    => esc_html__( 'Search user fields', 'bricks' ),
+			'group'    => 'search-criteria',
+			'type'     => 'checkbox',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchUserQuery'] = [
+			'label'         => esc_html__( 'User fields', 'bricks' ),
+			'group'         => 'search-criteria',
+			'titleProperty' => 'field',
+			'type'          => 'repeater',
+			'fields'        => [
+				'field'       => [
+					'type'        => 'select',
+					'options'     => [
+						'user_login'    => esc_html__( 'Username', 'bricks' ),
+						'user_nicename' => esc_html__( 'Nicename', 'bricks' ),
+						'user_email'    => esc_html__( 'Email', 'bricks' ),
+						'user_url'      => esc_html__( 'URL', 'bricks' ),
+						'display_name'  => esc_html__( 'Display name', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'None', 'bricks' ),
+				],
+				'weightScore' => [
+					'type'        => 'number',
+					'label'       => esc_html__( 'Weight score', 'bricks' ),
+					'placeholder' => 1,
+					'description' => esc_html__( 'Higher score shows first. Integer only. Minimum: 1. Only takes effect when "Use weight score" is enabled.', 'bricks' ),
+				],
+			],
+			'description'   => esc_html__( 'If none configured, username, nicename, email, URL, Display name will be searched.', 'bricks' ),
+			'required'      => [
+				[ 'searchCriteriaCustom', '=', true ],
+				[ 'searchUserFields', '=', true ],
+			],
+		];
+
+		$controls['searchUserMeta'] = [
+			'label'    => esc_html__( 'Search user meta fields', 'bricks' ),
+			'group'    => 'search-criteria',
+			'type'     => 'checkbox',
+			'required' => [ 'searchCriteriaCustom', '=', true ],
+		];
+
+		$controls['searchUserMetaKeys'] = [
+			'label'         => esc_html__( 'User meta keys', 'bricks' ),
+			'group'         => 'search-criteria',
+			'type'          => 'repeater',
+			'titleProperty' => 'metaKey',
+			'fields'        => [
+				'metaKey'     => [
+					'type'  => 'text',
+					'label' => esc_html__( 'Meta key', 'bricks' ),
+				],
+				'weightScore' => [
+					'type'        => 'number',
+					'label'       => esc_html__( 'Weight score', 'bricks' ),
+					'placeholder' => 1,
+					'description' => esc_html__( 'Higher score shows first. Integer only. Minimum: 1. Only takes effect when "Use weight score" is enabled.', 'bricks' ),
+				],
+			],
+			'description'   => esc_html__( 'Too many fields may slow down the query performance.', 'bricks' ),
+			'required'      => [
+				[ 'searchCriteriaCustom', '=', true ],
+				[ 'searchUserMeta', '=', true ],
+			],
+		];
+
+		// Add [ 'filterNiceName', '!=', 's' ], to each control's required condition to avoid user set search criteria on element level if the URL param is 's' (Not for template controls)
+		foreach ( $controls as $key => &$control ) {
+			if ( isset( $control['required'] ) && is_array( $control['required'] ) ) {
+				$control['required'][] = [ 'filterNiceName', '!=', 's' ];
+			} else {
+				$control['required'] = [ 'filterNiceName', '!=', 's' ];
 			}
 		}
 

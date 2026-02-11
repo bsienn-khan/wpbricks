@@ -20,6 +20,22 @@ $controls['contextualSpacingRemoveDefaultMargins'] = [
 	],
 ];
 
+$controls['contextualSpacingRemoveDefaultPadding'] = [
+	'label'             => esc_html__( 'Remove default padding', 'bricks' ),
+	'desc'              => esc_html__( 'Select the elements for which you want to remove the default padding.', 'bricks' ),
+	'type'              => 'select',
+	'multiple'          => true,
+	'add'               => true,
+	'placeholder'       => esc_html__( 'Select HTML tags', 'bricks' ),
+	'placeholderSearch' => esc_html__( 'Custom tag', 'bricks' ),
+	'options'           => [
+		'ul'         => esc_html__( 'Unordered list', 'bricks' ) . ' (ul)',
+		'ol'         => esc_html__( 'Ordered list', 'bricks' ) . ' (ol)',
+		'blockquote' => esc_html__( 'Blockquote', 'bricks' ) . ' (blockquote)',
+		'button'     => esc_html__( 'Button', 'bricks' ) . ' (button)',
+	],
+];
+
 $controls['contextualSpacingSep'] = [
 	'label' => esc_html__( 'Contextual spacing', 'bricks' ),
 	'type'  => 'separator',

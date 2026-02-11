@@ -122,9 +122,11 @@ class Dynamic_Data_Parser {
 	 * START-AT: @start-at:1 (query_loop_index; @since 2.1)
 	 * PAD: @pad:3 (query_loop_index; @since 2.1)
 	 * KEY: @key:'title|rendered' (For {query_api} @since 2.1)
+	 * IS-ARRAY: Only internal user to force array convert to json string in Array loop (@since 2.2)
+	 * DATE, FROM, TO: @date:'2024-01-01' @from:'Y-m-d' @to:'d/m/Y' (for {format_date}; @since 2.2)
 	 */
 	public function set_allowed_keys() {
-		$default_keys = [ 'fallback', 'fallback-image', 'sanitize', 'exclude', 'start-at', 'pad', 'key' ];
+		$default_keys = [ 'fallback', 'fallback-image', 'sanitize', 'exclude', 'start-at', 'pad', 'key', 'is-array', 'date', 'from', 'to' ];
 
 		// NOTE: Undocumented
 		self::$allowed_keys = apply_filters( 'bricks/dynamic_data/allowed_keys', $default_keys );

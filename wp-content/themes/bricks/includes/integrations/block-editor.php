@@ -81,6 +81,14 @@ class Block_Editor {
 				'type'    => 'string',
 				'default' => '',
 			],
+			'variant'     => [
+				'type'    => 'string',
+				'default' => '',
+			],
+			'_preview'    => [
+				'type'    => 'boolean',
+				'default' => false,
+			],
 		];
 
 		// Register block type
@@ -89,6 +97,10 @@ class Block_Editor {
 			[
 				'attributes'      => $attributes,
 				'render_callback' => [ $this, 'render_component_block' ],
+				'category'        => $component['blockCategory'] ?? 'bricks',
+				'supports'        => [
+					'align' => [ 'wide', 'full' ],
+				],
 			]
 		);
 	}
@@ -128,8 +140,24 @@ class Block_Editor {
 				return '';
 			}
 
+			// Translate attributes if WPML is active
+			if ( \Bricks\Integrations\Wpml\Wpml::is_wpml_active() ) {
+				$attributes = \Bricks\Integrations\Wpml\Wpml::translate_component_block_attributes( $attributes, get_the_ID() );
+			}
+
 			// Render component directly with attributes
-			return $this->render_component_shortcode( $attributes );
+			$content = $this->render_component_shortcode( $attributes );
+
+			if ( ! $content ) {
+				return '';
+			}
+
+			// Apply alignment class wrapper
+			if ( ! empty( $attributes['align'] ) ) {
+				return '<div class="align' . esc_attr( $attributes['align'] ) . '">' . $content . '</div>';
+			}
+
+			return $content;
 		} catch ( \Exception $e ) {
 			return '';
 		}
@@ -171,6 +199,9 @@ class Block_Editor {
 			// Get block ID for unique element ID
 			$block_id = ! empty( $attributes['blockId'] ) ? sanitize_text_field( $attributes['blockId'] ) : '';
 
+			// Get variant
+			$variant = ! empty( $attributes['variant'] ) ? sanitize_text_field( $attributes['variant'] ) : '';
+
 			// Get the main element from the component
 			$main_element = null;
 			foreach ( $component['elements'] as $element ) {
@@ -195,11 +226,27 @@ class Block_Editor {
 				'properties' => $properties,
 			];
 
+			// Add variant if specified
+			if ( $variant ) {
+				$component_element['variant'] = $variant;
+			}
+
 			// Generate CSS for this component instance
 			\Bricks\Assets::generate_css_from_elements( [ $component_element ], "component_$component_id" );
 
+			// Prepare all settings into enqueue_setting_specific_scripts
+			$all_elements       = [];
+			$component_instance = \Bricks\Helpers::get_component_instance( $component_element );
+
+			if ( ! empty( $component_instance ) ) {
+				// Get all nested elements for this component instance (#86c7ac7wk; @since 2.2)
+				\Bricks\Helpers::get_component_elements_recursive( $component_instance, $all_elements );
+			} else {
+				$all_elements = [ $component_element ];
+			}
+
 			// Enqueue icon fonts and other setting-specific scripts for this component instance
-			\Bricks\Assets::enqueue_setting_specific_scripts( [ $component_element ] );
+			\Bricks\Assets::enqueue_setting_specific_scripts( $all_elements );
 
 			// Ensure theme styles are loaded for Gutenberg context
 			if ( $this->is_gutenberg_render() && empty( \Bricks\Theme_Styles::$settings_by_id ) ) {
@@ -308,6 +355,10 @@ class Block_Editor {
 					setup_postdata( $post );
 				}
 			}
+
+			// Add parent component to Frontend::$elements so nested components can resolve parent properties
+			// See: Helpers::resolve_parent_property_value()
+			\Bricks\Frontend::$elements[ $element_id ] = $component_element;
 
 			$html .= \Bricks\Frontend::render_element( $component_element );
 

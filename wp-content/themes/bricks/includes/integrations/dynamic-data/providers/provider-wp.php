@@ -256,6 +256,12 @@ class Provider_Wp extends Base {
 				'group' => 'date',
 			],
 
+			// Helper function to convert a date formate (@since 2.2)
+			'format_date'                => [
+				'label' => esc_html__( 'String to date', 'bricks' ),
+				'group' => 'date',
+			],
+
 			// Query
 			'query_loop_index'           => [
 				'label' => esc_html__( 'Query loop index', 'bricks' ),
@@ -298,6 +304,11 @@ class Provider_Wp extends Base {
 			// Query API - Retrieve external API response data (@since 2.1)
 			'query_api'                  => [
 				'label' => esc_html__( 'Query API', 'bricks' ),
+				'group' => 'query',
+			],
+
+			'query_array'                => [
+				'label' => esc_html__( 'Query Array', 'bricks' ),
 				'group' => 'query',
 			],
 		];
@@ -675,11 +686,17 @@ class Provider_Wp extends Base {
 				if ( Woocommerce::is_woocommerce_active() ) {
 					// Cart item featured image inside woo cart loop (@since 1.8.5)
 					$loop_object_type = Query::is_looping() ? Query::get_query_object_type() : false;
+					$post_type        = get_post_type( $post );
 
-					if ( $loop_object_type === 'wooCart' ) {
-						// Get the loop cart object
-						$loop_object = Query::get_loop_object();
-						$product     = isset( $loop_object['data'] ) && is_a( $loop_object['data'], 'WC_Product' ) ? $loop_object['data'] : wc_get_product( $post_id );
+					if ( $loop_object_type === 'wooCart' || in_array( $post_type, [ 'product', 'product_variation' ], true ) ) {
+						if ( $loop_object_type === 'wooCart' ) {
+							// Get the loop cart object
+							$loop_object = Query::get_loop_object();
+							$product     = isset( $loop_object['data'] ) && is_a( $loop_object['data'], 'WC_Product' ) ? $loop_object['data'] : wc_get_product( $post_id );
+						} else {
+							// Get product object (#86c3qf91q; @since 2.2)
+							$product = wc_get_product( $post_id );
+						}
 
 						/**
 						 * Similar like $product->get_image() method in WC_Product class
@@ -688,7 +705,7 @@ class Provider_Wp extends Base {
 						 *
 						 * @since 1.8.6
 						 */
-						if ( $product ) {
+						if ( $product && is_a( $product, 'WC_Product' ) ) {
 							if ( $product->get_image_id() ) {
 								$value = $product->get_image_id();
 							} elseif ( $product->get_parent_id() ) {
@@ -704,7 +721,7 @@ class Provider_Wp extends Base {
 					 * Get WooCommerce placeholder image if featured image is empty (@since 1.5.1)
 					 * Move to bottom so empty $value will be replaced by WooCommerce placeholder image (@since 1.8.6)
 					 */
-					if ( empty( $value ) && get_post_type( $post ) === 'product' ) {
+					if ( empty( $value ) && in_array( $post_type, [ 'product', 'product_variation' ], true ) ) {
 						$value = get_option( 'woocommerce_placeholder_image', 0 );
 					}
 				}
@@ -901,6 +918,26 @@ class Provider_Wp extends Base {
 				$value                  = current_time( 'timestamp' );
 				break;
 
+			// Date format conversion (@since 2.2)
+			case 'format_date':
+				$date        = isset( $filters['date'] ) ? $filters['date'] : '';
+				$from_format = isset( $filters['from'] ) ? $filters['from'] : '';
+				$to_format   = isset( $filters['to'] ) ? $filters['to'] : '';
+				if ( ! empty( $date ) && ! empty( $from_format ) && ! empty( $to_format ) ) {
+					$formatted_date = \DateTime::createFromFormat( $from_format, $date );
+
+					// Prevent error if date is not valid due to unexpected issue
+					if ( $formatted_date instanceof \DateTime ) {
+						$value                  = $formatted_date->format( 'U' );
+						$filters['object_type'] = 'date';
+						$filters['meta_key']    = $to_format;
+					}
+				} elseif ( ! empty( $date ) ) {
+					$value = $date;
+				}
+
+				break;
+
 			// Terms
 			case 'terms':
 				$value = $this->get_term_tag_value( $tag, $filters, $context, $post_id );
@@ -1077,6 +1114,7 @@ class Provider_Wp extends Base {
 
 			// @since 2.1
 			case 'query_api':
+			case 'query_array':
 				// Get the loop object from Query
 				$is_any_looping = Query::is_any_looping();
 				$loop_object    = Query::get_loop_object( $is_any_looping );
@@ -1118,6 +1156,12 @@ class Provider_Wp extends Base {
 						$value = '';
 					}
 				} else {
+
+					if ( $render === 'query_array' ) {
+						// Return the whole loop object as array (serialized or json)
+						$value = is_array( $loop_object ) ? json_encode( $loop_object ) : maybe_serialize( $loop_object );
+						break;
+					}
 					// Return the whole loop object as JSON
 					$value = '';
 				}

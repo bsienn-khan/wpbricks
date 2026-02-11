@@ -73,6 +73,11 @@ class Assets {
 
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_setting_specific_scripts' ] );
 
+		// Frontend: Enqueue Style Manager CSS file (@since 2.2)
+		if ( ! bricks_is_builder() ) {
+			add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_style_manager_css' ] );
+		}
+
 		// Enqueue RTL CSS file after main CSS file (@since 2.0)
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_rtl_specific_scripts' ], 15 );
 
@@ -80,32 +85,30 @@ class Assets {
 
 		// Check if cascade layer is enabled to wrap  WordPress generated styles (@since 2.0)
 		if ( ! Database::get_setting( 'disableBricksCascadeLayer' ) ) {
-			// add_filter( 'style_loader_tag', [ $this, 'wrap_block_styles_in_cascade_layer' ], 10, 2 ); // NOTE: No longer use since as this could cause conflicts with blocks inline styles (@since 2.0.2)
 			add_filter( 'style_loader_tag', [ $this, 'wrap_mediaelement_styles_in_cascade_layer' ], 10, 2 ); // Mediaelement styles
 			add_filter( 'style_loader_tag', [ $this, 'wrap_select2_styles_in_cascade_layer' ], 10, 2 ); // Select2 styles
-			// add_filter( 'style_loader_tag', [ $this, 'wrap_photoswipe_styles_in_cascade_layer' ], 10, 2 ); // NOTE: Not in use as it causes Woo product gallery lightbox to not work (@since 2.1)
 		}
 	}
 
 	/**
-	 * Cleanup global classes trash
+	 * Enqueue Style Manager CSS file
 	 *
-	 * NOTE: Not in use. User has to exclitily delete the global classes from the trash.
+	 * Contains color palette variables, utility classes, and global variables with scale property.
 	 *
-	 * @since 1.11
+	 * @since 2.2
 	 */
-	public function cleanup_global_classes_trash() {
-		$trash            = get_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
-		$retention_period = BRICKS_GLOBAL_CLASSES_DEFAULT_TRASH_RETENTION_DAYS * DAY_IN_SECONDS;
-		$current_time     = time();
+	public function enqueue_style_manager_css() {
+		$css_file_path = self::$css_dir . '/style-manager.min.css';
+		$css_file_url  = self::$css_url . '/style-manager.min.css';
 
-		foreach ( $trash as $index => $class ) {
-			if ( ( $current_time - $class['deletedAt'] ) > $retention_period ) {
-				unset( $trash[ $index ] );
-			}
+		if ( file_exists( $css_file_path ) ) {
+			wp_enqueue_style(
+				'bricks-style-manager',
+				$css_file_url,
+				[],
+				filemtime( $css_file_path )
+			);
 		}
-
-		update_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, array_values( $trash ) );
 	}
 
 	/**
@@ -184,27 +187,102 @@ class Assets {
 				$all_elements = array_merge( $all_elements, $footer_elements );
 			}
 
+			$is_builder_call = bricks_is_builder();
+
+			// Expand Post Content elements with Bricks data source (@since 2.2)
+			$expand_post_content = function( $elements ) use ( &$expand_post_content ) {
+				$expanded = [];
+
+				foreach ( $elements as $element ) {
+					$expanded[] = $element;
+
+					// If Post Content with Bricks data source, fetch and add those elements too
+					if ( ! empty( $element['name'] ) && $element['name'] === 'post-content' && ! empty( $element['settings']['dataSource'] ) && $element['settings']['dataSource'] === 'bricks' ) {
+						$post_id = get_the_ID();
+
+						// Skip templates to avoid infinite loops
+						if ( get_post_type( $post_id ) === BRICKS_DB_TEMPLATE_SLUG ) {
+							$post_id = Helpers::get_template_setting( 'templatePreviewPostId', $post_id );
+						}
+
+						if ( $post_id ) {
+							$bricks_data = get_post_meta( $post_id, BRICKS_DB_PAGE_CONTENT, true );
+
+							if ( ! empty( $bricks_data ) && is_array( $bricks_data ) ) {
+								// Recursively expand nested Post Content elements
+								$expanded = array_merge( $expanded, $expand_post_content( $bricks_data ) );
+							}
+						}
+					}
+				}
+
+				return $expanded;
+			};
+
+			// Expand all elements to include Post Content Bricks data
+			$all_elements = $expand_post_content( $all_elements );
+
+			// Get popup template IDs and expand Post Content in popups too (@since 2.2)
+			$popup_template_ids = Database::$active_templates['popup'];
+
+			// Scan expanded elements for popup interactions and add popup elements to $all_elements
 			foreach ( $all_elements as $element ) {
-				$bricks_settings_string .= wp_json_encode( $element );
+				if ( ! empty( $element['settings']['_interactions'] ) && is_array( $element['settings']['_interactions'] ) ) {
+					foreach ( $element['settings']['_interactions'] as $interaction ) {
+						if ( ! empty( $interaction['templateId'] ) && is_numeric( $interaction['templateId'] ) ) {
+							$popup_id = intval( $interaction['templateId'] );
+							if ( ! in_array( $popup_id, $popup_template_ids ) ) {
+								$popup_template_ids[] = $popup_id;
+							}
+						}
+					}
+				}
+			}
+
+			// Add popup elements to $all_elements so they're processed in the main loop below
+			foreach ( $popup_template_ids as $popup_template_id ) {
+				$popup_data = Database::get_data( $popup_template_id );
+				if ( ! empty( $popup_data ) ) {
+					$popup_data   = $expand_post_content( $popup_data );
+					$all_elements = array_merge( $all_elements, $popup_data );
+				}
+				// Get popup template settings (contain animation from popup interactions)
+				$bricks_settings_string .= wp_json_encode( Helpers::get_template_settings( $popup_template_id ) );
+			}
+
+			// Process all elements (header, content, footer, popups) - components are expanded here
+			foreach ( $all_elements as $element ) {
+
+				// No need to as we get the full element data below (@since 2.2)
+				// $bricks_settings_string .= wp_json_encode( $element );
 
 				// Get component instance string (@since 1.12)
 				if ( ! empty( $element['cid'] ) ) {
 					$component_instance = Helpers::get_component_instance( $element );
 					if ( ! empty( $component_instance ) ) {
-						$bricks_settings_string .= wp_json_encode( $component_instance );
 
 						// Helper recursive function to process component instances for nested components support (@since 2.0)
-						$process_component_elements = function( $component_instance ) use ( &$process_component_elements, &$bricks_settings_string ) {
+						$process_component_elements = function( $component_instance ) use ( &$process_component_elements, &$bricks_settings_string, $is_builder_call ) {
+								// Add component instance but exclude elements array to avoid duplication
+								$component_instance_without_elements = $component_instance;
+								unset( $component_instance_without_elements['elements'] );
+								$bricks_settings_string .= wp_json_encode( $component_instance_without_elements );
+
 							if ( ! empty( $component_instance['elements'] ) && is_array( $component_instance['elements'] ) ) {
 								foreach ( $component_instance['elements'] as $component_element ) {
 									// Check if element is a component instance
 									if ( ! empty( $component_element['cid'] ) ) {
 										$nested_component_instance = Helpers::get_component_instance( $component_element );
 										if ( ! empty( $nested_component_instance ) ) {
-											$bricks_settings_string .= wp_json_encode( $nested_component_instance );
+											// No need to as we add this above (@since 2.2)
+											// $bricks_settings_string .= wp_json_encode( $nested_component_instance );
 											// Recursively process nested component elements
 											$process_component_elements( $nested_component_instance );
 										}
+									}
+									// Else, just add component element, if it's not hidden (@since 2.2)
+									elseif ( empty( $component_element['settings']['_hideElementFrontend'] ) || $is_builder_call ) {
+										$bricks_settings_string .= wp_json_encode( $component_element );
 									}
 								}
 							}
@@ -218,19 +296,10 @@ class Assets {
 				}
 
 				// Get local element string
-				else {
+				// Only if not hidden in frontend (@since 2.2)
+				elseif ( empty( $element['settings']['_hideElementFrontend'] ) || $is_builder_call ) {
 					$bricks_settings_string .= wp_json_encode( $element );
 				}
-			}
-
-			// Loop over popup template data to enqueue 'bricks-animate' for popups too (@since 1.6)
-			$popup_template_ids = Database::$active_templates['popup'];
-
-			foreach ( $popup_template_ids as $popup_template_id ) {
-				$bricks_settings_string .= wp_json_encode( Database::get_data( $popup_template_id ) );
-
-				// Get popup template settings (contain animation from popup interactions)
-				$bricks_settings_string .= wp_json_encode( Helpers::get_template_settings( $popup_template_id ) );
 			}
 		} else {
 			$bricks_settings_string = wp_json_encode( $settings );
@@ -460,9 +529,16 @@ class Assets {
 		$template_settings_controls = Settings::get_controls_data( 'template' );
 
 		// STEP Color palette CSS color vars
-		$color_vars = self::generate_inline_css_color_vars( Database::$global_data['colorPalette'] );
+		$color_palettes = Database::$global_data['colorPalette'] ?? [];
+		$color_vars     = self::generate_inline_css_color_vars( $color_palettes );
 		if ( $color_vars ) {
 			self::$inline_css['color_vars'] .= $color_vars;
+		}
+
+		// STEP: Color palette CSS color vars dark mode (@since 2.2)
+		$dark_mode_color_vars = self::generate_inline_css_color_vars( $color_palettes, 'dark' );
+		if ( $dark_mode_color_vars ) {
+			self::$inline_css['color_vars'] .= $dark_mode_color_vars;
 		}
 
 		// STEP Theme Styles
@@ -658,11 +734,12 @@ class Assets {
 	/**
 	 * Generates list of global palette colors as CSS vars
 	 *
-	 * @param array $color_palettes
+	 * @param array  $color_palettes
+	 * @param string $mode 'light'|'dark' (@since 2.2)
 	 *
 	 * @return string
 	 */
-	public static function generate_inline_css_color_vars( $color_palettes ) {
+	public static function generate_inline_css_color_vars( $color_palettes, $mode = 'light' ) {
 		self::$global_colors = [];
 		$css_vars            = [];
 
@@ -681,6 +758,24 @@ class Assets {
 
 				$color_value  = '';
 				$css_var_name = "--bricks-color-{$color_id}";
+
+				/**
+				 * Check light color value (@since 2.2)
+				 *
+				 * @since 2.2
+				 */
+				if ( $mode === 'light' && ! empty( $color['light'] ) ) {
+					$color_value = $color['light'];
+				}
+
+				/**
+				 * Check dark color value (@since 2.2)
+				 *
+				 * @since 2.2
+				 */
+				if ( $mode === 'dark' && ! empty( $color['dark'] ) ) {
+					$color_value = $color['dark'];
+				}
 
 				/**
 				 * Check for 'rgb' & 'hex' before 'raw' value
@@ -733,7 +828,9 @@ class Assets {
 			}
 		}
 
-		$css_variables = ! empty( $css_vars ) ? ':root {' . PHP_EOL . implode( PHP_EOL, $css_vars ) . PHP_EOL . '}' . PHP_EOL : '';
+		$root_selector = $mode === 'dark' ? ':root[data-brx-theme="dark"] {' : ':root {';
+
+		$css_variables = ! empty( $css_vars ) ? $root_selector . PHP_EOL . implode( PHP_EOL, $css_vars ) . PHP_EOL . '}' . PHP_EOL : '';
 
 		return $css_variables;
 	}
@@ -857,8 +954,9 @@ class Assets {
 		// Breakpoint CSS
 		$inline_css = self::generate_inline_css_for_breakpoints( 'theme_style', $inline_css );
 
+		$contextual_spacing_settings = $settings['contextualSpacing'] ?? [];
+
 		// STEP: Contextual spacing - Remove default margins from custom selectors (@since 2.0)
-		$contextual_spacing_settings     = $settings['contextualSpacing'] ?? [];
 		$remove_default_margin_selectors = $contextual_spacing_settings['contextualSpacingRemoveDefaultMargins'] ?? false;
 		if ( $remove_default_margin_selectors ) {
 			if ( is_array( $remove_default_margin_selectors ) ) {
@@ -866,6 +964,16 @@ class Assets {
 			}
 
 			$inline_css .= $remove_default_margin_selectors . ' {margin: 0;}' . PHP_EOL;
+		}
+
+		// STEP: Contextual spacing - Remove default padding from custom selectors (@since 2.2)
+		$remove_default_padding_selectors = $contextual_spacing_settings['contextualSpacingRemoveDefaultPadding'] ?? false;
+		if ( $remove_default_padding_selectors ) {
+			if ( is_array( $remove_default_padding_selectors ) ) {
+				$remove_default_padding_selectors = implode( ', ', $remove_default_padding_selectors );
+			}
+
+			$inline_css .= $remove_default_padding_selectors . ' {padding: 0;}' . PHP_EOL;
 		}
 
 		return $inline_css;
@@ -1521,7 +1629,7 @@ class Assets {
 	 *
 	 * @since 1.3.5
 	 */
-	public static function generate_css_rules_from_setting( $settings, $setting_key, $setting_value, $controls, $selector, $css_type ) {
+	public static function generate_css_rules_from_setting( $settings, $setting_key, $setting_value, $controls, $selector, $css_type, $is_component_root = false ) {
 		// @since 1.8.2 Add 'staticArea' check to get correct post ID when generating dynamic CSS for static areas in the builder
 		$post_id = wp_doing_ajax() && ! isset( $_POST['staticArea'] ) && ! empty( self::$post_id ) ? self::$post_id : get_the_ID();
 
@@ -1546,6 +1654,19 @@ class Assets {
 		 */
 		$control_key       = $setting_key;
 		$control_key_parts = explode( ':', $control_key );
+
+		// Component variant (@since 2.2)
+		$variant_id = '';
+
+		// Check if setting key has a variant suffix (e.g., '_background:variant-abc123')
+		foreach ( $control_key_parts as $part ) {
+			if ( strpos( $part, 'variant-' ) === 0 ) {
+				$variant_id = $part;
+				// Remove variant from control key
+				$control_key = str_replace( ":$variant_id", '', $control_key );
+				break;
+			}
+		}
 
 		// BREAKPOINT
 		$breakpoint = '';
@@ -1705,6 +1826,16 @@ class Assets {
 
 					// Add space between element ID & setting CSS selector
 					elseif ( ! empty( $css_selector ) ) {
+						// If we have a loop index selector and custom selector targets children (has space),
+						// insert loop index selector before the space
+						// Only for SVG element to fix fill/stroke dynamic colors in loops (@since 2.2)
+						$element_name = self::$current_generating_element['name'] ?? '';
+
+						if ( $loop_index_selector && strpos( $custom_selector, ' ' ) === 0 && $element_name === 'svg' ) {
+							$css_selector       .= $loop_index_selector;
+							$loop_index_selector = ''; // Clear to prevent double addition
+						}
+
 						$css_selector .= ' ';
 					}
 
@@ -1725,6 +1856,38 @@ class Assets {
 					}
 
 					$css_selector .= $pseudo_class;
+				}
+
+				// STEP: Prepend variant data-attribute selector for component variants
+				if ( $variant_id ) {
+					// Strip 'variant-' prefix
+					$variant_id_clean = str_replace( 'variant-', '', $variant_id );
+
+					// Split by comma for multiple selectors
+					$selectors         = explode( ', ', $css_selector );
+					$variant_selectors = [];
+
+					foreach ( $selectors as $sel ) {
+						$sel = trim( $sel );
+
+						if ( $is_component_root ) {
+							// Root element: The element itself has data-brx-variant attribute
+							// Append [data-brx-variant] to the selector (no space)
+							// e.g., .brxe-uqsagm[data-brx-variant="abc123"]
+							if ( strpos( $sel, '#' ) === 0 || strpos( $sel, '.' ) === 0 ) {
+								$variant_selectors[] = $sel . "[data-brx-variant=\"$variant_id_clean\"]";
+							} else {
+								$variant_selectors[] = $sel . "[data-brx-variant=\"$variant_id_clean\"]";
+							}
+						} else {
+							// Child element: Parent has data-brx-variant attribute
+							// Prepend [data-brx-variant] as descendant selector (with space)
+							// e.g., [data-brx-variant="abc123"] .brxe-child-id
+							$variant_selectors[] = "[data-brx-variant=\"$variant_id_clean\"] " . $sel;
+						}
+					}
+
+					$css_selector = implode( ', ', $variant_selectors );
 				}
 
 				/**
@@ -2832,6 +2995,12 @@ class Assets {
 			if ( ! empty( $element['cid'] ) && ! empty( $component_element['selectors'] ) ) {
 				$element['selectors'] = $component_element['selectors'];
 			}
+
+			// Add instance ID class for icon component so SVG color can apply (#86c4jqnwn; @since 2.2)
+			if ( $element['name'] === 'icon' ) {
+				$instance_id   = isset( $element['cid'] ) ? $element['id'] : $element['instanceId'];
+				$css_selector .= '.brxi-' . $instance_id;
+			}
 		}
 
 		elseif ( $element_id ) {
@@ -2951,7 +3120,7 @@ class Assets {
 
 		// STEP: Generate CSS rules array of every element setting
 		foreach ( $settings as $setting_key => $setting_value ) {
-			$setting_css_rules = self::generate_css_rules_from_setting( $settings, $setting_key, $setting_value, $controls, $css_selector, $css_type );
+			$setting_css_rules = self::generate_css_rules_from_setting( $settings, $setting_key, $setting_value, $controls, $css_selector, $css_type, ! empty( $element['cid'] ) );
 
 			// Add new CSS rules to existing ones
 			if ( is_array( $setting_css_rules ) ) {
@@ -3113,6 +3282,32 @@ class Assets {
 
 		if ( $custom_css ) {
 			$inline_css .= $custom_css . PHP_EOL;
+		}
+
+		// Component variant custom CSS (@since 2.2)
+		// Process variant-specific _cssCustom:variant-{id} settings separately
+		foreach ( $settings as $setting_key => $setting_value ) {
+			// ONLY process variant-specific custom CSS (skip base _cssCustom)
+			if ( strpos( $setting_key, '_cssCustom:variant-' ) === 0 && is_string( $setting_value ) && ! empty( $setting_value ) ) {
+				$variant_css = $setting_value;
+
+				// Apply same transformations as base custom CSS
+				if ( Query::is_looping() ) {
+					$variant_css = str_replace( "#brxe-$element_id", ".brxe-$element_id", $variant_css );
+				}
+
+				if ( $variant_css ) {
+					$variant_css = str_replace( [ "\r", "\n" ], '', $variant_css );
+					$variant_css = str_replace( '  ', ' ', $variant_css );
+					$variant_css = str_replace( '}.', '} .', $variant_css );
+
+					// Parse and append
+					$parsed_variant_css = Helpers::parse_css( $variant_css );
+					if ( $parsed_variant_css ) {
+						$inline_css .= $parsed_variant_css . PHP_EOL;
+					}
+				}
+			}
 		}
 
 		if ( ! isset( self::$inline_css[ $css_type ] ) ) {
@@ -3311,6 +3506,32 @@ class Assets {
 		// Flat element list
 		self::$elements = [];
 
+		/**
+		 * STEP: Set instanceId on slot children before processing
+		 *
+		 * Loop through to set instanceId on slot children so component instances in slots
+		 * have the correct instanceId when insert_component_elements processes them.
+		 *
+		 * @since 2.2
+		 */
+		foreach ( $elements as $element ) {
+			if ( ! empty( $element['cid'] ) && ! empty( $element['slotChildren'] ) ) {
+				foreach ( $element['slotChildren'] as $slot_child_ids ) {
+					if ( is_array( $slot_child_ids ) ) {
+						foreach ( $slot_child_ids as $child_id ) {
+							foreach ( $elements as &$ref_element ) {
+								if ( $ref_element['id'] === $child_id ) {
+									$ref_element['instanceId'] = $element['instanceId'] ?? $element['id'];
+									break;
+								}
+							}
+							unset( $ref_element );
+						}
+					}
+				}
+			}
+		}
+
 		// Prepare flat list of elements for recursive calls
 		foreach ( $elements as $element ) {
 			// STEP: Get component (@since 1.12)
@@ -3333,6 +3554,33 @@ class Assets {
 				// ajaxLocalId generated in API request (If the query has dashed) (#86c4957mc)
 				$unique_id                    = ! empty( $element['ajaxLocalId'] ) ? $element['ajaxLocalId'] : $element['id'];
 				self::$elements[ $unique_id ] = $element;
+			}
+		}
+
+		/**
+		 * STEP: Set parentComponent and instanceId on slot children
+		 *
+		 * Set these properties so they generate component-style CSS selectors (.brxe-{id})
+		 * instead of ID selectors (#brxe-{id}), matching the behavior of component child elements.
+		 *
+		 * @since 2.2
+		 */
+		foreach ( $elements as $element ) {
+			$component_id = $element['cid'] ?? false;
+
+			if ( $component_id && ! empty( $element['slotChildren'] ) ) {
+				foreach ( $element['slotChildren'] as $slot_id => $slot_child_ids ) {
+					if ( is_array( $slot_child_ids ) ) {
+						foreach ( $slot_child_ids as $child_id ) {
+							// Find slot child in already added elements
+							if ( isset( self::$elements[ $child_id ] ) ) {
+								// Set parentComponent and instanceId for proper CSS generation
+								self::$elements[ $child_id ]['parentComponent'] = $component_id;
+								self::$elements[ $child_id ]['instanceId']      = $element['instanceId'] ?? $element['id'];
+							}
+						}
+					}
+				}
 			}
 		}
 
@@ -3363,8 +3611,15 @@ class Assets {
 		foreach ( $component_elements as $component_element ) {
 				// Nested component: Process recursively
 			if ( ! empty( $component_element['cid'] ) ) {
-					$nested_component_id = $component_element['cid'];
-					$nested_component    = Helpers::get_component_instance( $component_element );
+				$nested_component_id = $component_element['cid'];
+
+				// Set instanceId for nested component element BEFORE calling get_component_instance
+				// This ensures parent property references can be resolved correctly (@since 2.2)
+				if ( empty( $component_element['instanceId'] ) ) {
+					$component_element['instanceId'] = $original_element['instanceId'] ?? $original_element['id'];
+				}
+
+				$nested_component = Helpers::get_component_instance( $component_element );
 
 				if ( ! empty( $nested_component['elements'] ) ) {
 
@@ -3434,6 +3689,23 @@ class Assets {
 	public static function generate_css_from_element( $element, $css_type ) {
 		$settings = $element['settings'] ?? false;
 
+		// Skip if _hideElementFrontend is enabled (#86c5e06gg; @since 2.2)
+		if ( ! empty( $settings['_hideElementFrontend'] ) ) {
+			return;
+		}
+
+		/**
+		 * NOT IN USE: Remove condition check for now because not all conditions working on External CSS setup
+		 * CSS files generated via AJAX call, conditions lie "Current URL", "URL Parameter" would not work properly.
+		 *
+		 * @since 2.2 (#86c82h81z)
+		 */
+		// Check element conditions (#86c5e06gg; @since 2.2)
+		// $conditions_met = self::maybe_run_condition_check( $element );
+		// if (! $conditions_met) {
+		// return;
+		// }
+
 		// Store elements global classes (for each class ID, store the elements that use it)
 		$element_css_global_classes = $settings['_cssGlobalClasses'] ?? false;
 
@@ -3485,6 +3757,9 @@ class Assets {
 			// Prevent endless loop (@since 2.0)
 			unset( $element['settings']['hasLoop'] );
 
+			// Prevent condition execution when looping (#86c7q832a; @since 2.2)
+			unset( $element['settings']['_conditions'] );
+
 			// Run the query at least once to generate the minimum styles
 			if ( empty( $query->count ) ) {
 				// Fake the loop so it doesn't run the query again
@@ -3508,6 +3783,19 @@ class Assets {
 
 		// Nestable elements (section, container, block, div, slider-nested, etc.)
 		if ( ! empty( $element['children'] ) ) {
+			// Check if this element is a direct child of a slot (guardrail for fallback logic below)
+			$is_slot_child  = false;
+			$parent_element = isset( $element['parent'] ) ? ( self::$elements[ $element['parent'] ] ?? false ) : false;
+
+			if ( $parent_element && ! empty( $parent_element['slotChildren'] ) ) {
+				foreach ( $parent_element['slotChildren'] as $slot_child_ids ) {
+					if ( is_array( $slot_child_ids ) && in_array( $element['id'], $slot_child_ids ) ) {
+						$is_slot_child = true;
+						break;
+					}
+				}
+			}
+
 			foreach ( $element['children'] as $child_id ) {
 				$parent_id  = $element['parent'] ?? false;
 				$element_id = $element['id'] ?? false;
@@ -3516,6 +3804,8 @@ class Assets {
 				if ( $child_id === $element_id || $child_id === $parent_id ) {
 					continue;
 				}
+
+				$original_child_id = $child_id;
 
 				// Amend the child ID or certain element styles will be missing because component's children has unique_id (#86c4957mc)
 				if ( ! empty( $element['cid'] ) && ! isset( $element['instanceId'] ) ) {
@@ -3526,10 +3816,32 @@ class Assets {
 					$child_id = $element['instanceId'] . '-' . $child_id;
 				}
 
+				// Check if the modified child ID exists. If not, revert to original ID (e.g. for elements inside a nestable element within a slot)
+				if ( $is_slot_child && ! array_key_exists( $child_id, self::$elements ) && array_key_exists( $original_child_id, self::$elements ) ) {
+					$child_id = $original_child_id;
+				}
+
 				if ( array_key_exists( $child_id, self::$elements ) ) {
 					$child_element = self::$elements[ $child_id ];
 
 					self::generate_css_from_element( $child_element, $css_type ); // Recursive
+				}
+			}
+		}
+
+		/**
+		 * Component instance with slots: Process slot children
+		 *
+		 * @since 2.2
+		 */
+		if ( ! empty( $element['slotChildren'] ) ) {
+			foreach ( $element['slotChildren'] as $slot_id => $slot_child_ids ) {
+				if ( is_array( $slot_child_ids ) ) {
+					foreach ( $slot_child_ids as $child_id ) {
+						if ( array_key_exists( $child_id, self::$elements ) ) {
+							self::generate_css_from_element( self::$elements[ $child_id ], $css_type ); // Recursive
+						}
+					}
 				}
 			}
 		}
@@ -3634,7 +3946,13 @@ class Assets {
 
 				if ( $element_class_name ) {
 					$element_instance = new $element_class_name( $element );
-					$breakpoint       = Breakpoints::get_breakpoint_by( 'key', $show_toggle_at_breakpoint );
+
+					// Handle custom breakpoint (@since 2.2)
+					if ( $show_toggle_at_breakpoint === 'custom' && ! empty( $settings['mobileMenuCustomBreakpoint'] ) ) {
+						$breakpoint = $settings['mobileMenuCustomBreakpoint'];
+					} else {
+						$breakpoint = Breakpoints::get_breakpoint_by( 'key', $show_toggle_at_breakpoint );
+					}
 
 					if ( ! isset( self::$inline_css[ $css_type ] ) ) {
 						self::$inline_css[ $css_type ] = '';
@@ -3767,5 +4085,43 @@ class Assets {
 		}
 
 		return $tag;
+	}
+
+	/**
+	 * Maybe run condition check for element
+	 * NOT IN USE: Remove condition check for now because not all conditions working on External CSS setup. CSS files generated via AJAX call, conditions lie "Current URL", "URL Parameter" would not work properly. (#86c82h81z; @since 2.2)
+	 * #86c5e06gg; @since 2.2
+	 */
+	public static function maybe_run_condition_check( $element ) {
+		$settings = $element['settings'] ?? false;
+		// Check element conditions (#86c5e06gg; @since 2.2)
+		if ( ! empty( $settings['_conditions'] ) ) {
+			$element_class_name = ! empty( Elements::$elements[ $element['name'] ]['class'] ) ? Elements::$elements[ $element['name'] ]['class'] : false;
+
+			// TODO: A new should_render_element inside init function in base.php to cover bricks/element/render hook
+			if ( $element_class_name ) {
+				$looping_query_id = Query::is_any_looping();
+				$loop_object_type = Query::get_loop_object_type( $looping_query_id );
+
+				$post_id = $loop_object_type === 'post' ? get_the_ID() : Database::$page_data['preview_or_post_id'];
+
+				// Do not remove this line to avoid infinite loops
+				if ( get_post_type( $post_id ) === BRICKS_DB_TEMPLATE_SLUG ) {
+					$post_id = Helpers::get_template_setting( 'templatePreviewPostId', $post_id );
+				}
+				$element_instance = new $element_class_name( $element );
+				$element_instance->set_post_id( $post_id );
+
+				// Third parameter to force execute condition check. (External CSS methods will have bricks_is_builder_call() when saving a post)
+				$conditions = Conditions::check( $settings['_conditions'], $element_instance, true );
+
+				// Return: Conditions not met
+				if ( ! $conditions ) {
+					return false;
+				}
+			}
+		}
+
+		return true;
 	}
 }

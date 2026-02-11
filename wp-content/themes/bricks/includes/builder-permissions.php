@@ -65,11 +65,11 @@ class Builder_Permissions {
 			'global_styles'   => [
 				'label'       => esc_html__( 'Global styles & settings', 'bricks' ),
 				'permissions' => [
-					'access_theme_styles'              => esc_html__( 'Access theme styles', 'bricks' ),
-					'edit_color_palettes'              => esc_html__( 'Access color palettes', 'bricks' ),
-					'access_variable_manager'          => esc_html__( 'Access variable manager', 'bricks' ),
-					'access_query_manager'             => esc_html__( 'Access query manager', 'bricks' ),
+					'edit_color_palettes'              => esc_html__( 'Access color manager', 'bricks' ),
 					'access_class_manager'             => esc_html__( 'Access class manager', 'bricks' ),
+					'access_variable_manager'          => esc_html__( 'Access variable manager', 'bricks' ),
+					'access_theme_styles'              => esc_html__( 'Access theme styles', 'bricks' ),
+					'access_query_manager'             => esc_html__( 'Access query manager', 'bricks' ),
 					'create_global_classes'            => esc_html__( 'Create global classes', 'bricks' ),
 					'edit_global_classes'              => esc_html__( 'Edit global classes', 'bricks' ),
 					'delete_global_classes'            => esc_html__( 'Delete global classes', 'bricks' ),

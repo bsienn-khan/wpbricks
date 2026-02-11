@@ -401,7 +401,7 @@ class Element_Tabs extends Element {
 			$this->set_attribute( "tab-title-$index", 'tabindex', $tabindex );
 
 			// Set 'id' to open & scroll to specific tab (@since 1.8.6)
-			// Only set manual ID if provided, otherwise use auto-generated ID (@since 2.x)
+			// Only set manual ID if provided, otherwise use auto-generated ID (@since 2.2)
 			if ( ! empty( $tab['anchorId'] ) ) {
 				$this->set_attribute( "tab-title-$index", 'id', $tab['anchorId'] );
 			} else {
@@ -466,7 +466,7 @@ class Element_Tabs extends Element {
 
 			$tab_pane_classes = [ 'tab-pane' ];
 
-			// Determine the correct tab title ID for aria-labelledby (@since 2.x)
+			// Determine the correct tab title ID for aria-labelledby (@since 2.2)
 			$tab_title_id = ! empty( $tab['anchorId'] ) ? $tab['anchorId'] : "brx-tab-{$this->id}-$index";
 
 			$this->set_attribute( "tab-pane-$index", 'class', $tab_pane_classes );

@@ -815,6 +815,40 @@ const bricksUtils = {
 				}
 			})
 		}
+	},
+
+	/**
+	 * Rebuild Splide instance when slides DOM changed
+	 * #86bz8vbac
+	 * @since 2.2
+	 */
+	rebuildSplide: (splideId) => {
+		// Get splide instance from window.bricksData.splideInstances
+		const splideInstance = window.bricksData.splideInstances[splideId] || false
+		// Exit if no splideInstance
+		if (!splideInstance) {
+			return
+		}
+
+		// Destroy the existing instance
+		splideInstance.destroy()
+
+		// Delete from window.bricksData.splideInstances
+		delete window.bricksData.splideInstances[splideId]
+
+		// Delete from bricksSplideFn._initializedElements to allow re-initialization
+		if (window.bricksSplideFn && window.bricksSplideFn._initializedElements) {
+			// Find the elment in the initializedElements set and delete it
+			const element = splideInstance.root
+			if (window.bricksSplideFn._initializedElements.has(element)) {
+				window.bricksSplideFn._initializedElements.delete(element)
+			}
+		}
+
+		// Re-initialize the splide instance
+		if (window.bricksSplideFn) {
+			window.bricksSplideFn.run()
+		}
 	}
 }
 
@@ -1443,6 +1477,27 @@ const bricksInitQueryLoopInstancesFn = new BricksFunction({
 		el.removeAttribute('data-query-vars')
 		el.removeAttribute('data-original-query-vars')
 
+		const isSplideSlide =
+			el.closest('.brxe-slider-nested.splide') && el.parentNode?.classList.contains('splide__list')
+
+		if (isSplideSlide) {
+			// Listen to these events to re-initialize the Splide instance after new query results are loaded via AJAX (#86bz8vbac @since 2.2)
+			let splideId = el.closest('.brxe-slider-nested.splide').dataset?.scriptId || false
+			if (splideId) {
+				const splideEvents = [
+					'bricks/ajax/pagination/completed',
+					'bricks/ajax/load_page/completed',
+					'bricks/ajax/query_result/displayed'
+				]
+				splideEvents.forEach((eventName) => {
+					document.addEventListener(eventName, () => {
+						// Run rebuildSplide for the splideId
+						bricksUtils.rebuildSplide(splideId)
+					})
+				})
+			}
+		}
+
 		// Remove the trail in case it is not a Posts element
 		if (!isPostsElement) {
 			el.remove()
@@ -1689,7 +1744,8 @@ function bricksQueryLoadPage(el, noDelay = false, nonceRefreshed = false) {
 			page: page,
 			nonce: window.bricksData.nonce,
 			lang: window.bricksData.language || false,
-			mainQueryId: window.bricksData.mainQueryId || false // Record the main query ID (@since 2.0)
+			mainQueryId: window.bricksData.mainQueryId || false, // Record the main query ID (@since 2.0)
+			activeSearchTemplate: window.bricksData.activeSearchTemplate || false // Current active search template ID (@since 2.2)
 		}
 
 		// Check if useQueryFilter is ON
@@ -1734,7 +1790,8 @@ function bricksQueryLoadPage(el, noDelay = false, nonceRefreshed = false) {
 					nonce: window.bricksData.nonce,
 					baseUrl: window.bricksData.baseUrl,
 					lang: window.bricksData.language || false,
-					mainQueryId: window.bricksData.mainQueryId || false // Record the main query ID (@since 2.0)
+					mainQueryId: window.bricksData.mainQueryId || false, // Record the main query ID (@since 2.0)
+					activeSearchTemplate: window.bricksData.activeSearchTemplate || false // Current active search template ID (@since 2.2)
 				}
 
 				// Change the url to use the filter endpoint
@@ -2061,7 +2118,8 @@ function bricksAjaxPagination(targetEl, queryId, clickedPageNumber, nonceRefresh
 			paginationId: targetPaginationEl.dataset.paginationId,
 			baseUrl: window.bricksData.baseUrl,
 			lang: window.bricksData.language || false,
-			mainQueryId: window.bricksData.mainQueryId || false // Record the main query ID (@since 2.0)
+			mainQueryId: window.bricksData.mainQueryId || false, // Record the main query ID (@since 2.0)
+			activeSearchTemplate: window.bricksData.activeSearchTemplate || false // Current active search template ID (@since 2.2)
 		}
 
 		// AJAX start event - AJAX loader purposes (@since 1.9)
@@ -4977,6 +5035,9 @@ const bricksFormFn = new BricksFunction({
 	eachElement: (form) => {
 		let elementId = form.getAttribute('data-element-id')
 
+		// Variable: Use custom validation for all fields on submit (@since 2.2)
+		const customValidateAllFields = form.getAttribute('data-validate-all-fields') === 'true'
+
 		// Disable form validation on blur, input (@since 1.12)
 		const validationDisabledOn = JSON.parse(form.getAttribute('data-validation-disabled-on')) || []
 
@@ -5159,9 +5220,27 @@ const bricksFormFn = new BricksFunction({
 					let imageIds = currentValue ? currentValue.split(',').map((id) => id.trim()) : []
 					imageIds = imageIds.filter((id) => id !== attachmentId)
 					hiddenInput.value = imageIds.join(',')
+
+					// Trigger validation after image removal (@since 2.2)
+					if (
+						hiddenInput.getAttribute('data-error-message') &&
+						!(validationDisabledOn.includes('input') && validationDisabledOn.includes('blur')) &&
+						bricksIsFrontend
+					) {
+						validateImageGalleryInput(hiddenInput)
+					}
 				} else if (hiddenInput) {
 					// Single image: Clear the hidden input value
 					hiddenInput.value = ''
+
+					// Trigger validation after image removal (@since 2.2)
+					if (
+						hiddenInput.getAttribute('data-error-message') &&
+						!(validationDisabledOn.includes('input') && validationDisabledOn.includes('blur')) &&
+						bricksIsFrontend
+					) {
+						validateImageGalleryInput(hiddenInput)
+					}
 				}
 
 				// Remove the preview wrapper from DOM
@@ -5216,6 +5295,15 @@ const bricksFormFn = new BricksFunction({
 					// Update hidden input with comma-separated IDs
 					if (hiddenInput) {
 						hiddenInput.value = newIds.join(',')
+
+						// Trigger validation after image selection (@since 2.2)
+						if (
+							hiddenInput.getAttribute('data-error-message') &&
+							!(validationDisabledOn.includes('input') && validationDisabledOn.includes('blur')) &&
+							bricksIsFrontend
+						) {
+							validateImageGalleryInput(hiddenInput)
+						}
 					}
 				} else {
 					// Single image: Handle one image
@@ -5246,6 +5334,15 @@ const bricksFormFn = new BricksFunction({
 					// Update hidden input with attachment ID
 					if (hiddenInput) {
 						hiddenInput.value = attachment.id
+
+						// Trigger validation after image selection (@since 2.2)
+						if (
+							hiddenInput.getAttribute('data-error-message') &&
+							!(validationDisabledOn.includes('input') && validationDisabledOn.includes('blur')) &&
+							bricksIsFrontend
+						) {
+							validateImageGalleryInput(hiddenInput)
+						}
 					}
 				}
 			})
@@ -5331,7 +5428,7 @@ const bricksFormFn = new BricksFunction({
 		 * @since 1.9.2
 		 */
 		const inputFields = form.querySelectorAll(
-			'input:not([type="hidden"]):not([type="file"]), textarea'
+			'input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea'
 		)
 
 		inputFields.forEach((inputField) => {
@@ -5365,6 +5462,55 @@ const bricksFormFn = new BricksFunction({
 		})
 
 		/**
+		 * Listen to checkbox and radio field changes for validation
+		 *
+		 * Special case: error messages are inside .form-group
+		 * Need to check if any field inside the group is checked
+		 *
+		 * @since 2.2
+		 */
+		const checkboxRadioFields = form.querySelectorAll('input[type="checkbox"], input[type="radio"]')
+
+		checkboxRadioFields.forEach((field) => {
+			// Check if the parent .form-group has data-error-message attribute
+			const formGroup = field.closest('.form-group')
+			if (formGroup && formGroup.getAttribute('data-error-message') && bricksIsFrontend) {
+				// Only check for errors if validation is not disabled on "input" or "blur"
+				if (!(validationDisabledOn.includes('input') && validationDisabledOn.includes('blur'))) {
+					// Listen to change event for checkboxes and radios
+					field.addEventListener('change', () => {
+						validateCheckboxRadio(field)
+					})
+				}
+			}
+		})
+
+		/**
+		 * Helper function to show/hide error message in form-group
+		 *
+		 * @param {HTMLElement} formGroup - The form group element
+		 * @param {boolean} showError - Whether to show the error
+		 * @param {string} errorMsg - The error message to display
+		 */
+		function updateErrorMessage(formGroup, showError, errorMsg) {
+			let errorDiv = formGroup.querySelector('.form-group-error-message')
+
+			if (!errorDiv) {
+				errorDiv = document.createElement('div')
+				errorDiv.classList.add('form-group-error-message')
+				formGroup.appendChild(errorDiv)
+			}
+
+			if (showError && errorMsg) {
+				errorDiv.innerText = errorMsg
+				errorDiv.classList.add('show')
+			} else {
+				errorDiv.innerText = ''
+				errorDiv.classList.remove('show')
+			}
+		}
+
+		/**
 		 * Function to validate input fields
 		 */
 		function validateInput(inputField) {
@@ -5375,8 +5521,12 @@ const bricksFormFn = new BricksFunction({
 			let formGroup = inputField.closest('.form-group')
 			let showError = false
 
+			// Check if field is required (or was required before TinyMCE removed it)
+			const isRequired =
+				inputField.hasAttribute('required') || inputField.dataset.wasRequired === 'true'
+
 			// Required & empty
-			if (inputField.hasAttribute('required') && !value) {
+			if (isRequired && !value) {
 				showError = true
 			}
 
@@ -5402,26 +5552,124 @@ const bricksFormFn = new BricksFunction({
 			}
 
 			// Not required & empty
-			if (!inputField.hasAttribute('required') && value == '') {
+			if (!isRequired && value == '') {
 				showError = false
 			}
 
-			// Insert error message div.form-group-error-message inside .form-group
-			let errorDiv = formGroup.querySelector('.form-group-error-message')
+			updateErrorMessage(formGroup, showError, errorMsg)
 
-			if (!errorDiv) {
-				errorDiv = document.createElement('div')
-				errorDiv.classList.add('form-group-error-message')
-				formGroup.appendChild(errorDiv)
+			return !showError
+		}
+
+		/**
+		 * Function to validate checkbox and radio fields
+		 *
+		 * Special case: Check all fields inside .form-group to see if any is checked
+		 *
+		 * @since 2.2
+		 */
+		function validateCheckboxRadio(field) {
+			// Find the closest parent form group
+			let formGroup = field.closest('.form-group')
+
+			if (!formGroup) {
+				return true
 			}
 
-			if (showError) {
-				errorDiv.innerText = errorMsg
-				errorDiv.classList.add('show')
-			} else {
-				errorDiv.innerText = '' // Clear error message when input is valid
-				errorDiv.classList.remove('show') // Hide error message when input is valid
+			// Get all checkbox/radio fields within this form-group
+			const fieldType = field.type
+			const fieldName = field.getAttribute('name')
+			const allFields = formGroup.querySelectorAll(
+				`input[type="${fieldType}"][name="${fieldName}"]`
+			)
+
+			// Check if at least one field is checked
+			let atLeastOneChecked = false
+			allFields.forEach((item) => {
+				if (item.checked) {
+					atLeastOneChecked = true
+				}
+			})
+
+			// Get error message from the .form-group container (not from individual fields)
+			const errorMsg = formGroup.getAttribute('data-error-message')
+			let showError = false
+
+			// If field is required and nothing is checked, show error
+			if (field.hasAttribute('required') && !atLeastOneChecked) {
+				showError = true
 			}
+
+			updateErrorMessage(formGroup, showError, errorMsg)
+
+			return !showError
+		}
+
+		/**
+		 * Function to validate file input fields
+		 *
+		 * @param {HTMLElement} fileInput - The file input field
+		 * @param {Object} files - The files object tracking uploaded files
+		 * @since 2.2
+		 */
+		function validateFileInput(fileInput, files) {
+			// Find the closest parent form group
+			let formGroup = fileInput.closest('.form-group')
+
+			if (!formGroup) {
+				return true
+			}
+
+			// Get error message
+			const errorMsg = fileInput.getAttribute('data-error-message')
+			let showError = false
+
+			// Check if field is required and has no files
+			if (fileInput.hasAttribute('required')) {
+				const inputName = fileInput.getAttribute('name')
+				const hasFilesInInput = fileInput.files && fileInput.files.length > 0
+				const hasFilesInObject = files.hasOwnProperty(inputName) && files[inputName].length > 0
+
+				// Show error if no files are selected in both input and files object
+				if (!hasFilesInInput && !hasFilesInObject) {
+					showError = true
+				}
+			}
+
+			updateErrorMessage(formGroup, showError, errorMsg)
+
+			return !showError
+		}
+
+		/**
+		 * Function to validate image and gallery input fields (hidden inputs)
+		 *
+		 * @param {HTMLElement} hiddenInput - The hidden input field containing attachment IDs
+		 * @since 2.2
+		 */
+		function validateImageGalleryInput(hiddenInput) {
+			// Find the closest parent form group
+			let formGroup = hiddenInput.closest('.form-group')
+
+			if (!formGroup) {
+				return true
+			}
+
+			// Get error message
+			const errorMsg = hiddenInput.getAttribute('data-error-message')
+			let showError = false
+
+			// Check if field is required and has no value
+			if (hiddenInput.hasAttribute('required')) {
+				const value = hiddenInput.value.trim()
+
+				// Show error if no attachment IDs are present
+				if (!value) {
+					showError = true
+				}
+			}
+
+			updateErrorMessage(formGroup, showError, errorMsg)
 
 			return !showError
 		}
@@ -5489,6 +5737,17 @@ const bricksFormFn = new BricksFunction({
 			let maxLength = input.getAttribute('data-limit') || false
 
 			maxSize = maxSize ? parseInt(maxSize) * 1024 * 1024 : false
+
+			// Validate file input if it has error message and validation is not disabled on input
+			if (
+				input.getAttribute('data-error-message') &&
+				!(validationDisabledOn.includes('input') && validationDisabledOn.includes('blur')) &&
+				bricksIsFrontend
+			) {
+				input.addEventListener('change', () => {
+					validateFileInput(input, files)
+				})
+			}
 
 			input.addEventListener('change', (e) => {
 				let fileList = e.target.files
@@ -5588,6 +5847,17 @@ const bricksFormFn = new BricksFunction({
 								}
 							}
 							input.files = newFileList.files
+
+							// Trigger validation after file removal (@since 2.2)
+							if (
+								input.getAttribute('data-error-message') &&
+								!(
+									validationDisabledOn.includes('input') && validationDisabledOn.includes('blur')
+								) &&
+								bricksIsFrontend
+							) {
+								validateFileInput(input, files)
+							}
 						})
 					}
 
@@ -5612,12 +5882,70 @@ const bricksFormFn = new BricksFunction({
 			 */
 			let isValid = true
 
-			inputFields.forEach((inputField) => {
+			for (const inputField of inputFields) {
 				if (inputField.getAttribute('data-error-message') && bricksIsFrontend) {
-					// We have to skip check for "validationNeeded", otherwise it will return true, if the field was already validated
-					isValid = isValid && validateInput(inputField)
+					const isCurrentValid = validateInput(inputField)
+					isValid = isValid && isCurrentValid
+
+					if (!isValid && !customValidateAllFields) {
+						// Stop further validation if one field is invalid and we don't need to validate all fields (@since 2.2)
+						break
+					}
 				}
-			})
+			}
+
+			/**
+			 * STEP: Validate checkbox and radio fields before submission
+			 *
+			 * @since 2.2
+			 */
+			if (isValid || customValidateAllFields) {
+				// Get all form groups with checkbox/radio that have error messages
+				const formGroupsWithCheckboxRadio = form.querySelectorAll('.form-group[data-error-message]')
+
+				formGroupsWithCheckboxRadio.forEach((formGroup) => {
+					const checkboxRadio = formGroup.querySelector(
+						'input[type="checkbox"], input[type="radio"]'
+					)
+					if (checkboxRadio) {
+						const isCurrentValid = validateCheckboxRadio(checkboxRadio)
+						isValid = isValid && isCurrentValid
+					}
+				})
+			}
+
+			/**
+			 * STEP: Validate file input fields before submission
+			 *
+			 * @since 2.2
+			 */
+			if (isValid || customValidateAllFields) {
+				fileInputInstances.forEach((fileInput) => {
+					if (fileInput.getAttribute('data-error-message')) {
+						const isCurrentValid = validateFileInput(fileInput, files)
+						isValid = isValid && isCurrentValid
+					}
+				})
+			}
+
+			/**
+			 * STEP: Validate image and gallery fields before submission
+			 *
+			 * @since 2.2
+			 */
+			if (isValid || customValidateAllFields) {
+				// Get all form groups with hidden inputs for image/gallery fields
+				const imageGalleryFormGroups = form.querySelectorAll('.form-group')
+
+				imageGalleryFormGroups.forEach((formGroup) => {
+					// Check if this form group contains a hidden input with data-error-message
+					const hiddenInput = formGroup.querySelector('input[type="hidden"][data-error-message]')
+					if (hiddenInput) {
+						const isCurrentValid = validateImageGalleryInput(hiddenInput)
+						isValid = isValid && isCurrentValid
+					}
+				})
+			}
 
 			// Abort submission if form is not valid
 			if (!isValid) {
@@ -5832,6 +6160,12 @@ function bricksSubmitForm(elementId, form, files, recaptchaToken, nonceRefreshed
 		formData.append('globalId', globalId)
 	}
 
+	// Current language (Polylang, WPML) (@since 2.2)
+	let lang = form.getAttribute('data-lang')
+	if (lang) {
+		formData.append('lang', lang)
+	}
+
 	// Append files
 	for (let inputName in files) {
 		files[inputName].forEach((file) => {
@@ -5863,7 +6197,7 @@ function bricksSubmitForm(elementId, form, files, recaptchaToken, nonceRefreshed
 			console.warn('bricks_form_submit', xhr, res)
 		}
 
-		// Unknown reason but we should allow user to resubmit (@since 2.x)
+		// Unknown reason but we should allow user to resubmit (@since 2.2)
 		if (!res) {
 			submitButton.classList.remove('sending')
 			submitButton.disabled = false
@@ -5892,7 +6226,7 @@ function bricksSubmitForm(elementId, form, files, recaptchaToken, nonceRefreshed
 		if (res?.data?.code === 'invalid_nonce') {
 			// Refresh form nonce and resubmit form (if refresh has not yet been attempted)
 			if (!nonceRefreshed) {
-				// Set submitting state to false to allow resubmit (@since 2.x)
+				// Set submitting state to false to allow resubmit (@since 2.2)
 				form.dataset.submitting = 'false'
 				bricksRegenerateNonceAndResubmit(elementId, form, files, recaptchaToken)
 				return
@@ -6129,6 +6463,14 @@ const bricksTinyMCEFn = new BricksFunction({
 
 		const tinymce8 = window.tinymce8 || window.tinymce
 
+		// Remove required attribute to prevent browser validation error "not focusable" (@since 2.2)
+		// TinyMCE hides the textarea, making it non-focusable for HTML5 validation
+		// Custom validation handles richtext field validation instead
+		if (textareaElement.hasAttribute('required')) {
+			textareaElement.removeAttribute('required')
+			textareaElement.dataset.wasRequired = 'true'
+		}
+
 		// Initialize TinyMCE editor
 		tinymce8.init({
 			...tinymceSettings,
@@ -6161,9 +6503,39 @@ const bricksTinyMCEFn = new BricksFunction({
 					}
 				})
 
-				editor.on('change', function () {
-					editor.save()
-				})
+				const isDataErrorMessageSet = textareaElement.getAttribute('data-error-message')
+
+				editor.on(
+					'change',
+					// Trigger validation on change events (@since 2.2)
+					window.bricksUtils.debounce(() => {
+						editor.save()
+						// Only add if data-error-message is set
+						isDataErrorMessageSet &&
+							textareaElement.dispatchEvent(new Event('input', { bubbles: true }))
+					}, 300)
+				)
+
+				// Trigger validation on keyup events (@since 2.2)
+				// Only add if data-error-message is set
+				if (isDataErrorMessageSet) {
+					editor.on(
+						'keyup',
+						window.bricksUtils.debounce(() => {
+							editor.save()
+							textareaElement.dispatchEvent(new Event('input', { bubbles: true }))
+						}, 300)
+					)
+
+					// Trigger validation on blur event (@since 2.2)
+					editor.on(
+						'blur',
+						window.bricksUtils.debounce(() => {
+							editor.save()
+							textareaElement.dispatchEvent(new Event('blur', { bubbles: true }))
+						}, 300)
+					)
+				}
 			}
 		})
 	}
@@ -6905,6 +7277,9 @@ const bricksMapLeafletFn = new BricksFunction({
 	eachElement: (mapEl, index) => {
 		const settings = JSON.parse(mapEl.dataset.mapOptions)
 
+		// Get unique map ID from data-script-id attribute (@since 2.2)
+		const mapId = mapEl.dataset.scriptId || mapEl.id || `leaflet-map-${index}`
+
 		// Prepeares the base map layers, that we will append to map later
 		const prepareBaseMaps = () => {
 			const baseMaps = []
@@ -6961,6 +7336,12 @@ const bricksMapLeafletFn = new BricksFunction({
 		}
 
 		prepareMarkers()
+		// Store Leaflet map instance globally for runtime access (window.bricksData.leafletMapInstances[mapId]) (@since 2.2)
+		if (!window.bricksData.leafletMapInstances) {
+			window.bricksData.leafletMapInstances = {}
+		}
+
+		window.bricksData.leafletMapInstances[mapId] = map
 	}
 })
 
@@ -7198,12 +7579,6 @@ const bricksSplideFn = new BricksFunction({
 			window.bricksData.splideInstances[scriptId].destroy()
 		}
 
-		// Init & mount splideJS
-		let splideInstance = new Splide(splideElement)
-
-		// https://splidejs.com/guides/apis/#go
-		splideInstance.mount()
-
 		let splideOptions = {}
 
 		try {
@@ -7228,6 +7603,22 @@ const bricksSplideFn = new BricksFunction({
 		} catch (e) {
 			console.warn('bricksSplide: Error parsing JSON of data-script-args', scriptId)
 		}
+
+		// STEP: If splideOptions.direction is 'auto', set it based on the document direction
+		// and replace it, but without "i18n" object (@since 2.2)
+		if (splideOptions.direction === 'auto') {
+			splideOptions.direction = document.dir === 'rtl' ? 'rtl' : 'ltr'
+			splideElement.dataset.splide = JSON.stringify({
+				...splideOptions,
+				i18n: undefined
+			})
+		}
+
+		// Init & mount splideJS
+		let splideInstance = new Splide(splideElement)
+
+		// https://splidejs.com/guides/apis/#go
+		splideInstance.mount()
 
 		// Set auto height
 		if (splideOptions?.autoHeight) {
@@ -7460,7 +7851,7 @@ const bricksSwiperFn = new BricksFunction({
 			nextSlideMessage: window.bricksData.i18n.nextSlide,
 			firstSlideMessage: window.bricksData.i18n.firstSlide,
 			lastSlideMessage: window.bricksData.i18n.lastSlide,
-			paginationBulletMessage: window.bricksData.i18n.slideX,
+			paginationBulletMessage: window.bricksData.i18n.swiper.paginationBulletMessage,
 			slideLabelMessage: window.bricksData.i18n.swiper.slideLabelMessage
 		}
 
@@ -7540,6 +7931,12 @@ const bricksVideoFn = new BricksFunction({
 		if (videoElement.hasAttribute('autoplay')) {
 			videoElement.setAttribute('playsinline', true)
 		}
+
+		// Add data-is-loaded attribute when video starts playing (@since 2.2)
+		// This allows CSS to differentiate between poster display and active video playback
+		videoElement.addEventListener('play', function () {
+			this.setAttribute('data-is-loaded', 'true')
+		})
 	}
 })
 function bricksVideo() {
@@ -7811,7 +8208,19 @@ const bricksInteractionsFn = new BricksFunction({
 				case 'enterView':
 					new BricksIntersect({
 						element: sourceEl,
-						callback: (sourceEl) => bricksInteractionCallbackExecution(sourceEl, interaction),
+						callback: (sourceEl) => {
+							// Prevent re-triggering if element is already animating (@since 2.2)
+							if (
+								interaction.action === 'startAnimation' &&
+								Array.from(sourceEl.classList).some((className) =>
+									className.startsWith('brx-animate-')
+								)
+							) {
+								return
+							}
+
+							bricksInteractionCallbackExecution(sourceEl, interaction)
+						},
 						once: interaction?.runOnce,
 						trigger: interaction?.trigger,
 						rootMargin: interaction?.rootMargin // @since 2.0
@@ -8536,6 +8945,11 @@ function bricksInteractionCallbackExecution(sourceEl, config) {
 				formElements.forEach((form) => {
 					const inputs = form.querySelectorAll('input, textarea, select')
 					inputs.forEach((input) => {
+						// Do not clear the "hidden" inputs (e.g. password protection ID input) (@since 2.2)
+						if (input.type === 'hidden') {
+							return
+						}
+
 						if (input.tagName === 'SELECT') {
 							input.selectedIndex = 0
 						} else if (input.tagName === 'TEXTAREA') {
@@ -8644,6 +9058,16 @@ function bricksInteractionCallbackExecution(sourceEl, config) {
 						if (isPopup && config.trigger !== 'showPopup' && config.trigger !== 'hidePopup') {
 							let popupNode = el.parentNode // el = .brx-popup-content
 							let extraParams = {} // Extra parameters for popup is required for looping popup interaction (@since 1.11)
+
+							if (config?.popupContextId) {
+								// User defined popupContextId
+								extraParams.popupContextId = config.popupContextId
+							}
+
+							if (config?.popupContextType) {
+								// User defined popupContextType
+								extraParams.popupContextType = config.popupContextType
+							}
 
 							if (sourceEl.dataset?.interactionLoopId) {
 								// Interaction has loopId: It's a looping popup
@@ -10424,6 +10848,44 @@ function bricksToggle() {
 }
 
 /**
+ * Toggle mode (light, dark) element
+ *
+ * @since 2.2
+ */
+const bricksToggleModeFn = new BricksFunction({
+	parentNode: document,
+	selector: '.brxe-toggle-mode', // Target the button instead of the span (#86c73854r;)
+	frontEndOnly: true,
+	eachElement: (button) => {
+		// Toggle light/dark mode
+		button.addEventListener('click', (e) => {
+			e.preventDefault()
+
+			// Get current mode from body data-brx-theme attribute
+			let currentTheme = document.documentElement.dataset.brxTheme
+			let changeTo = currentTheme === 'dark' ? 'light' : 'dark'
+
+			// Update body data-brx-theme attribute & local storage
+			document.documentElement.dataset.brxTheme = changeTo
+			localStorage.setItem('brx_mode', changeTo)
+		})
+	}
+})
+
+/**
+ * Toggle mode (light, dark) element
+ *
+ * @since 2.2
+ */
+function bricksToggleMode() {
+	if (!bricksIsFrontend) {
+		return
+	}
+
+	bricksToggleModeFn.run()
+}
+
+/**
  * Toggle sub menu: Nav menu, Dropdown
  *
  * Toggle:
@@ -11332,6 +11794,11 @@ const bricksBackToTopFn = new BricksFunction({
 	parentNode: document,
 	selector: '.brxe-back-to-top',
 	eachElement: (element) => {
+		// Add tabindex="-1" to body if move focus is enabled (accessibility improvement @since 2.2)
+		if (element.hasAttribute('data-move-focus-to-top')) {
+			document.body.setAttribute('tabindex', '-1')
+		}
+
 		// Scroll to top on click
 		element.addEventListener('click', function (e) {
 			e.preventDefault()
@@ -11339,6 +11806,15 @@ const bricksBackToTopFn = new BricksFunction({
 				top: 0,
 				behavior: element.hasAttribute('data-smooth-scroll') ? 'smooth' : 'auto'
 			})
+
+			// Move focus to body if enabled (accessibility improvement @since 2.2)
+			if (element.hasAttribute('data-move-focus-to-top')) {
+				// Use a small delay to allow smooth scroll to finish (if enabled)
+				const delay = element.hasAttribute('data-smooth-scroll') ? 100 : 0
+				setTimeout(() => {
+					document.body.focus({ preventScroll: true })
+				}, delay)
+			}
 		})
 
 		// Visibility on scroll
@@ -11622,7 +12098,8 @@ function bricksGetQueryResult(queryId, isPopState = false, nonceRefreshed = fals
 			nonce: window.bricksData.nonce,
 			baseUrl: window.bricksData.baseUrl,
 			lang: window.bricksData.language || false,
-			mainQueryId: window.bricksData.mainQueryId || false // Record the main query ID (@since 2.0)
+			mainQueryId: window.bricksData.mainQueryId || false, // Record the main query ID (@since 2.0)
+			activeSearchTemplate: window.bricksData.activeSearchTemplate || false // Current active search template ID (@since 2.2)
 		}
 
 		// Add Get lang parameter for WPML if current url has lang parameter (@since 1.9.9)
@@ -11948,7 +12425,7 @@ function bricksDisplayQueryResult(targetQueryId, res) {
 			}
 
 			// Search filter type: Skip or current focus cursor will be lost
-			if (filterInstance.filterType === 'search') {
+			if (filterInstance.filterType === 'search' || filterInstance.filterType === 'datepicker') {
 				continue
 			}
 
@@ -12158,6 +12635,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
 	bricksNavNested()
 	bricksOffcanvas()
 	bricksToggle()
+
+	// Light/dark mode toggle (@since 2.2)
+	bricksToggleMode()
 
 	// After bricksNavNested() ran (added .brx-has-multilevel)
 	bricksSubmenuListeners()

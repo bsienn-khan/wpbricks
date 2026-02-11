@@ -1329,7 +1329,7 @@ class Admin {
 		// Get icon sets and custom icons for Gutenberg
 		$icon_sets          = get_option( BRICKS_DB_ICON_SETS, [] );
 		$custom_icons       = get_option( BRICKS_DB_CUSTOM_ICONS, [] );
-		$disabled_icon_sets = Database::get_setting( 'disabledIconSets', [] );
+		$disabled_icon_sets = Database::$global_data['disabledIconSets'] ?? [];
 
 		$components            = [];
 		$enabled_component_ids = [];
@@ -1365,13 +1365,37 @@ class Admin {
 
 		$all_section_templates = Templates::get_templates_list( [ 'section' ], get_the_ID() );
 
+		// Prepare taxonomies options
+		$taxonomies_objects = get_taxonomies( [ 'public' => true ], 'objects' );
+		$taxonomies         = [];
+
+		// Exclude taxonomies (match Helpers::get_terms_options)
+		$excluded_taxonomies = (array) apply_filters(
+			'bricks/get_terms_options/excluded_taxonomies',
+			[
+				'nav_menu',
+				'link_category',
+				'post_format',
+			]
+		);
+
+		foreach ( $taxonomies_objects as $slug => $tax ) {
+			if ( in_array( $slug, $excluded_taxonomies, true ) ) {
+				continue;
+			}
+
+			$taxonomies[ $slug ] = ! empty( $tax->labels->singular_name ) ? $tax->labels->singular_name : $tax->label;
+		}
+
 		$gutenberg_data = [
+			'ajaxUrl'               => admin_url( 'admin-ajax.php' ),
 			'globalClassesNamesIds' => $global_classes_names_ids,
 			'iconSets'              => $icon_sets,
 			'customIcons'           => $custom_icons,
 			'disabledIconSets'      => $disabled_icon_sets,
+			'imageSizes'            => Setup::get_image_sizes_options(),
 			'postTypes'             => Helpers::get_registered_post_types(),
-			'taxonomies'            => get_taxonomies( [ 'public' => true ], 'objects' ),
+			'taxonomies'            => $taxonomies,
 			'userRoles'             => wp_roles()->get_names(),
 			'components'            => $components,
 			'enabledComponentIds'   => $enabled_component_ids,
@@ -1525,6 +1549,7 @@ class Admin {
 				'nonce'                        => wp_create_nonce( 'bricks-nonce-admin' ),
 				'i18n'                         => I18n::get_all_i18n(),
 				'renderWithBricks'             => $render_with_bricks,
+				'hasBricksData'                => Helpers::get_bricks_data( $post_id, 'content' ),
 				'builderAccessPermissions'     => Builder_Permissions::get_sections( true ), // @since 2.0
 				'defaultCapabilities'          => Builder_Permissions::DEFAULT_CAPABILITIES, // @since 2.0
 				'defaultCapabilityPermissions' => [
@@ -2658,6 +2683,11 @@ class Admin {
 		// STEP: Set post taxonomy terms
 		$taxonomies = get_object_taxonomies( $post->post_type );
 
+		// If Polylang is active, exclude post_translations field (@since 2.2)
+		if ( \Bricks\Integrations\Polylang\Polylang::$is_active ) {
+			$taxonomies = array_diff( $taxonomies, [ 'post_translations' ] );
+		}
+
 		foreach ( $taxonomies as $taxonomy ) {
 			$post_terms = wp_get_object_terms( $post_id, $taxonomy, [ 'fields' => 'slugs' ] );
 
@@ -3161,6 +3191,11 @@ class Admin {
 		// Check nonce
 		Ajax::verify_nonce( 'bricks-nonce-admin' );
 
+		// Check permission: Only users with 'edit_users' capability can modify user activation status (@since 2.2)
+		if ( ! current_user_can( 'edit_users' ) ) {
+			wp_send_json_error( [ 'message' => esc_html__( 'Not allowed', 'bricks' ) ] );
+		}
+
 		// Get post
 		$user_id = isset( $_GET['user_id'] ) ? absint( $_GET['user_id'] ) : 0;
 		$type    = isset( $_GET['type'] ) ? sanitize_text_field( $_GET['type'] ) : false;
@@ -3171,7 +3206,7 @@ class Admin {
 
 		// If type is not one of (activate, deactivate, resend_activation), return error
 		if ( ! in_array( $type, [ 'activate', 'deactivate', 'resend_activation' ] ) ) {
-			wp_send_json_error( [ 'message' => esc_html__( 'Invalid request - wrong action type: ' . $type, 'bricks' ) ] );
+			wp_send_json_error( [ 'message' => esc_html__( 'Invalid request - wrong action type: ', 'bricks' ) . $type ] );
 		}
 
 		switch ( $type ) {

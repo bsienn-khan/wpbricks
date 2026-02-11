@@ -159,17 +159,35 @@ class Provider_Jetengine extends Base {
 
 			$relation['_brx_type'] = 'relationship';
 
-			$tag_key = 'je_relation_' . $relation['id'];
+			$loop_tag_key = 'je_relation_' . $relation['id'];
 
-			$tag = [
-				'name'     => '{' . $tag_key . '}',
+			// Register as query loop type
+			$this->loop_tags[ $loop_tag_key ] = [
+				'name'     => '{' . $loop_tag_key . '}',
 				'label'    => "JE Relation: {$label}",
 				'group'    => 'JetEngine',
 				'field'    => $relation,
 				'provider' => $this->name,
 			];
 
-			$this->loop_tags[ $tag_key ] = $tag;
+			// Register the relationship field itself (To be used in Query loop) (@since 2.2) "Some Relation" > je_relation_{ID}_some_relation
+			$tag_key                = "{$loop_tag_key}_" . str_replace( ' ', '_', strtolower( $label ) );
+			$this->tags[ $tag_key ] = [
+				'name'     => '{' . $tag_key . '}',
+				'label'    => "JE Relation: {$label}",
+				'group'    => "Jet Engine ({$label})",
+				'field'    => [
+					'_brx_type'        => 'relation', // Use 'relation' to differentiate from 'relationship' (meta fields)
+					'_brx_object'      => $relation['id'],
+					'_brx_group_label' => $label,
+					'id'               => $relation['id'],
+					'name'             => $tag_key,
+					'title'            => $label,
+					'type'             => 'relation',
+					'args'             => $relation['args'],
+				],
+				'provider' => $this->name,
+			];
 
 			// the relation has meta fields
 			if ( ! empty( $relation['args']['meta_fields'] ) ) {
@@ -182,7 +200,7 @@ class Provider_Jetengine extends Base {
 					$parent = [
 						'id'    => $relation['id'],
 						'title' => $label,
-						'name'  => $tag_key
+						'name'  => $loop_tag_key,
 					];
 
 					$this->register_tag( $sub_field, $parent );
@@ -259,8 +277,11 @@ class Provider_Jetengine extends Base {
 					break;
 
 				case 'media':
-					$filters['object_type'] = 'media';
-					$filters['separator']   = '';
+					// Support :value filter to return IDs only (#86c4y979u; @since 2.2)
+					if ( ! isset( $filters['value'] ) ) {
+						$filters['object_type'] = 'media';
+						$filters['separator']   = '';
+					}
 
 					if ( isset( $field['value_format'] ) ) {
 						if ( $field['value_format'] === 'url' ) {
@@ -275,8 +296,11 @@ class Provider_Jetengine extends Base {
 					break;
 
 				case 'gallery':
-					$filters['object_type'] = 'media';
-					$filters['separator']   = '';
+					// Support :value filter to return IDs only (#86c4y979u; @since 2.2)
+					if ( ! isset( $filters['value'] ) ) {
+						$filters['object_type'] = 'media';
+						$filters['separator']   = '';
+					}
 
 					if ( isset( $field['value_format'] ) ) {
 						if ( $field['value_format'] === 'id' ) {
@@ -297,10 +321,23 @@ class Provider_Jetengine extends Base {
 
 				case 'posts':
 					if ( ! empty( $value ) ) {
-						$filters['object_type'] = 'post';
-						$filters['link']        = true;
+						// Support :value filter to show actual post ID (#86c4y979u; @since 2.2)
+						if ( ! isset( $filters['value'] ) ) {
+							$filters['object_type'] = 'post';
+							$filters['link']        = true;
+						}
 					}
 
+					break;
+
+				// New 'relation' field type for Relationship itself (#86c4y979u; @since 2.2)
+				case 'relation':
+					if ( ! empty( $value ) ) {
+						if ( ! isset( $filters['value'] ) ) {
+							$filters['object_type'] = 'post';
+							$filters['link']        = true;
+						}
+					}
 					break;
 
 				/**
@@ -447,6 +484,11 @@ class Provider_Jetengine extends Base {
 			// Options page meta fields
 			// @see: https://gist.github.com/MjHead/49ebe7ecc20bff9aaf8516417ed27c38
 			$value = jet_engine()->listings->data->get_option( "{$field['_brx_object']}::{$field['name']}" );
+		} elseif ( $field['_brx_type'] === 'relation' ) {
+			// Relation related objects (#86c4y979u; @since 2.2)
+			$results = $this->get_relationship_results( $field, $post_id, true );
+
+			$value = ! empty( $results ) ? $results : [];
 		} else {
 			// Post, Term or User meta fields
 			$object = $this->get_object( $field, $post_id );
@@ -521,77 +563,7 @@ class Provider_Jetengine extends Base {
 
 		// Relationship
 		if ( $field['_brx_type'] === 'relationship' ) {
-
-			$relation = jet_engine()->relations->get_active_relations( $field['id'] );
-
-			if ( ! $relation ) {
-				return [];
-			}
-
-			// Default results getter
-			$direction_getter = 'get_children'; // or 'get_parents';
-
-			// JetEngine uses jet_engine()->listings->data->get_current_object_id() to get the $object_id but Bricks has to set the preview inside templates
-			$queried_object = \Bricks\Helpers::get_queried_object( $post_id );
-			$object_id      = 0;
-
-			// STEP: Calculate the direction_getter
-			foreach ( [
-				'posts' => 'WP_Post',
-				'terms' => 'WP_Term',
-				'mix'   => 'WP_User'
-			] as $object_type => $object_class ) {
-				foreach ( [ 'parent_object', 'child_object' ] as $direction ) {
-					if ( ! isset( $field['args'][ $direction ] ) ) {
-						continue;
-					}
-
-					// e.g. $field['parent_object'] = 'posts::page'
-					$objects = explode( '::', $field['args'][ $direction ] );
-
-					$type    = $objects[0]; // posts, terms, mix
-					$subtype = $objects[1]; // page, ..., category, ..., users (mix::users)
-
-					// Queried object type is the same as the field direction object type
-					if ( is_a( $queried_object, $object_class ) && $type == $object_type ) {
-						if ( $type == 'posts' && $queried_object->post_type == $subtype || $object_type == 'mix' && $subtype == 'users' ) {
-							$object_id = $queried_object->ID;
-						} elseif ( $type == 'terms' && $queried_object->taxonomy == $subtype ) {
-							$object_id = $queried_object->term_id;
-						}
-					}
-
-					if ( ! empty( $object_id ) ) {
-						$direction_getter = $direction == 'child_object' ? 'get_parents' : 'get_children';
-
-						break( 2 );
-					}
-				}
-			}
-
-			// Get results. E.g. $results = $relation->get_parents( $object_id, 'ids' );
-			$results = $relation->{$direction_getter}( $object_id, 'ids' );
-
-			// Convert IDs into Objects (WP_Post, WP_Term, WP_User) to use it in set_loop_object() or fetching DD tags
-			if ( $results ) {
-				$results_object_type = $direction_getter == 'get_parents' ? $field['args']['parent_object'] : $field['args']['child_object'];
-
-				if ( strpos( $results_object_type, 'posts::' ) === 0 ) {
-					foreach ( $results as $key => $post_id ) {
-						$results[ $key ] = get_post( $post_id );
-					}
-				} elseif ( strpos( $results_object_type, 'terms::' ) === 0 ) {
-					$taxonomy = explode( '::', $results_object_type )[1];
-
-					foreach ( $results as $key => $term_id ) {
-						$results[ $key ] = get_term( $term_id, $taxonomy );
-					}
-				} elseif ( $results_object_type === 'mix::users' ) {
-					foreach ( $results as $key => $user_id ) {
-						$results[ $key ] = get_user_by( 'id', $user_id );
-					}
-				}
-			}
+			$results = $this->get_relationship_results( $field, $post_id );
 		}
 
 		// Or, regular field
@@ -632,6 +604,81 @@ class Provider_Jetengine extends Base {
 		return $loop_object;
 	}
 
+	private function get_relationship_results( $field, $post_id, $id_only = false ) {
+		$relation = jet_engine()->relations->get_active_relations( $field['id'] );
+
+		if ( ! $relation ) {
+			return [];
+		}
+
+		// Default results getter
+		$direction_getter = 'get_children'; // or 'get_parents';
+
+		// JetEngine uses jet_engine()->listings->data->get_current_object_id() to get the $object_id but Bricks has to set the preview inside templates
+		$queried_object = \Bricks\Helpers::get_queried_object( $post_id );
+		$object_id      = 0;
+
+		// STEP: Calculate the direction_getter
+		foreach ( [
+			'posts' => 'WP_Post',
+			'terms' => 'WP_Term',
+			'mix'   => 'WP_User'
+		] as $object_type => $object_class ) {
+			foreach ( [ 'parent_object', 'child_object' ] as $direction ) {
+				if ( ! isset( $field['args'][ $direction ] ) ) {
+					continue;
+				}
+
+				// e.g. $field['parent_object'] = 'posts::page'
+				$objects = explode( '::', $field['args'][ $direction ] );
+
+				$type    = $objects[0]; // posts, terms, mix
+				$subtype = $objects[1]; // page, ..., category, ..., users (mix::users)
+
+				// Queried object type is the same as the field direction object type
+				if ( is_a( $queried_object, $object_class ) && $type == $object_type ) {
+					if ( $type == 'posts' && $queried_object->post_type == $subtype || $object_type == 'mix' && $subtype == 'users' ) {
+						$object_id = $queried_object->ID;
+					} elseif ( $type == 'terms' && $queried_object->taxonomy == $subtype ) {
+						$object_id = $queried_object->term_id;
+					}
+				}
+
+				if ( ! empty( $object_id ) ) {
+					$direction_getter = $direction == 'child_object' ? 'get_parents' : 'get_children';
+
+					break( 2 );
+				}
+			}
+		}
+
+		// Get results. E.g. $results = $relation->get_parents( $object_id, 'ids' );
+		$results = $relation->{$direction_getter}( $object_id, 'ids' );
+
+		// Convert IDs into Objects (WP_Post, WP_Term, WP_User) to use it in set_loop_object() or fetching DD tags
+		if ( $results && ! $id_only ) {
+			$results_object_type = $direction_getter == 'get_parents' ? $field['args']['parent_object'] : $field['args']['child_object'];
+
+			if ( strpos( $results_object_type, 'posts::' ) === 0 ) {
+				foreach ( $results as $key => $post_id ) {
+					$results[ $key ] = get_post( $post_id );
+				}
+			} elseif ( strpos( $results_object_type, 'terms::' ) === 0 ) {
+				$taxonomy = explode( '::', $results_object_type )[1];
+
+				foreach ( $results as $key => $term_id ) {
+					$results[ $key ] = get_term( $term_id, $taxonomy );
+				}
+			} elseif ( $results_object_type === 'mix::users' ) {
+				foreach ( $results as $key => $user_id ) {
+					$results[ $key ] = get_user_by( 'id', $user_id );
+				}
+			}
+		}
+
+		return ! empty( $results ) ? $results : [];
+	}
+
 	/**
 	 * Get all fields supported
 	 *
@@ -664,5 +711,49 @@ class Provider_Jetengine extends Base {
 
 			'colorpicker',
 		];
+	}
+
+	/**
+	 * Retrieve all registered tags which are supported in WP_Query post__in parameter
+	 * #86c4y979u
+	 *
+	 * @since 2.2
+	 */
+	public function get_query_supported_tags() {
+			$field_types = [
+				'posts',
+				'media',
+				'gallery',
+				'relation', // Bricks custom type for JetEngine relation
+			];
+
+			$supported_tags = [];
+
+			foreach ( $this->tags as $tag ) {
+				if ( ! isset( $tag['field'] ) ) {
+					continue;
+				}
+
+				if ( isset( $tag['deprecated'] ) ) {
+					continue;
+				}
+
+				$field      = $tag['field'] ?? [];
+				$field_type = $field['type'] ?? '';
+
+				if ( in_array( $field_type, $field_types, true ) ) {
+					$supported_tags[] = [
+						'name'     => $tag['name'],
+						'type'     => $field_type,
+						'label'    => $tag['label'],
+						'params'   => [
+							'post__in',
+						],
+						'provider' => $tag['provider'],
+					];
+				}
+			}
+
+			return $supported_tags;
 	}
 }

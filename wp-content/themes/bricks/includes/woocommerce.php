@@ -160,8 +160,9 @@ class Woocommerce {
 			add_action( 'woocommerce_loop_add_to_cart_link', [ $this, 'add_quantity_input_field' ], 10, 2 );
 		}
 
+		// @since 2.2 - Set sync option in woocommerce.js or the 1st occurence of thumbnail slider always used (#86c4vhehz)
 		// @since 1.9 - Sync Woocommerce product flexslider with Bricks thumbnail slider
-		add_filter( 'woocommerce_single_product_carousel_options', [ $this, 'single_product_carousel_options' ] );
+		// add_filter( 'woocommerce_single_product_carousel_options', [ $this, 'single_product_carousel_options' ] );
 
 		add_filter( 'bricks/builder/dynamic_wrapper', [ $this, 'builder_dynamic_wrapper' ] );
 
@@ -169,6 +170,9 @@ class Woocommerce {
 
 		// Initialize variation swatches (@since 2.0)
 		new \Bricks\Woocommerce\Product_Variation_Swatches();
+
+		// Search criteris (@since 2.2)
+		add_filter( 'bricks/combined_search/post_ids', [ $this, 'maybe_include_product_parent_ids' ], 10, 6 );
 	}
 
 	/**
@@ -300,17 +304,25 @@ class Woocommerce {
 				$redirect_url = add_query_arg( 'bricks_preview', time(), wc_get_account_endpoint_url( 'edit-account' ) );
 				wp_safe_redirect( $redirect_url, 301 );
 				break;
-		}
-	}
 
-	/**
-	 * Woo Phase 3: Get #brx-content HTML as rendered on the frontend
-	 *
-	 * To render complete my account (navigation + content)
-	 * and move dynamic drag & drop area into my account content div.
-	 *
-	 * @since 1.9
-	 */
+			case 'wc_account_payment_methods':
+				$redirect_url = add_query_arg( 'bricks_preview', time(), wc_get_account_endpoint_url( 'payment-methods' ) );
+				wp_safe_redirect( $redirect_url, 301 );
+				break;
+
+			case 'wc_account_add_payment_method':
+				$redirect_url = add_query_arg( 'bricks_preview', time(), wc_get_account_endpoint_url( 'add-payment-method' ) );
+				wp_safe_redirect( $redirect_url, 301 );
+				break;
+		}
+	}   /**
+		 * Woo Phase 3: Get #brx-content HTML as rendered on the frontend
+		 *
+		 * To render complete my account (navigation + content)
+		 * and move dynamic drag & drop area into my account content div.
+		 *
+		 * @since 1.9
+		 */
 	public function builder_dynamic_wrapper( $dynamic_area = [] ) {
 		$template_type = Templates::get_template_type();
 
@@ -321,6 +333,8 @@ class Woocommerce {
 				'wc_account_orders',
 				'wc_account_view_order',
 				'wc_account_downloads',
+				'wc_account_payment_methods',
+				'wc_account_add_payment_method',
 				'wc_account_addresses',
 				'wc_account_form_edit_address',
 				'wc_account_form_edit_account',
@@ -413,6 +427,16 @@ class Woocommerce {
 			$template_data = self::get_template_data_by_type( 'wc_account_downloads' );
 		}
 
+		// Payment methods (@since 2.2)
+		elseif ( is_wc_endpoint_url( 'payment-methods' ) ) {
+			$template_data = self::get_template_data_by_type( 'wc_account_payment_methods' );
+		}
+
+		// Add payment method (@since 2.2)
+		elseif ( is_wc_endpoint_url( 'add-payment-method' ) ) {
+			$template_data = self::get_template_data_by_type( 'wc_account_add_payment_method' );
+		}
+
 		// Edit account
 		elseif ( is_wc_endpoint_url( 'edit-account' ) ) {
 			$template_data = self::get_template_data_by_type( 'wc_account_form_edit_account' );
@@ -484,6 +508,34 @@ class Woocommerce {
 				$classes[] = 'is-active';
 			} else {
 				// Filter out 'is-active' class
+				$classes = array_filter(
+					$classes,
+					function( $class ) {
+						return $class !== 'is-active';
+					}
+				);
+			}
+		}
+
+		// Endpoint: Payment methods
+		if ( $template_type === 'wc_account_payment_methods' ) {
+			if ( $endpoint === 'payment-methods' ) {
+				$classes[] = 'is-active';
+			} else {
+				$classes = array_filter(
+					$classes,
+					function( $class ) {
+						return $class !== 'is-active';
+					}
+				);
+			}
+		}
+
+		// Endpoint: Add payment method
+		if ( $template_type === 'wc_account_add_payment_method' ) {
+			if ( $endpoint === 'add-payment-method' ) {
+				$classes[] = 'is-active';
+			} else {
 				$classes = array_filter(
 					$classes,
 					function( $class ) {
@@ -982,6 +1034,9 @@ class Woocommerce {
 
 			'woocommerce-account-form-edit-address',
 			'woocommerce-account-form-edit-account',
+
+			'woocommerce-account-payment-methods', // (@since 2.2)
+			'woocommerce-account-add-payment-method', // (@since 2.2)
 		];
 
 		foreach ( $woo_elements as $element_name ) {
@@ -1475,6 +1530,8 @@ class Woocommerce {
 			'wc_account_addresses'                       => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Addresses', 'bricks' ),
 			'wc_account_form_edit_address'               => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Edit address', 'bricks' ),
 			'wc_account_form_edit_account'               => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Edit account', 'bricks' ),
+			'wc_account_payment_methods'                 => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Payment methods', 'bricks' ), // (@since 2.2)
+			'wc_account_add_payment_method'              => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Add Payment method', 'bricks' ), // (@since 2.2)
 		];
 
 		return $templates;
@@ -1646,6 +1703,16 @@ class Woocommerce {
 				'post_type'           => [ 'product' ],
 				'ignore_sticky_posts' => 1
 			];
+		}
+
+		// Set is_archive_main_query inside query key so the Query class understands (@since 2.2)
+		if ( isset( $query_element['settings']['is_archive_main_query'] ) ) {
+			$query_element['settings']['query']['is_archive_main_query'] = true;
+		}
+
+		// Use new woo_disable_query_merge to avoid complicated query merging issue (@since 2.2)
+		if ( isset( $query_element['settings']['woo_disable_query_merge'] ) ) {
+			$query_element['settings']['query']['woo_disable_query_merge'] = true;
 		}
 
 		// Query
@@ -2288,6 +2355,23 @@ class Woocommerce {
 		 */
 		$post_id = get_the_ID();
 
+		// Add single-product class for single product template preview (@since 2.2)
+		if ( bricks_is_builder() ) {
+			$template_conditions = Helpers::get_template_setting( 'templateConditions', $post_id );
+
+			// Check if "main" is "postType" and "postType" is "product"
+			if ( is_array( $template_conditions ) ) {
+				foreach ( $template_conditions as $condition ) {
+					if ( isset( $condition['main'] ) && $condition['main'] === 'postType' ) {
+						if ( ! empty( $condition['postType'] ) && is_array( $condition['postType'] ) && in_array( 'product', $condition['postType'], true ) ) {
+							$classes[] = 'single-product';
+							break;
+						}
+					}
+				}
+			}
+		}
+
 		if ( Helpers::is_bricks_template( $post_id ) ) {
 			$type      = Templates::get_template_type( $post_id );
 			$classes[] = "bricks-woo-$type";
@@ -2316,6 +2400,8 @@ class Woocommerce {
 				case 'wc_account_form_lost_password':
 				case 'wc_account_form_lost_password_confirmation':
 				case 'wc_account_reset_password':
+				case 'wc_account_payment_methods':
+				case 'wc_account_add_payment_method':
 					$classes[] = 'woocommerce-account';
 					break;
 			}
@@ -2473,6 +2559,8 @@ class Woocommerce {
 					'wc_account_form_lost_password' => false,
 					'wc_account_form_lost_password_confirmation' => false,
 					'wc_account_reset_password'     => false,
+					'wc_account_payment_methods'    => false,
+					'wc_account_add_payment_method' => false,
 				],
 			],
 		];
@@ -2558,6 +2646,16 @@ class Woocommerce {
 					$target_key = 'wc_account_downloads';
 
 					break;
+
+				case 'payment-methods':
+					$target_key = 'wc_account_payment_methods';
+
+					break;
+
+				case 'add-payment-method':
+					$target_key = 'wc_account_add_payment_method';
+
+					break;
 				case 'edit-address':
 					global $wp;
 					$is_edit_address = isset( $wp->query_vars['edit-address'] ) ? true : false;
@@ -2638,5 +2736,49 @@ class Woocommerce {
 				}
 			}
 		}
+	}
+
+	/**
+	 * When searching by meta fields that might belong to product variations (sku, gtin, etc), include the parent product IDs as well
+	 *
+	 * @since 2.2
+	 */
+	public function maybe_include_product_parent_ids( $post_ids, $search_fields, $meta_fields, $search_term, $filter_id, $query_id ) {
+		if ( ! is_array( $meta_fields ) || empty( $meta_fields ) || empty( $post_ids ) ) {
+			return $post_ids;
+		}
+
+		// meta fields that might need to include parent product IDs (sku, gtin, anything else?)
+		$wc_meta_fields = [ '_sku', '_global_unique_id', '_variation_description' ];
+		$found          = false;
+
+		// Check if any of the meta fields are in the wc_meta_fields
+		foreach ( $meta_fields as $meta_field_array ) {
+			$meta_key = is_array( $meta_field_array ) && isset( $meta_field_array['metaKey'] ) ? $meta_field_array['metaKey'] : '';
+
+			if ( in_array( $meta_key, $wc_meta_fields, true ) ) {
+				$found = true;
+				break;
+			}
+		}
+
+		if ( ! $found ) {
+			return $post_ids;
+		}
+
+		global $wpdb;
+
+		// Maybe some of the post_ids are product variations, we need to get the parent product IDs as well
+		$product_parent_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT post_parent FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND ID IN (" . implode( ',', array_fill( 0, count( $post_ids ), '%d' ) ) . ')',
+				$post_ids
+			)
+		);
+
+		$product_parent_ids = array_map( 'intval', $product_parent_ids );
+		$post_ids           = array_unique( array_merge( $post_ids, $product_parent_ids ) );
+
+		return $post_ids;
 	}
 }

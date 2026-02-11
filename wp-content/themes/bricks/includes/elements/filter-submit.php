@@ -226,8 +226,11 @@ class Filter_Submit extends Filter_Element {
 		$this->set_attribute( '_root', 'class', 'bricks-button' );
 
 		if ( $this->filter_type === 'reset' && $hide_on_no_filter && ! bricks_is_builder() && ! bricks_is_builder_call() ) {
-			$active_filters = Query_Filters::$active_filters[ $query_id ] ?? [];
-			if ( empty( $active_filters ) ) {
+			// A flag for frontend to add .brx-no-active-filter class immediately (#86c3zpqyj)
+			$this->set_attribute( '_root', 'data-brx-hide-on-no-filter', 'true' );
+			$count = \Bricks\Query_Filters::get_active_filters_count( $query_id ); // Use helper function to retrieve the active filters count. (Pagination excluded) (#86c120mcp; @since 2.2)
+
+			if ( $count < 1 ) {
 				$this->set_attribute( '_root', 'class', 'brx-no-active-filter' ); // Default: style="display: none"
 				$this->set_attribute( '_root', 'disabled', 'disabled' ); // Disable the button, user might overwrite brx-no-active-filter style in CSS
 			}

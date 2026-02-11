@@ -80,7 +80,7 @@ class Query_Filters {
 
 			// User
 			add_action( 'profile_update', [ $this, 'user_updated' ], PHP_INT_MAX - 10, 2 );
-			add_action( 'user_register', [ $this, 'user_updated' ], PHP_INT_MAX - 10, 1 );
+			add_action( 'user_register', [ $this, 'user_register' ], PHP_INT_MAX - 10, 1 );
 			add_action( 'delete_user', [ $this, 'delete_user' ] );
 
 			// Element conditions all true for filter elements in filter API endpoints (@since 1.9.8)
@@ -1020,6 +1020,26 @@ class Query_Filters {
 					function( $vars, $settings, $element_id ) use ( $filter_query_vars, $query_id, $object_type ) {
 						if ( $element_id !== $query_id ) {
 							return $vars;
+						}
+
+						// STEP: User query 'user_role' parameter, validate parameter if user_role defined in the settings/via hook. (#86c7hjhky @since 2.2)
+						if ( $object_type === 'user' && isset( $vars['role__in'] ) && isset( $filter_query_vars['role__in'] ) ) {
+							$user_value    = $filter_query_vars['role__in'];
+							$setting_value = $vars['role__in'];
+
+							// user_value might be string or array
+							$user_value_array    = is_array( $user_value ) ? $user_value : [ $user_value ];
+							$setting_value_array = is_array( $setting_value ) ? $setting_value : [ $setting_value ];
+
+							// Only keep the role__in value that exists in settings
+							$filtered_roles = array_intersect( $user_value_array, $setting_value_array );
+
+							if ( ! empty( $filtered_roles ) ) {
+								$filter_query_vars['role__in'] = array_values( $filtered_roles );
+							} else {
+								// No matching role, set to impossible value to avoid returning all users
+								$filter_query_vars['role__in'] = [ 0 ];
+							}
 						}
 
 						// STEP: Do not apply URL parameters filter (@since 2.0 )
@@ -2323,6 +2343,10 @@ class Query_Filters {
 			$sort_query['order']   = $order;
 		}
 
+		if ( ! empty( $sort_query ) ) {
+			$sort_query['brx_sort_applied'] = true; // Indicate that sort is applied
+		}
+
 		// $sort_query should override the existing query_vars
 		foreach ( $sort_query as $key => $value ) {
 			$query_vars[ $key ] = $value;
@@ -2549,7 +2573,7 @@ class Query_Filters {
 				break;
 
 			case 'post_id':
-				$key = 'p';
+				$key = $instance_name === 'filter-checkbox' ? 'post__in' : 'p'; // For checkbox, use post__in (@since 2.2)
 				break;
 
 			// USER
@@ -2697,33 +2721,273 @@ class Query_Filters {
 		$filter_value      = $filter['value'];
 		$query_object_type = self::get_generating_type();
 
-		$search_query = [];
+		$final_query   = [];
+		$query_type    = '';
+		$filter_id     = $filter['filter_id'];
+		$search_engine = isset( $settings['searchCriteriaCustom'] ) ? 'custom' : 'default';
+		$nice_name     = $settings['filterNiceName'] ?? '';
 
 		switch ( $query_object_type ) {
 			case 'post':
-				// Hardcoded search key until filter-search element supports custom key
-				$search_query                = [
-					's' => $filter_value,
-				];
-				$query_vars['s']             = $filter_value;
+				/**
+				 * Use search template settings if this is the main query and the nice name is 's'
+				 *
+				 * This is to ensure the filter-search element uses the same search settings as the search template.
+				 *
+				 * @since 2.2
+				 */
+				if ( $nice_name === 's' && Database::$main_query_id === $query_id && isset( Api::$active_templates['search'] ) && Api::$active_templates['search'] ) {
+					// This filter-search element should use the search criteria settings from the search template
+					$template_settings = $template_settings = Helpers::get_template_settings( Api::$active_templates['search'] );
+					$search_engine     = isset( $template_settings['searchCriteriaCustom'] ) ? 'custom' : 'default';
+
+					// Override below settings
+					$override_keys = [
+						'useWeightScore',
+						'searchPostFields',
+						'searchPostQuery',
+						'searchPostMeta',
+						'searchPostMetaKeys',
+						// @since 2.2
+						'searchPostTerms',
+						'searchPostTaxonomies',
+					];
+
+					foreach ( $override_keys as $key ) {
+						if ( isset( $template_settings[ $key ] ) ) {
+							$settings[ $key ] = $template_settings[ $key ];
+						} else {
+							unset( $settings[ $key ] );
+						}
+					}
+				}
+
+				// Default
+				if ( $search_engine === 'default' ) {
+					// Hardcoded search key until filter-search element supports custom key
+					$final_query     = [
+						's' => $filter_value,
+					];
+					$query_vars['s'] = $filter_value;
+					$query_type      = 'wp_query';
+				}
+
+				// Custom
+				else {
+					$use_weight_score   = $settings['useWeightScore'] ?? false;
+					$search_post_fields = $settings['searchPostFields'] ?? false;
+					$wp_fields          = $settings['searchPostQuery'] ?? [ 'default' ]; // default, title, content, excerpt multi-select
+					$search_post_meta   = $settings['searchPostMeta'] ?? false;
+					$meta_fields        = $settings['searchPostMetaKeys'] ?? []; // array of meta key
+
+					$search_post_terms = $settings['searchPostTerms'] ?? false;
+					$taxonomies        = $settings['searchPostTaxonomies'] ?? [];
+
+					$has_post_fields = $search_post_fields && ! empty( $wp_fields );
+					$has_meta_fields = $search_post_meta && ! empty( $meta_fields );
+					$has_taxonomy    = $search_post_terms && ! empty( $taxonomies );
+
+					if ( $has_post_fields || $has_meta_fields || $has_taxonomy ) {
+						// Prepare meta fields
+						$processed_meta_fields = [];
+						if ( $has_meta_fields ) {
+							// Trim and render dynamic data for each meta field
+							foreach ( $meta_fields as $index => $meta_field_array ) {
+								foreach ( $meta_field_array as $key => $value ) {
+									if ( $key !== 'id' ) {
+										$processed_meta_fields[ $index ][ $key ] = trim( bricks_render_dynamic_data( $value ) );
+									}
+								}
+							}
+						}
+
+						// Prepare taxonomy term fields
+						$processed_term_fields = [];
+						if ( $has_taxonomy ) {
+							foreach ( $taxonomies as $taxonomy_array ) {
+								// id, taxonomy, weightScore
+								// Ensure taxonomy is not empty
+								$taxonomy = isset( $taxonomy_array['taxonomy'] ) ? trim( $taxonomy_array['taxonomy'] ) : '';
+
+								if ( ! empty( $taxonomy ) ) {
+									$processed_term_fields[] = [
+										'taxonomy'    => $taxonomy,
+										'weightScore' => isset( $taxonomy_array['weightScore'] ) ? max( 1, absint( $taxonomy_array['weightScore'] ) ) : 1,
+									];
+								}
+							}
+						}
+
+						// Prepare post fields
+						$processed_post_fields = $has_post_fields ? $wp_fields : [];
+
+						// Get post IDs using combined SQL search
+						$post_ids = Search::get_post_ids_by_combined_search(
+							$processed_post_fields,
+							$processed_meta_fields,
+							$processed_term_fields,
+							$filter_value,
+							$filter_id,
+							$query_id,
+							$use_weight_score
+						);
+
+						if ( ! empty( $post_ids ) ) {
+							$query_vars['post__in'] = $final_query['post__in']  = $post_ids;
+							// Force Ignore sticky posts to prevent them from appearing on top. Native search already does this.
+							$query_vars['ignore_sticky_posts'] = $final_query['ignore_sticky_posts'] = true;
+
+							// Set orderby to post__in to preserve the order if weight score is used. If query filter sort is applied, skip this
+							if ( $use_weight_score && ! empty( $post_ids ) && ! isset( $query_vars['brx_sort_applied'] ) ) {
+								$query_vars['orderby']     = $final_query['orderby'] = 'post__in';
+								$query_vars['brx_orderby'] = $final_query['brx_orderby'] = 'weighted_relevance';
+							}
+						} else {
+							// No results found
+							$query_vars['post__in'] = $final_query['post__in'] = [ 0 ];
+						}
+
+						$query_type = 'wp_query';
+					}
+
+				}
+
 				$query_vars['brx_is_search'] = true;
 				break;
 
 			// Support term query (@since 1.12)
 			case 'term':
-				$search_query                = [
-					'search' => $filter_value,
-				];
-				$query_vars['search']        = $filter_value;
+				// Default
+				if ( $search_engine === 'default' ) {
+					$final_query          = [
+						'search' => $filter_value,
+					];
+					$query_vars['search'] = $filter_value;
+				}
+
+				// Custom
+				else {
+					$use_weight_score   = $settings['useWeightScore'] ?? false;
+					$search_term_fields = $settings['searchTermFields'] ?? false;
+					$term_fields        = $settings['searchTermQuery'] ?? [ 'default' ]; // default, name, slug, description multi-select
+					$search_term_meta   = $settings['searchTermMeta'] ?? false;
+					$meta_fields        = $settings['searchTermMetaKeys'] ?? []; // array of meta key
+
+					$has_term_fields = $search_term_fields && ! empty( $term_fields );
+					$has_meta_fields = $search_term_meta && ! empty( $meta_fields );
+
+					if ( $has_term_fields || $has_meta_fields ) {
+						// Prepare meta fields
+						$processed_meta_fields = [];
+						if ( $has_meta_fields ) {
+							// Trim and render dynamic data for each meta field
+							foreach ( $meta_fields as $index => $meta_field_array ) {
+								foreach ( $meta_field_array as $key => $value ) {
+									if ( $key !== 'id' ) {
+										$processed_meta_fields[ $index ][ $key ] = trim( bricks_render_dynamic_data( $value ) );
+									}
+								}
+							}
+						}
+
+						// Prepare term fields
+						$processed_term_fields = $has_term_fields ? $term_fields : [];
+
+						// Get term IDs using combined SQL search
+						$term_ids = Search::get_term_ids_by_combined_search(
+							$processed_term_fields,
+							$processed_meta_fields,
+							$filter_value,
+							$filter_id,
+							$query_id,
+							$use_weight_score
+						);
+
+						if ( ! empty( $term_ids ) ) {
+							$query_vars['include'] = $final_query['include'] = $term_ids;
+
+							// Set orderby to include to preserve the order if weight score is used. If query filter sort is applied, skip this
+							if ( $use_weight_score && ! empty( $term_ids ) && ! isset( $query_vars['brx_sort_applied'] ) ) {
+								$query_vars['orderby']     = $final_query['orderby'] = 'include';
+								$query_vars['brx_orderby'] = $final_query['brx_orderby'] = 'weighted_relevance';
+							}
+						} else {
+							// No results found
+							$query_vars['slug'] = $final_query['slug'] = [ 'BRX_NON_EXIST_TERM' ];
+						}
+
+						$query_type = 'wp_query';
+					}
+				}
+
 				$query_vars['brx_is_search'] = true;
 				break;
 
 			// Support user query (@since 1.12)
 			case 'user':
-				$search_query                = [
-					'search' => '*' . $filter_value . '*',
-				];
-				$query_vars['search']        = '*' . $filter_value . '*';
+				// Default
+				if ( $search_engine === 'default' ) {
+					$final_query          = [
+						'search' => '*' . $filter_value . '*',
+					];
+					$query_vars['search'] = '*' . $filter_value . '*';
+				}
+
+				// Custom
+				else {
+					$use_weight_score   = $settings['useWeightScore'] ?? false;
+					$search_user_fields = $settings['searchUserFields'] ?? false;
+					$user_fields        = $settings['searchUserQuery'] ?? [ 'default' ]; // default, username, name, email, url multi-select
+					$search_user_meta   = $settings['searchUserMeta'] ?? false;
+					$meta_fields        = $settings['searchUserMetaKeys'] ?? []; // array of meta key
+
+					$has_user_fields = $search_user_fields && ! empty( $user_fields );
+					$has_meta_fields = $search_user_meta && ! empty( $meta_fields );
+
+					if ( $has_user_fields || $has_meta_fields ) {
+						// Prepare meta fields
+						$processed_meta_fields = [];
+						if ( $has_meta_fields ) {
+							// Trim and render dynamic data for each meta field
+							foreach ( $meta_fields as $index => $meta_field_array ) {
+								foreach ( $meta_field_array as $key => $value ) {
+									if ( $key !== 'id' ) {
+										$processed_meta_fields[ $index ][ $key ] = trim( bricks_render_dynamic_data( $value ) );
+									}
+								}
+							}
+						}
+
+						// Prepare user fields
+						$processed_user_fields = $has_user_fields ? $user_fields : [];
+
+						// Get user IDs using combined SQL search
+						$user_ids = Search::get_user_ids_by_combined_search(
+							$processed_user_fields,
+							$processed_meta_fields,
+							$filter_value,
+							$filter_id,
+							$query_id,
+							$use_weight_score
+						);
+
+						if ( ! empty( $user_ids ) ) {
+							$query_vars['include'] = $final_query['include'] = $user_ids;
+
+							// Set orderby to include to preserve the order if weight score is used. If query filter sort is applied, skip this
+							if ( $use_weight_score && ! empty( $user_ids ) && ! isset( $query_vars['brx_sort_applied'] ) ) {
+								// Use native WP user query parameter 'include' to follow the order of user IDs
+								$query_vars['orderby']     = $final_query['orderby'] = 'include';
+								$query_vars['brx_orderby'] = $final_query['brx_orderby'] = 'weighted_relevance';
+							}
+						} else {
+							// No results found
+							$query_vars['include'] = $final_query['include'] = [ PHP_INT_MAX ];
+						}
+						$query_type = 'wp_query';
+					}
+				}
+
 				$query_vars['brx_is_search'] = true;
 				break;
 
@@ -2733,8 +2997,8 @@ class Query_Filters {
 
 		// Update $active_filters with the selected option, will be used in other area
 		if ( isset( self::$active_filters[ $query_id ][ $filter_index ] ) ) {
-			self::$active_filters[ $query_id ][ $filter_index ]['query_vars'] = $search_query; // [ 's' => $filter_value ];
-			self::$active_filters[ $query_id ][ $filter_index ]['query_type'] = 'wp_query';
+			self::$active_filters[ $query_id ][ $filter_index ]['query_vars'] = $final_query;
+			self::$active_filters[ $query_id ][ $filter_index ]['query_type'] = $query_type;
 		}
 
 		return $query_vars;
@@ -3767,8 +4031,12 @@ class Query_Filters {
 		);
 	}
 
-	public function user_updated( $user_id ) {
-		$this->index_user( $user_id );
+	public function user_updated( $user_id, $old_user_data ) {
+		$this->index_user( $user_id, $old_user_data );
+	}
+
+	public function user_register( $user_id ) {
+		$this->index_user( $user_id, null );
 	}
 
 	/**
@@ -3788,9 +4056,10 @@ class Query_Filters {
 	 * Core function to index a user based on all active indexable filter elements
 	 *
 	 * @since 1.12
-	 * @param int $user_id
+	 * @param int   $user_id
+	 * @param array $old_user_data  Old user data before update (for profile_update action)
 	 */
-	public function index_user( $user_id ) {
+	public function index_user( $user_id, $old_user_data = null ) {
 		// Get all indexable and active filter elements from element table
 		$indexable_elements = $this->get_elements_from_element_table(
 			[
@@ -3803,26 +4072,64 @@ class Query_Filters {
 			return;
 		}
 
-		// Only get filter elements that related to user field
-		$user_elements = array_filter(
-			$indexable_elements,
-			function ( $element ) {
-				$filter_settings = json_decode( $element['settings'], true );
-				$filter_source   = $filter_settings['filterSource'] ?? false;
-				$field_type      = $filter_settings['sourceFieldType'] ?? false;
+		$user           = get_userdata( $user_id );
+		$is_user_update = current_action() === 'profile_update' && $old_user_data instanceof \WP_User;
 
-				$is_user_element = false;
+		$user_elements        = [];
+		$post_author_elements = [];
+		$display_name_changed = $is_user_update && ( $user->display_name !== $old_user_data->display_name );
 
-				if (
-					$filter_source === 'customField' && $field_type === 'user' ||
-					$filter_source === 'wpField' && $field_type === 'user'
-				) {
-					$is_user_element = true;
-				}
+		foreach ( $indexable_elements as $element ) {
+			$filter_settings = json_decode( $element['settings'], true );
+			$filter_source   = $filter_settings['filterSource'] ?? false;
+			$field_type      = $filter_settings['sourceFieldType'] ?? false;
+			$post_field_type = $filter_settings['wpPostField'] ?? false;
 
-				return $is_user_element;
+			if (
+				$filter_source === 'customField' && $field_type === 'user' ||
+				$filter_source === 'wpField' && $field_type === 'user'
+			) {
+				$user_elements[] = $element;
 			}
-		);
+
+			if (
+				$display_name_changed &&
+				$filter_source === 'wpField' && $post_field_type === 'post_author' // Filter by post author (#86c3epwa6 @since 2.2)
+			) {
+				$post_author_elements[] = $element;
+			}
+		}
+
+		// Handle post_author filters separately (#86c3epwa6 @since 2.2)
+		if ( ! empty( $post_author_elements ) ) {
+			// Get user display name for updating filter_value_display
+			$display_value = $user->display_name ?? 'None';
+
+			global $wpdb;
+			$table_name = self::get_table_name();
+
+			// Get all filter_ids for post_author elements
+			$filter_ids = array_column( $post_author_elements, 'filter_id' );
+
+			if ( ! empty( $filter_ids ) ) {
+					$placeholders = array_fill( 0, count( $filter_ids ), '%s' );
+					$placeholders = implode( ',', $placeholders );
+
+					// Update filter_value_display for all posts authored by this user
+					$query = "UPDATE {$table_name}
+							SET filter_value_display = %s
+							WHERE filter_id IN ({$placeholders})
+							AND filter_value = %s
+							AND object_type = 'post'";
+
+					$wpdb->query(
+						$wpdb->prepare(
+							$query,
+							array_merge( [ $display_value ], $filter_ids, [ $user_id ] )
+						)
+					);
+			}
+		}
 
 		if ( empty( $user_elements ) ) {
 			return;
@@ -3833,7 +4140,6 @@ class Query_Filters {
 
 		// Loop through all user elements and group them up by filter_source
 		$grouped_elements = [];
-		$user             = get_userdata( $user_id );
 
 		foreach ( $user_elements as $element ) {
 			// filter_settings is json string
@@ -4096,7 +4402,24 @@ class Query_Filters {
 				continue;
 			}
 
-			$url_params[]           = $url_param; // Flag this url_param as already exists
+			$url_params[] = $url_param; // Flag this url_param as already exists
+
+			// Each filter value should be considered as an active filter for filter-checkbox (#86c7q9g3y; @since 2.2)
+			if ( in_array( $instance_name, [ 'filter-checkbox' ], true ) ) {
+				$filter_values = $filter_info['value'] ?? [];
+				if ( is_array( $filter_values ) ) {
+					foreach ( $filter_values as $value ) {
+						$clean_active_filters[] = [
+							'filter_id'     => $filter_id,
+							'instance_name' => $instance_name,
+							'settings'      => $filter_settings,
+							'value'         => $value,
+						];
+					}
+					continue;
+				}
+			}
+
 			$clean_active_filters[] = $filter_info;
 		}
 

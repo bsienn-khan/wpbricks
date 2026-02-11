@@ -524,11 +524,11 @@ class Templates {
 		];
 
 		// Get community templates
-		// TODO NEXT: Delete when Bricks community wireframes & design sets are ready!
-		$all_remote_templates[] = [
-			'id'   => 'community-templates',
-			'name' => esc_html__( 'Community templates', 'bricks' ),
-		];
+		// NOTE: No longer in use (@since 2.2)
+		// $all_remote_templates[] = [
+		// 'id'   => 'community-templates',
+		// 'name' => esc_html__( 'Community templates', 'bricks' ),
+		// ];
 
 		// Get single remote template (Bricks > Settings > Templates) @pre 1.9.4
 		$single_remote_template_url      = Database::get_setting( 'remoteTemplatesUrl' );

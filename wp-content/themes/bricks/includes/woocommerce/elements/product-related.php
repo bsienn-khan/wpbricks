@@ -57,10 +57,10 @@ class Product_Related extends Element {
 			'max'         => 4,
 			'css'         => [
 				[
-					'selector'  => '.products',
-					'property'  => 'grid-template-columns',
-					'value'     => 'repeat(%s, 1fr)', // NOTE: Undocumented (@since 1.3)
-					'important' => true,
+					'selector' => '.products',
+					'property' => 'grid-template-columns',
+					'value'    => 'repeat(%s, 1fr)', // NOTE: Undocumented (@since 1.3)
+					// 'important' => true, // Not needed, as we are overriding a styling with Cascade Layers (@since 2.2 #86c3p8f91)
 				],
 			],
 			'placeholder' => 4,

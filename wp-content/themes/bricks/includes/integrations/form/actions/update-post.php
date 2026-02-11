@@ -4,6 +4,8 @@ namespace Bricks\Integrations\Form\Actions;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Update_Post extends Base {
+	use Traits\Custom_Field_Handler;
+
 	/**
 	 * Update an existing post
 	 *
@@ -176,6 +178,9 @@ class Update_Post extends Base {
 		// Access uploaded files
 		$uploaded_files = $form->get_uploaded_files();
 
+		// Collect all meta values first
+		$post_meta = [];
+
 		foreach ( $form_settings['updatePostMeta'] ?? [] as $mapping ) {
 			$meta_key = $mapping['metaKey'] ?? '';
 
@@ -191,26 +196,47 @@ class Update_Post extends Base {
 
 			$is_file_upload = false;
 			$is_date_picker = false;
+			$field_type     = '';
 
 			if ( $field_id ) {
 				// Loop through the form settings fields to find the type of the field
 				foreach ( $form_settings['fields'] as $field_setting ) {
-					if ( $field_setting['id'] === $field_id && $field_setting['type'] === 'file' ) {
-						$is_file_upload = true;
-						break;
-					}
+					if ( $field_setting['id'] === $field_id ) {
+						$field_type = $field_setting['type'];
 
-					// Convert datepicker field from date_format to Ymd format
-					if ( $field_setting['id'] === $field_id && $field_setting['type'] === 'datepicker' ) {
-						$is_date_picker = true;
+						if ( $field_type === 'file' ) {
+							$is_file_upload = true;
+						}
+
+						// Convert datepicker field from date_format to Ymd format
+						if ( $field_type === 'datepicker' ) {
+							$is_date_picker = true;
+						}
+
+						break;
 					}
 				}
 			}
 
 			if ( $is_file_upload && isset( $uploaded_files[ "form-field-$field_id" ] ) ) {
-				// Assign file data
-				$meta_value = $uploaded_files[ "form-field-$field_id" ];
-				// Since it's a file upload, no sanitization is applied here
+				// Extract attachment IDs if files were uploaded to media library (@since 2.2)
+				$files      = $uploaded_files[ "form-field-$field_id" ];
+				$meta_value = [];
+
+				foreach ( $files as $file ) {
+					// Use attachment_id if available (file was uploaded early for create-post/update-post actions) (@since 2.2)
+					if ( isset( $file['attachment_id'] ) ) {
+						$meta_value[] = $file['attachment_id'];
+					}
+					// Otherwise use the file URL (for backward compatibility @since 2.2)
+					elseif ( isset( $file['url'] ) ) {
+						$meta_value[] = $file['url'];
+					}
+				}
+			}
+			// No file uploaded
+			elseif ( $is_file_upload ) {
+				$meta_value = [];
 			}
 
 			// Handle date picker field (@since 2.1.3)
@@ -228,93 +254,97 @@ class Update_Post extends Base {
 
 			// Handle non-file upload fields
 			else {
-				$meta_value          = $form->get_field_value( $field_id );
+				$meta_value = $form->get_field_value( $field_id );
+
+				// Radio field value submitted as array, always get the first value (@since 2.2)
+				if ( $field_type === 'radio' && is_array( $meta_value ) ) {
+					$meta_value = $meta_value[0];
+				}
+
 				$sanitization_method = $mapping['sanitizationMethod'] ?? 'sanitize_text_field';
 				$meta_value          = $this->sanitize_meta_value( $meta_value, $sanitization_method );
 			}
 
 			$meta_value = apply_filters( 'bricks/form/update_post/meta_value', $meta_value, $meta_key, $post_id, $form_fields );
 
-			// Update ACF field using update_field
-			$acf_field_key = \Bricks\Integrations\Form\Init::get_acf_field_key_from_meta_key( $meta_key, $post_id );
-			if ( $acf_field_key && function_exists( 'update_field' ) ) {
-				// Get ACF field configuration to handle different field types properly (@since 2.1.3)
-				$acf_field_config = function_exists( 'acf_get_field' ) ? acf_get_field( $acf_field_key ) : false;
+			$post_meta[ $meta_key ] = $meta_value;
+		}
 
-				if ( $acf_field_config ) {
-					switch ( $acf_field_config['type'] ) {
-						case 'image':
-							// For image fields, convert to integer ID
-							if ( is_string( $meta_value ) ) {
-								// Split by spaces and take the first valid ID
-								$ids        = array_filter( array_map( 'intval', explode( ' ', $meta_value ) ) );
-								$meta_value = ! empty( $ids ) ? $ids[0] : 0;
-							}
-							break;
+		// Process collected meta values with ACF nested group support, similar to create-post action
+		if ( is_array( $post_meta ) ) {
+			// Group ACF subfields by their parent group
+			$acf_group_values = [];
+			$processed_keys   = [];
 
-						case 'gallery':
-							// For gallery fields, convert comma-separated IDs to array
-							if ( is_string( $meta_value ) && strpos( $meta_value, ',' ) !== false ) {
-								$meta_value = array_map( 'intval', explode( ',', $meta_value ) );
+			foreach ( $post_meta as $meta_key => $meta_value ) {
+				// Check if this is an ACF field
+				$acf_field_key = \Bricks\Integrations\Form\Init::get_acf_field_key_from_meta_key( $meta_key, $post_id );
+
+				if ( $acf_field_key && function_exists( 'update_field' ) ) {
+					// Get ACF field configuration
+					$acf_field_config = function_exists( 'acf_get_field' ) ? acf_get_field( $acf_field_key ) : false;
+
+					if ( $acf_field_config ) {
+						// Handle field type-specific sanitization
+						$meta_value = $this->sanitize_acf_field_value( $meta_value, $acf_field_config );
+
+						// Check if this is a subfield (contains underscore and is nested)
+						if ( strpos( $meta_key, '_' ) !== false ) {
+							$parent_hierarchy = $this->get_acf_parent_hierarchy( $meta_key, $post_id );
+
+							if ( $parent_hierarchy ) {
+								// This is a nested field - store it for batch update
+								$root_group_key = $parent_hierarchy['root_key'];
+								$field_path     = $parent_hierarchy['path'];
+
+								if ( ! isset( $acf_group_values[ $root_group_key ] ) ) {
+									$acf_group_values[ $root_group_key ] = [];
+								}
+
+								// Build nested array structure
+								$this->set_nested_value( $acf_group_values[ $root_group_key ], $field_path, $meta_value );
+								$processed_keys[] = $meta_key;
+								continue;
 							}
-							break;
+						}
+
+						// Top-level ACF field - update directly
+						update_field( $acf_field_key, $meta_value, $post_id );
+						$processed_keys[] = $meta_key;
+						continue;
 					}
 				}
 
-				update_field( $acf_field_key, $meta_value, $post_id );
+				// Update Meta Box field using rwmb_set_meta
+				$meta_box_field_key = \Bricks\Integrations\Form\Init::get_meta_box_field_key_from_meta_key( $meta_key, $post_id );
+				if ( $meta_box_field_key && function_exists( 'rwmb_set_meta' ) ) {
+					// Get Meta Box field configuration to handle different field types properly (@since 2.2)
+					$mb_field_config = false;
+					if ( function_exists( 'rwmb_get_object_fields' ) ) {
+						$mb_fields       = rwmb_get_object_fields( $post_id );
+						$mb_field_config = $mb_fields[ $meta_box_field_key ] ?? false;
+					}
 
-				continue;
-			}
+					if ( $mb_field_config ) {
+						$meta_value = $this->sanitize_meta_box_field_value( $meta_value, $mb_field_config );
+					}
 
-			// Update Meta Box field using rwmb_set_meta
-			$meta_box_field_key = \Bricks\Integrations\Form\Init::get_meta_box_field_key_from_meta_key( $meta_key, $post_id );
-			if ( $meta_box_field_key && function_exists( 'rwmb_set_meta' ) ) {
-				// Convert comma-separated image IDs to array for Meta Box image_advanced fields
-				if ( is_string( $meta_value ) && strpos( $meta_value, ',' ) !== false ) {
-					$meta_value = array_map( 'intval', explode( ',', $meta_value ) );
+					// TODO: checkbox_list saves every value as separate entry in the DB, so this doesn't work properly yet
+					rwmb_set_meta( $post_id, $meta_box_field_key, $meta_value );
+					$processed_keys[] = $meta_key;
+					continue;
 				}
 
-				// TODO: checkbox_list saves every value as separate entry in the DB, so this doesn't work properly yet
-				rwmb_set_meta( $post_id, $meta_box_field_key, $meta_value );
-				continue;
+				// Fallback to update_post_meta if not processed
+				if ( ! in_array( $meta_key, $processed_keys, true ) ) {
+					update_post_meta( $post_id, $meta_key, $meta_value );
+				}
 			}
 
-			// Fallback to update_post_meta if ACF function is not available
-			update_post_meta( $post_id, $meta_key, $meta_value );
-		}
-	}
-
-	/**
-	 * Sanitize meta value based on the specified method
-	 *
-	 * @param mixed  $value The value to sanitize.
-	 * @param string $method The sanitization method.
-	 * @return mixed The sanitized value.
-	 */
-	private function sanitize_meta_value( $value, $method ) {
-		// If value is an array, sanitize each element
-		if ( is_array( $value ) ) {
-			return array_map(
-				function( $single_value ) use ( $method ) {
-					return $this->sanitize_meta_value( $single_value, $method );
-				},
-				$value
-			);
-		}
-
-		switch ( $method ) {
-			case 'intval':
-				return intval( $value );
-			case 'floatval':
-				return floatval( $value );
-			case 'sanitize_email':
-				return sanitize_email( $value );
-			case 'esc_url':
-				return esc_url( $value );
-			case 'wp_kses_post':
-				return wp_kses_post( $value );
-			default:
-				return sanitize_text_field( $value );
+			// Update ACF group fields with all subfield values at once
+			foreach ( $acf_group_values as $group_key => $group_values ) {
+				update_field( $group_key, $group_values, $post_id );
+			}
 		}
 	}
 }

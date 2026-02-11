@@ -16,7 +16,7 @@ class Components {
 	 */
 	public static function upgrade_components( $components, $is_import = true ) {
 		// Component in-builder (PanelElements.vue)
-		if ( bricks_is_ajax_call() ) {
+		if ( bricks_is_ajax_call() && isset( $_POST['action'] ) && $_POST['action'] === 'bricks_upgrade_components' ) {
 			Ajax::verify_request( 'bricks-nonce-builder' );
 			$components = $_POST['components'] ?? [];
 		}
@@ -59,7 +59,7 @@ class Components {
 		}
 
 		// Return: Components in-builder import (PanelElements.vue)
-		if ( bricks_is_ajax_call() ) {
+		if ( bricks_is_ajax_call() && isset( $_POST['action'] ) && $_POST['action'] === 'bricks_upgrade_components' ) {
 			wp_send_json_success(
 				[
 					'newComponents' => $components,
@@ -101,6 +101,9 @@ class Components {
 
 			$bricks_data = Database::get_data( $post_id, $type );
 
+			// Expand component data to include nested components (@since 2.1)
+			$bricks_data = Database::get_component_data( $bricks_data );
+
 			// Stringify the data to search for all 'cid' appearances
 			$bricks_data_json = json_encode( $bricks_data );
 
@@ -129,7 +132,6 @@ class Components {
 					$instances[ $cid ][ $post_id ]['count']++;
 				}
 			}
-
 		}
 
 		wp_send_json_success( $instances );

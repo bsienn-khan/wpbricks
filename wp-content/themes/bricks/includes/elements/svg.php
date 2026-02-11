@@ -111,9 +111,9 @@ class Element_Svg extends Element {
 			'min'   => 1,
 			'css'   => [
 				[
-					'property'  => 'stroke-width',
-					'selector'  => ' *',
-					'important' => true,
+					'property' => 'stroke-width',
+					'selector' => ' *',
+					// 'important' => true, Causing issues (@since 2.2 #86c3p8f91)
 				]
 			],
 		];
@@ -123,9 +123,9 @@ class Element_Svg extends Element {
 			'type'  => 'color',
 			'css'   => [
 				[
-					'property'  => 'stroke',
-					'selector'  => ' :not([stroke="none"])',
-					'important' => true,
+					'property' => 'stroke',
+					'selector' => ' :not([stroke="none"])',
+					// 'important' => true, Causing issues (@since 2.2 #86c3p8f91)
 				]
 			],
 		];
@@ -135,9 +135,9 @@ class Element_Svg extends Element {
 			'type'  => 'color',
 			'css'   => [
 				[
-					'property'  => 'fill',
-					'selector'  => ' :not([fill="none"])',
-					'important' => true,
+					'property' => 'fill',
+					'selector' => ' :not([fill="none"])',
+					// 'important' => true, Causing issues (@since 2.2 #86c3p8f91)
 				]
 			],
 		];
@@ -151,7 +151,7 @@ class Element_Svg extends Element {
 	public function render() {
 		$settings = $this->settings;
 		$source   = $settings['source'] ?? 'file';
-		$link     = ! empty( $settings['link'] ) && bricks_is_frontend() ? $settings['link'] : false; // Front-end only (@since 1.10.2)
+		$link     = ! empty( $settings['link'] ) && bricks_is_frontend() ? $settings['link'] : false; // Front-end only
 		$svg      = '';
 
 		// Default: Get SVG from file ID
@@ -249,21 +249,18 @@ class Element_Svg extends Element {
 			return $this->render_element_placeholder( [ 'title' => esc_html__( 'No SVG selected.', 'bricks' ) ] );
 		}
 
-		// Linked icon: Remove custom attributes from '_root' to add to the 'link'
-		if ( $link ) {
-			$custom_attributes = $this->get_custom_attributes( $settings );
+		// Support dynamic data color (fill & stroke) in loop (@since 2.2)
+		if ( Query::is_looping() ) {
+			$has_dynamic_fill   = isset( $settings['fill']['raw'] ) && strpos( $settings['fill']['raw'], '{' ) !== false;
+			$has_dynamic_stroke = isset( $settings['stroke']['raw'] ) && strpos( $settings['stroke']['raw'], '{' ) !== false;
 
-			if ( is_array( $custom_attributes ) ) {
-				foreach ( $custom_attributes as $key => $value ) {
-					if ( isset( $this->attributes['_root'][ $key ] ) ) {
-						unset( $this->attributes['_root'][ $key ] );
-					}
-				}
+			if ( $has_dynamic_fill || $has_dynamic_stroke ) {
+				$this->attributes['_root']['data-query-loop-index'] = Query::get_looping_unique_identifier();
 			}
 		}
 
 		// Run root attributes through filter (@since 1.10)
-		else {
+		if ( ! $link ) {
 			$this->attributes = apply_filters( 'bricks/element/render_attributes', $this->attributes, '_root', $this );
 		}
 
@@ -276,8 +273,8 @@ class Element_Svg extends Element {
 			// Add custom class to the link wrapper so we can target it in CSS (@since 2.0)
 			$this->set_attribute( 'link', 'class', 'bricks-link-wrapper' );
 
-			// Add custom attributes to the link instead of the icon
-			$output .= "<a {$this->render_attributes( 'link', true )}>";
+			// Add '_attributes' to the SVG instead of the link
+			$output .= "<a {$this->render_attributes( 'link', false )}>";
 		}
 
 		// Render SVG + root attributes (ID, classes, etc.)

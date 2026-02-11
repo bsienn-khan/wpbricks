@@ -159,6 +159,13 @@ class Element_Back_To_Top extends Element {
 			'label' => esc_html__( 'Smooth scroll', 'bricks' ),
 			'type'  => 'checkbox',
 		];
+
+		// @since 2.2
+		$this->controls['moveFocusToTop'] = [
+			'label' => esc_html__( 'Move focus to top', 'bricks' ),
+			'type'  => 'checkbox',
+			'desc'  => esc_html__( 'When enabled, sets focus to the body element at the top of the page, which improves accessibility for keyboard navigation.', 'bricks' ),
+		];
 	}
 
 	public function get_nestable_children() {
@@ -189,6 +196,11 @@ class Element_Back_To_Top extends Element {
 
 		if ( ! empty( $settings['smoothScroll'] ) ) {
 			$this->set_attribute( '_root', 'data-smooth-scroll', true );
+		}
+
+		// @since 2.2
+		if ( ! empty( $settings['moveFocusToTop'] ) ) {
+			$this->set_attribute( '_root', 'data-move-focus-to-top', true );
 		}
 
 		if ( empty( $settings['visibleAfter'] ) && empty( $settings['visibleOnScrollUp'] ) ) {

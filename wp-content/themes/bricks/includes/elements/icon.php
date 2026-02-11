@@ -144,6 +144,18 @@ class Element_Icon extends Element {
 			);
 		}
 
+		/**
+		 * Add instance ID class for icon components so SVG color can apply
+		 *
+		 * We can add this in base.php set_root_attributes too in the future when property for CSS introduced
+		 *
+		 * @since 2.2 #86c4jqnwn
+		 */
+		if ( isset( $this->element['instanceId'] ) || isset( $this->element['cid'] ) ) {
+			$instance_id                          = isset( $this->element['cid'] ) ? $this->element['id'] : $this->element['instanceId'];
+			$this->attributes['_root']['class'][] = 'brxi-' . esc_attr( $instance_id );
+		}
+
 		// Linked icon: Remove custom attributes from '_root' to add to the 'link'
 		if ( $link ) {
 			$custom_attributes = $this->get_custom_attributes( $settings );

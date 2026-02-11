@@ -307,12 +307,13 @@ class Element_Related_Posts extends Custom_Render_Element {
 		 */
 		unset( $this->controls['_aspectRatio'] );
 		$this->controls['_aspectRatio'] = [
-			'group'  => 'image',
-			'label'  => esc_html__( 'Aspect ratio', 'bricks' ),
-			'type'   => 'text',
-			'inline' => true,
-			'dd'     => false,
-			'css'    => [
+			'group'        => 'image',
+			'label'        => esc_html__( 'Aspect ratio', 'bricks' ),
+			'type'         => 'text',
+			'inline'       => true,
+			'dd'           => false,
+			'hasVariables' => true,
+			'css'          => [
 				[
 					'selector' => 'img',
 					'property' => 'aspect-ratio',

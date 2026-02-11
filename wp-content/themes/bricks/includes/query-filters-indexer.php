@@ -271,10 +271,11 @@ class Query_Filters_Indexer {
 				 */
 				if ( empty( $posts ) ) {
 					// STEP: Check the total posts again for current args without offset
-					$args['posts_per_page'] = -1;
+					$args['posts_per_page'] = 1;
+					$args['no_found_rows']  = false;
 					$args['offset']         = 0;
 					$query                  = new \WP_Query( $args );
-					$new_total              = count( $query->posts );
+					$new_total              = $query->found_posts; // Performance improvement over count( $query->posts ) with posts_per_page = -1 (#86c6xr6nv; @since 2.2)
 
 					// Release memory
 					unset( $query );
@@ -1059,8 +1060,11 @@ class Query_Filters_Indexer {
 		// Get total rows
 		if ( ! empty( $args ) ) {
 			if ( $query_type === 'wp_query' ) {
-				$query      = new \WP_Query( $args );
-				$total_rows = count( $query->posts );
+				$args['posts_per_page'] = 1;
+				$args['no_found_rows']  = false;
+				$args['offset']         = 0;
+				$query                  = new \WP_Query( $args );
+				$total_rows             = $query->found_posts; // Performance improvement over count( $query->posts ) with posts_per_page = -1 (#86c6xr6nv; @since 2.2)
 				// Release memory
 				unset( $query );
 			}

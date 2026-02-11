@@ -223,6 +223,25 @@ function createBricksQueryControl(property, props) {
 			}
 		)
 
+		const noResultsTemplateSelectControl = window.createBricksSelectControl(
+			{
+				id: 'no_results_template',
+				label: 'Template',
+				options: window.bricksGutenbergData?.sectionTemplates || {},
+				multiple: false,
+				searchable: true,
+				placeholder: window.bricksData.i18n.selectTemplate
+			},
+			{
+				attributes: {
+					no_results_template: currentValue.no_results_template || ''
+				},
+				setAttributes: (newAttrs) => {
+					updateQuery('no_results_template', newAttrs.no_results_template)
+				}
+			}
+		)
+
 		// Load dynamic options on mount
 		useEffect(() => {
 			// Load post types from Bricks data
@@ -1816,26 +1835,7 @@ function createBricksQueryControl(property, props) {
 
 					// 61. no_results_template (conditional: no_results_text is empty)
 					...(!currentValue.no_results_text || currentValue.no_results_text === ''
-						? [
-								window.createBricksSelectControl(
-									{
-										id: 'no_results_template',
-										label: 'Template',
-										options: window.bricksGutenbergData?.sectionTemplates || {},
-										multiple: false,
-										searchable: true,
-										placeholder: window.bricksData.i18n.selectTemplate
-									},
-									{
-										attributes: {
-											no_results_template: currentValue.no_results_template || ''
-										},
-										setAttributes: (newAttrs) => {
-											updateQuery('no_results_template', newAttrs.no_results_template)
-										}
-									}
-								)
-							]
+						? [noResultsTemplateSelectControl]
 						: []),
 
 					// 62. no_results_text (conditional: no_results_template is empty)

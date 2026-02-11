@@ -66,7 +66,7 @@ function createBricksSelectControl(property, props) {
 					params.append('nonce', window.bricksData.nonce)
 				}
 
-				const response = await fetch(`${window.ajaxurl || '/wp-admin/admin-ajax.php'}?${params}`, {
+				const response = await fetch(`${window.bricksGutenbergData?.ajaxUrl}?${params}`, {
 					method: 'GET',
 					credentials: 'same-origin'
 				})
@@ -108,7 +108,7 @@ function createBricksSelectControl(property, props) {
 			if (hasOptionsAjax) {
 				triggerAjaxSearch(true)
 			}
-		}, [hasOptionsAjax])
+		}, [hasOptionsAjax, JSON.stringify(property.optionsAjax)])
 
 		// Handle click outside to close dropdown
 		useEffect(() => {
@@ -260,7 +260,8 @@ function createDropdownInterface({
 				isDropdownOpen,
 				setIsDropdownOpen,
 				property,
-				clearSelection
+				clearSelection,
+				currentValue
 			),
 
 			// Dropdown panel - positioned absolutely within this container
@@ -298,7 +299,8 @@ function createSelectionTrigger(
 	isDropdownOpen,
 	setIsDropdownOpen,
 	property,
-	clearSelection
+	clearSelection,
+	currentValue
 ) {
 	const isMultiple = property.multiple === true
 	const { createElement } = window.wp.element
@@ -367,7 +369,7 @@ function createSelectionTrigger(
 		{
 			key: 'dropdown-arrow',
 			style: {
-				marginLeft: '8px',
+				marginInlineStart: '8px',
 				transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
 				transition: 'transform 0.2s'
 			}
@@ -375,29 +377,35 @@ function createSelectionTrigger(
 		'▼'
 	)
 
-	const clearButton = hasSelection
-		? createElement(
-				Button,
-				{
-					key: 'clear-button',
-					onClick: (e) => {
-						e.stopPropagation()
-						clearSelection()
+	const clearable = property.hasOwnProperty('clearable') ? property.clearable : true
+	const hasValue = isMultiple
+		? Array.isArray(currentValue) && currentValue.length > 0
+		: !!currentValue
+
+	const clearButton =
+		hasValue && clearable
+			? createElement(
+					Button,
+					{
+						key: 'clear-button',
+						onClick: (e) => {
+							e.stopPropagation()
+							clearSelection()
+						},
+						variant: 'secondary',
+						size: 'small',
+						style: {
+							position: 'absolute',
+							insetInlineEnd: '30px',
+							top: '50%',
+							transform: 'translateY(-50%)',
+							minHeight: '24px',
+							padding: '0 6px'
+						}
 					},
-					variant: 'secondary',
-					size: 'small',
-					style: {
-						position: 'absolute',
-						right: '30px',
-						top: '50%',
-						transform: 'translateY(-50%)',
-						minHeight: '24px',
-						padding: '0 6px'
-					}
-				},
-				'×'
-			)
-		: null
+					'×'
+				)
+			: null
 
 	return [
 		createElement(
@@ -415,7 +423,7 @@ function createSelectionTrigger(
 					'div',
 					{
 						key: 'selection-content',
-						style: { flex: 1 }
+						style: { flex: 1, maxWidth: '130px' }
 					},
 					selectedItemsDisplay
 				),
@@ -554,7 +562,7 @@ function createOptionItem(option, currentValue, handleOptionToggle, isMultiple) 
 					type: 'checkbox',
 					checked: isSelected,
 					onChange: () => {}, // Handled by parent click
-					style: { marginRight: '8px' }
+					style: { marginInlineEnd: '8px' }
 				}),
 			createElement('span', { key: 'label' }, option.label)
 		].filter(Boolean)

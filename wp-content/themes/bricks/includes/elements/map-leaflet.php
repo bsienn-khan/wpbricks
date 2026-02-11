@@ -105,7 +105,7 @@ class Element_Map_Leaflet extends Element {
 					'label'          => esc_html__( 'Label', 'bricks' ),
 					'type'           => 'text',
 					'desc'           => esc_html__( 'To distinguish markers in the builder.', 'bricks' ),
-					'hasDynamicData' => false, // Removed dynamic data support, as it's only used in builder (@since 2.x)
+					'hasDynamicData' => false, // Removed dynamic data support, as it's only used in builder (@since 2.2)
 				],
 
 				'customIcon'       => [
@@ -315,7 +315,7 @@ class Element_Map_Leaflet extends Element {
 					continue;
 				}
 
-				// Parse marker dynamic data (@since 2.x)
+				// Parse marker dynamic data (@since 2.2)
 				$marker['coordinates'] = $this->render_dynamic_data( $marker['coordinates'] );
 
 				// Skip: Invalid coordinates format
@@ -323,14 +323,11 @@ class Element_Map_Leaflet extends Element {
 					continue;
 				}
 
-				// Parse rest of marker dynamic data (@since 2.x)
-				$marker['popupText'] = $this->render_dynamic_data( $marker['popupText'] );
-
 				$m = $this->get_lat_lng( $marker['coordinates'] );
 
 				// Add popup settings
 				if ( ! empty( $marker['popupText'] ) ) {
-					$m['popupText'] = $marker['popupText'];
+					$m['popupText'] = $this->render_dynamic_data( $marker['popupText'] );
 				}
 
 				// Add custom marker icon

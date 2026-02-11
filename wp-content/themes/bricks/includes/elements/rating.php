@@ -131,10 +131,11 @@ class Element_Rating extends Element {
 
 		// Additional properties (@since 1.11.1)
 		$this->controls['schemaProperties'] = [
-			'label'    => esc_html__( 'Additional properties', 'bricks' ),
-			'type'     => 'repeater',
-			'required' => [ 'schema', '=', true ],
-			'fields'   => [
+			'label'       => esc_html__( 'Additional item reviewed properties', 'bricks' ),
+			'description' => esc_html__( 'Add properties to the item being reviewed (e.g. price, image, etc.).', 'bricks' ),
+			'type'        => 'repeater',
+			'required'    => [ 'schema', '=', true ],
+			'fields'      => [
 				'key'   => [
 					'label'       => esc_html__( 'Property name', 'bricks' ),
 					'type'        => 'text',
@@ -144,6 +145,35 @@ class Element_Rating extends Element {
 					'label'       => esc_html__( 'Property value', 'bricks' ),
 					'type'        => 'text',
 					'placeholder' => '2024-06-12, $19.99, etc.',
+				],
+				'type'  => [
+					'label'       => esc_html__( 'Value type', 'bricks' ),
+					'type'        => 'select',
+					'options'     => [
+						'Text'   => 'Text',
+						'Number' => 'Number',
+						'Object' => 'Nested object',
+					],
+					'placeholder' => 'Text',
+				],
+			],
+		];
+
+		$this->controls['schemaReviewProperties'] = [
+			'label'       => esc_html__( 'Additional review properties', 'bricks' ),
+			'description' => esc_html__( 'Add properties to the review itself (e.g. reviewBody, datePublished, etc.).', 'bricks' ),
+			'type'        => 'repeater',
+			'required'    => [ 'schema', '=', true ],
+			'fields'      => [
+				'key'   => [
+					'label'       => esc_html__( 'Property name', 'bricks' ),
+					'type'        => 'text',
+					'placeholder' => 'reviewBody, datePublished, publisher, etc.',
+				],
+				'value' => [
+					'label'       => esc_html__( 'Property value', 'bricks' ),
+					'type'        => 'text',
+					'placeholder' => 'This is a great product.',
 				],
 				'type'  => [
 					'label'       => esc_html__( 'Value type', 'bricks' ),
@@ -232,6 +262,10 @@ class Element_Rating extends Element {
 			$schema_type = trim( $settings['schemaType'] );
 			$schema_name = trim( $settings['schemaName'] );
 
+			// Render dynamic data
+			$schema_type = $this->render_dynamic_data( $schema_type );
+			$schema_name = $this->render_dynamic_data( $schema_name );
+
 			// Generate schema if required fields are filled
 			$schema = [
 				'@context'     => 'https://schema.org',
@@ -254,15 +288,53 @@ class Element_Rating extends Element {
 
 			// Add author if provided
 			if ( isset( $settings['reviewAuthor'] ) ) {
+				$review_author = trim( $settings['reviewAuthor'] );
+
+				if ( strpos( $review_author, '{' ) !== false && strpos( $review_author, '}' ) !== false ) {
+					$review_author = $this->render_dynamic_data( $review_author );
+				}
+
 				$schema['author'] = [
 					'@type' => 'Person',
-					'name'  => trim( $settings['reviewAuthor'] ),
+					'name'  => $review_author,
 				];
 			}
 
 			// Add additional properties from repeater (@since 1.11.1)
 			if ( ! empty( $settings['schemaProperties'] ) ) {
 				foreach ( $settings['schemaProperties'] as $property ) {
+					if ( empty( $property['key'] ) || empty( $property['value'] ) ) {
+						continue;
+					}
+
+					$value = $property['value'];
+
+					// Render dynamic data
+					if ( is_string( $value ) && strpos( $value, '{' ) !== false && strpos( $value, '}' ) !== false ) {
+						$value = $this->render_dynamic_data( $value );
+					}
+
+					$key  = $property['key'] ?? '';
+					$type = $property['type'] ?? 'Text';
+
+					// Convert value based on type
+					switch ( $type ) {
+						case 'Number':
+							$value = is_numeric( $value ) ? floatval( $value ) : $value;
+							break;
+
+						case 'Object':
+							$value = json_decode( $value, true ) ?? $value;
+							break;
+					}
+
+					$schema['itemReviewed'][ $key ] = $value;
+				}
+			}
+
+			// Add additional review properties from repeater
+			if ( ! empty( $settings['schemaReviewProperties'] ) ) {
+				foreach ( $settings['schemaReviewProperties'] as $property ) {
 					if ( empty( $property['key'] ) || empty( $property['value'] ) ) {
 						continue;
 					}
@@ -282,7 +354,7 @@ class Element_Rating extends Element {
 							break;
 					}
 
-					$schema['itemReviewed'][ $key ] = $value;
+					$schema[ $key ] = $value;
 				}
 			}
 

@@ -6,7 +6,7 @@ function createBricksLinkControl(property, props) {
 		const { SelectControl, TextControl, CheckboxControl, BaseControl, Button } =
 			window.wp.components
 		const { MediaUpload, MediaUploadCheck } = window.wp.blockEditor
-		const { createElement, useState, useEffect } = window.wp.element
+		const { createElement } = window.wp.element
 
 		// Get current link value (should be Bricks link object or empty)
 		const currentValue = props.attributes[property.id] || {}
@@ -16,11 +16,6 @@ function createBricksLinkControl(property, props) {
 				currentValue.postId ||
 				currentValue.taxonomy ||
 				currentValue.useDynamicData)
-
-		// State for taxonomies and terms
-		const [taxonomies, setTaxonomies] = useState([])
-		const [terms, setTerms] = useState([])
-		const [loadingTerms, setLoadingTerms] = useState(false)
 
 		const postSelectControl = window.createBricksSelectControl(
 			{
@@ -38,6 +33,44 @@ function createBricksLinkControl(property, props) {
 				attributes: { ...props.attributes, postId: currentValue.postId || '' },
 				setAttributes: (newAttrs) => {
 					onChangePostId(newAttrs.postId)
+				}
+			}
+		)
+
+		const taxonomySelectControl = window.createBricksSelectControl(
+			{
+				id: 'taxonomy',
+				label: window.bricksData.i18n.taxonomy,
+				placeholder: window.bricksData.i18n.taxonomy,
+				options: window.bricksGutenbergData?.taxonomies || {}
+			},
+			{
+				...props,
+				attributes: { ...props.attributes, taxonomy: currentValue.taxonomy || '' },
+				setAttributes: (newAttrs) => {
+					onChangeTaxonomy(newAttrs.taxonomy)
+				}
+			}
+		)
+
+		const termSelectControl = window.createBricksSelectControl(
+			{
+				id: 'term',
+				label: window.bricksData.i18n.term,
+				placeholder: window.bricksData.i18n.selectTerm,
+				optionsAjax: {
+					action: 'bricks_get_terms_options',
+					addLanguageToTermName: 'true',
+					taxonomy: [currentValue.taxonomy]
+				},
+				multiple: false,
+				searchable: true
+			},
+			{
+				...props,
+				attributes: { ...props.attributes, term: currentValue.term || '' },
+				setAttributes: (newAttrs) => {
+					onChangeTerm(newAttrs.term)
 				}
 			}
 		)
@@ -203,13 +236,6 @@ function createBricksLinkControl(property, props) {
 				const newAttributes = {}
 				newAttributes[property.id] = linkObject
 				props.setAttributes(newAttributes)
-
-				// Load terms for the selected taxonomy
-				if (taxonomy) {
-					loadTermsForTaxonomy(taxonomy)
-				} else {
-					setTerms([])
-				}
 			} catch (error) {
 				console.error('Link control error:', error)
 			}
@@ -346,73 +372,6 @@ function createBricksLinkControl(property, props) {
 			}
 		}
 
-		// Helper function to load taxonomies
-		const loadTaxonomies = async () => {
-			try {
-				if (
-					window.bricksData &&
-					window.bricksData.controlOptions &&
-					window.bricksData.controlOptions.taxonomies
-				) {
-					// Use pre-loaded taxonomies from Bricks data
-					const taxonomyOptions = Object.entries(window.bricksData.controlOptions.taxonomies).map(
-						([value, label]) => ({
-							label,
-							value
-						})
-					)
-					setTaxonomies(taxonomyOptions)
-				} else {
-					// Fallback: load via WordPress REST API
-					const response = await fetch('/wp-json/wp/v2/taxonomies')
-					if (response.ok) {
-						const taxonomiesData = await response.json()
-						const taxonomyOptions = Object.entries(taxonomiesData)
-							.filter(([, taxonomy]) => taxonomy.public)
-							.map(([key, taxonomy]) => ({
-								label: taxonomy.name,
-								value: key
-							}))
-						setTaxonomies(taxonomyOptions)
-					}
-				}
-			} catch (error) {
-				console.error('Failed to load taxonomies:', error)
-			}
-		}
-
-		// Helper function to load terms for a taxonomy
-		const loadTermsForTaxonomy = async (taxonomy) => {
-			try {
-				setLoadingTerms(true)
-				const response = await fetch(`/wp-json/wp/v2/${taxonomy}?per_page=100`)
-				if (response.ok) {
-					const termsData = await response.json()
-					const termOptions = termsData.map((term) => ({
-						label: term.name,
-						value: term.id
-					}))
-					setTerms(termOptions)
-				}
-			} catch (error) {
-				console.error('Failed to load terms:', error)
-			} finally {
-				setLoadingTerms(false)
-			}
-		}
-
-		// Load taxonomies on component mount
-		useEffect(() => {
-			loadTaxonomies()
-		}, [])
-
-		// Load terms when taxonomy changes
-		useEffect(() => {
-			if (currentValue.taxonomy) {
-				loadTermsForTaxonomy(currentValue.taxonomy)
-			}
-		}, [currentValue.taxonomy])
-
 		// Build the control elements
 		const controlElements = []
 
@@ -466,41 +425,13 @@ function createBricksLinkControl(property, props) {
 
 		// Taxonomy type fields
 		if (currentValue.type === 'taxonomy') {
-			// Taxonomy selector
-			controlElements.push(
-				createElement(SelectControl, {
-					__next40pxDefaultSize: true,
-					__nextHasNoMarginBottom: true,
-					key: 'taxonomy',
-					label: window.bricksData.i18n.taxonomy,
-					value: currentValue.taxonomy || '',
-					options: [{ label: window.bricksData.i18n.selectTaxonomy, value: '' }, ...taxonomies],
-					onChange: onChangeTaxonomy
-				})
-			)
+			// Use pre-created taxonomy select control
+			controlElements.push(taxonomySelectControl)
 
 			// Term selector (only show if taxonomy is selected)
 			if (currentValue.taxonomy) {
-				controlElements.push(
-					createElement(SelectControl, {
-						__next40pxDefaultSize: true,
-						__nextHasNoMarginBottom: true,
-						key: 'term',
-						label: window.bricksData.i18n.term,
-						value: currentValue.term || '',
-						options: [
-							{
-								label: loadingTerms
-									? window.bricksData.i18n.loading
-									: window.bricksData.i18n.selectTerm,
-								value: ''
-							},
-							...terms
-						],
-						disabled: loadingTerms,
-						onChange: onChangeTerm
-					})
-				)
+				// Use pre-created term select control
+				controlElements.push(termSelectControl)
 			}
 		}
 

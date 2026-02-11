@@ -351,6 +351,38 @@ function bricksWooProductGalleryEnhance() {
 		return
 	}
 
+	// Sync custom thumbnail slider with main product gallery. Previously is just static '.brx-product-gallery-thumbnail-slider' which causing issues if multiple product gallery element on same page (#86c4vhehz; @since 2.2)
+	jQuery('.woocommerce-product-gallery').each(function () {
+		jQuery(this).on(
+			'wc-product-gallery-before-init',
+			function (event, gallery, wc_single_product_params) {
+				var bricksThumbnailSlider = jQuery(this).siblings('.brx-product-gallery-thumbnail-slider')
+
+				// Only set sync if thumbnail slider exists
+				if (!bricksThumbnailSlider.length) {
+					return
+				}
+				wc_single_product_params.flexslider.sync = bricksThumbnailSlider
+				wc_single_product_params.flexslider.isBricksThumbnailSync = true
+			}
+		)
+
+		jQuery(this).on(
+			'wc-product-gallery-after-init',
+			function (event, gallery, wc_single_product_params) {
+				if (
+					!wc_single_product_params.flexslider.isBricksThumbnailSync ||
+					!wc_single_product_params.flexslider.sync
+				) {
+					return
+				}
+				// Unset sync parameter
+				delete wc_single_product_params.flexslider.sync
+				delete wc_single_product_params.flexslider.isBricksThumbnailSync
+			}
+		)
+	})
+
 	// Listen to wc-product-gallery-after-init event
 	jQuery(document.body).on('wc-product-gallery-after-init', function (event) {
 		jQuery('.brx-product-gallery-thumbnail-slider').each(function () {
@@ -413,6 +445,22 @@ function bricksWooProductGalleryEnhance() {
 			let flexData = jQuery(this).data('flexslider')
 
 			if (flexData) {
+				// Check if variation image already exists in slider
+				const variationImageSrc = variation?.image?.full_src
+				if (!variationImageSrc) {
+					return
+				}
+
+				// Check if any slide (except first) already has this variation image
+				let hasVariationImageInSlider = false
+				for (let i = 1; i < flexData.slides.length; i++) {
+					const slideImage = flexData.slides[i].querySelector('img')
+					if (slideImage && slideImage.getAttribute('data-large_image') === variationImageSrc) {
+						hasVariationImageInSlider = true
+						break
+					}
+				}
+
 				const firstSlide = flexData.slides[0]
 
 				const firstSlideLink = firstSlide.querySelector('a')
@@ -420,6 +468,30 @@ function bricksWooProductGalleryEnhance() {
 
 				// If we don't have a link or image, return
 				if (!firstSlideLink || !firstSlideImage) {
+					return
+				}
+
+				// If variation has dedicated slide, restore first slide to original (#86c3r9jwy)
+				if (hasVariationImageInSlider) {
+					// Restore first slide to original state if it was previously modified
+					if (firstSlideLink.hasAttribute('o_href')) {
+						firstSlideLink.setAttribute('href', firstSlideLink.getAttribute('o_href'))
+					}
+
+					// Restore all original image attributes
+					attributeList.forEach((attribute) => {
+						const [originalAttribute] = attribute
+
+						// Check if original attribute was saved
+						if (firstSlideImage.hasAttribute('o_' + originalAttribute)) {
+							firstSlideImage.setAttribute(
+								originalAttribute,
+								firstSlideImage.getAttribute('o_' + originalAttribute)
+							)
+						}
+					})
+
+					// Variation has dedicated slide, don't modify first slide further
 					return
 				}
 
@@ -531,6 +603,154 @@ function bricksWooProductGalleryEnhance() {
 	// Observe all galleries and thumbnail sliders (@since 1.12.2)
 	jQuery('.woocommerce-product-gallery, .brx-product-gallery-thumbnail-slider').each(function () {
 		imageGalleryObserver.observe(this)
+	})
+
+	// Handle multiple product gallery elements on the same page (#86c4vhehz; @since 2.2)
+	const mainSliderAttributeList = [
+		['width', 'src_w'],
+		['height', 'src_h'],
+		['src', 'full_src'],
+		['data-src', 'full_src'],
+		['alt', 'alt'],
+		['title', 'title'],
+		['data-caption', 'caption'],
+		['data-large_image', 'full_src'],
+		['data-large_image_width', 'full_src_w'],
+		['data-large_image_height', 'full_src_h'],
+		['sizes', 'sizes'],
+		['srcset', 'srcset']
+	]
+
+	jQuery(document.body).on('found_variation', function (event, variation) {
+		var form = event.target
+		var productId = form.getAttribute('data-product_id')
+
+		var linkedGalleries = document.querySelectorAll(
+			'.woocommerce-product-gallery.images.bricks-product-gallery-for-' + productId
+		)
+
+		if (variation && variation.image && variation.image.src) {
+			// Loop through all galleries except the first one (It will be handled by WooCommerce itself)
+			linkedGalleries.forEach(function (gallery, index) {
+				if (index === 0) {
+					return
+				}
+
+				// Check if variation image already exists in gallery slider
+				const variationImageSrc = variation?.image?.full_src
+
+				if (!variationImageSrc) {
+					return
+				}
+
+				// Get gallery flexslider data
+				const $gallery = jQuery(gallery)
+				const flexData = $gallery.data('flexslider')
+
+				// Check if variation image exists in any slide (except first)
+				let hasVariationImageInSlider = false
+
+				if (flexData && flexData.slides) {
+					for (let i = 0; i < flexData.slides.length; i++) {
+						const slideImage = flexData.slides[i].querySelector('img')
+
+						if (slideImage && slideImage.getAttribute('data-large_image') === variationImageSrc) {
+							hasVariationImageInSlider = true
+							break
+						}
+					}
+				}
+
+				var firstSlideImage = gallery.querySelector(
+					'.woocommerce-product-gallery__image img.wp-post-image'
+				)
+
+				if (!firstSlideImage) {
+					return
+				}
+
+				// If variation has dedicated slide, restore first slide and navigate to variation slide
+				if (hasVariationImageInSlider) {
+					// Restore first slide to original state
+					if (firstSlideImage.hasAttribute('o_src')) {
+						mainSliderAttributeList.forEach((attribute) => {
+							const [originalAttribute] = attribute
+
+							if (firstSlideImage.hasAttribute('o_' + originalAttribute)) {
+								firstSlideImage.setAttribute(
+									originalAttribute,
+									firstSlideImage.getAttribute('o_' + originalAttribute)
+								)
+							}
+						})
+					}
+
+					return
+				}
+
+				// Update image attributes and save original attributes
+				mainSliderAttributeList.forEach((attribute) => {
+					const [originalAttribute, variantAttribute] = attribute
+
+					// If we don't have the attribute, return
+					if (!firstSlideImage.hasAttribute(originalAttribute)) {
+						return
+					}
+
+					// Save atributte if not already saved
+					if (!firstSlideImage.hasAttribute('o_' + originalAttribute)) {
+						firstSlideImage.setAttribute(
+							'o_' + originalAttribute,
+							firstSlideImage.getAttribute(originalAttribute)
+						)
+					}
+
+					// Get attribute from variant and update
+					const variantValue = variation?.image[variantAttribute]
+
+					if (variantValue !== undefined) {
+						firstSlideImage.setAttribute(originalAttribute, variantValue)
+					}
+				})
+			})
+		}
+	})
+
+	// Reset on variation reset
+	jQuery(document.body).on('reset_image', function (event) {
+		var form = event.target
+		var productId = form.getAttribute('data-product_id')
+
+		var linkedGalleries = document.querySelectorAll(
+			'.woocommerce-product-gallery.images.bricks-product-gallery-for-' + productId
+		)
+
+		// Loop through all galleries except the first one (It will be handled by WooCommerce itself)
+		linkedGalleries.forEach(function (gallery, index) {
+			if (index === 0) {
+				return
+			}
+			var firstSlideImage = gallery.querySelector(
+				'.woocommerce-product-gallery__image img.wp-post-image'
+			)
+			if (!firstSlideImage) {
+				return
+			}
+
+			// Reset image attributes
+			mainSliderAttributeList.forEach((attribute) => {
+				const [originalAttribute] = attribute
+				// If we don't have the attribute, return
+				if (!firstSlideImage.hasAttribute('o_' + originalAttribute)) {
+					return
+				}
+				// Reset attribute
+				firstSlideImage.setAttribute(
+					originalAttribute,
+					firstSlideImage.getAttribute('o_' + originalAttribute)
+				)
+			})
+		})
 	})
 }
 
@@ -1837,6 +2057,15 @@ function updateSelectedImageSwatch(swatchesContainer, variation, attributeName) 
 			imgEl.dataset.origSrc = imgEl.getAttribute('src')
 		}
 
+		// Skip if this variation does not match the swatch value (#86c44be92; @since 2.2)
+		const swatchValue = swatch.dataset.value || ''
+		const variationAttributeValue =
+			variation && variation.attributes ? variation.attributes[attributeName] || null : null
+
+		if (variationAttributeValue !== swatchValue) {
+			return
+		}
+
 		// Use variation image if provided, otherwise restore to original
 		if (variation && variation.image && variation.image.src) {
 			imgEl.setAttribute('src', variation.image.src)
@@ -1848,6 +2077,41 @@ function updateSelectedImageSwatch(swatchesContainer, variation, attributeName) 
 
 function bricksWooVariationSwatches() {
 	bricksWooVariationSwatchesFn.run()
+}
+
+/**
+ * Fix WooCommerce Clear button display when hidden
+ *
+ * The reset_variations button uses visibility: hidden when hidden, but still takes up space.
+ * Check visibility and add display: none to properly hidethe button.
+ *
+ * @since 2.2
+ */
+const bricksWooResetVariationsDisplayFn = new BricksFunction({
+	parentNode: document,
+	selector: '.variations_form',
+	eachElement: (form) => {
+		const resetButton = form.querySelector('.reset_variations')
+
+		if (!resetButton) {
+			return
+		}
+
+		// Helper function to check visibility and set display
+		const updateDisplay = () => {
+			const visibility = window.getComputedStyle(resetButton).visibility
+
+			if (visibility === 'hidden') {
+				resetButton.style.display = 'none'
+			}
+		}
+
+		jQuery(form).on('reset_data', updateDisplay)
+	}
+})
+
+function bricksWooResetVariationsDisplay() {
+	bricksWooResetVariationsDisplayFn.run()
 }
 
 document.addEventListener('DOMContentLoaded', function (event) {
@@ -1864,6 +2128,7 @@ document.addEventListener('DOMContentLoaded', function (event) {
 	bricksCheckoutLoginToggle()
 	bricksCheckoutLoginForm()
 	bricksWooVariationSwatches()
+	bricksWooResetVariationsDisplay()
 	bricksWooStarRatingManageFill()
 
 	// Small timeout required to allow other plugins (e.g. WooCommerce Composite Products) to generate additional content (@since 1.8)

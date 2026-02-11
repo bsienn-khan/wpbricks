@@ -211,9 +211,11 @@ class Pagination extends Element {
 		$settings         = $this->settings;
 		$query_id         = $settings['queryId'] ?? 'main'; // Default: Main query (@since 1.12.2)
 		$element_id       = $query_id;
-		$element_settings = [];
+		$query_settings   = [];
 		$query_element_id = $query_id;
 		$main_query_id    = (string) Database::$main_query_id;
+		$current_page     = $this->get_default_current_page(); // @since 2.2
+		$total_pages      = 1; // @since 2.2
 
 		// Query from a query Loop
 		if ( $query_id && $query_id !== 'main' ) {
@@ -241,7 +243,7 @@ class Pagination extends Element {
 				// Get query element settings from component element
 				foreach ( $component_elements as $component_element ) {
 					if ( $component_element['id'] === $query_id ) {
-						$element_settings = $component_element['settings'] ?? [];
+						$query_settings = $component_element['settings'] ?? [];
 						break;
 					}
 				}
@@ -249,10 +251,10 @@ class Pagination extends Element {
 
 			// Is local element
 			else {
-				$element_settings = Helpers::get_element_settings( $this->post_id, $element_id );
+				$query_settings = Helpers::get_element_settings( $this->post_id, $element_id );
 			}
 
-			if ( empty( $element_settings ) ) {
+			if ( empty( $query_settings ) ) {
 				// Retun: No element nor component instance settings found
 				return $this->render_element_placeholder(
 					[
@@ -261,32 +263,37 @@ class Pagination extends Element {
 				);
 			}
 
-			// STEP: Ensure query_id is updated after the component logic, will be using in set_ajax_attributes() (@since 1.12.2)
-			$query_id = $query_element_id;
+			// https://academy.bricksbuilder.io/article/filter-bricks-pagination-custom_logic/ (@since 2.2)
+			$custom_logic = apply_filters( 'bricks/pagination/custom_logic', false, $query_settings, $this );
 
-			$query_obj = new Query(
-				[
-					'id'       => $query_element_id,
-					'settings' => $element_settings,
-				]
-			);
+			if ( ! $custom_logic ) {
+				// STEP: Ensure query_id is updated after the component logic, will be using in set_ajax_attributes() (@since 1.12.2)
+				$query_id = $query_element_id;
 
-			// Support pagination for post, user and term query object type
-			if ( ! in_array( $query_obj->object_type, [ 'post','user','term', 'api' ] ) ) {
-				return $this->render_element_placeholder(
+				$query_obj = new Query(
 					[
-						'title' => esc_html__( 'This query type doesn\'t support pagination.', 'bricks' ),
+						'id'       => $settings['queryId'],
+						'settings' => $query_settings,
 					]
 				);
+
+				// Support pagination for post, user and term query object type (@since 1.9.1)
+				if ( ! in_array( $query_obj->object_type, [ 'post','user','term', 'api', 'array' ] ) ) {
+					return $this->render_element_placeholder(
+						[
+							'title' => esc_html__( 'This query type doesn\'t support pagination.', 'bricks' ),
+						]
+					);
+				}
+
+				// Use Bricks query object to get the current page and total pages as global $wp_query might be changed and inconsistent (#86bwqwa31)
+				$current_page = isset( $query_obj->query_vars['paged'] ) ? max( 1, $query_obj->query_vars['paged'] ) : 1;
+				$total_pages  = $query_obj->max_num_pages;
+
+				// Destroy query to explicitly remove it from the global store
+				$query_obj->destroy();
+				unset( $query_obj );
 			}
-
-			// Use Bricks query object to get the current page and total pages as global $wp_query might be changed and inconsistent (#86bwqwa31)
-			$current_page = isset( $query_obj->query_vars['paged'] ) ? max( 1, $query_obj->query_vars['paged'] ) : 1;
-			$total_pages  = $query_obj->max_num_pages;
-
-			// Destroy query to explicitly remove it from the global store
-			$query_obj->destroy();
-			unset( $query_obj );
 		}
 
 		// Handle main query setting in Bricks API endpoints (@since 2.0)
@@ -307,6 +314,13 @@ class Pagination extends Element {
 			$current_page = max( 1, $wp_query->get( 'paged', 1 ) );
 			$total_pages  = $wp_query->max_num_pages;
 		}
+
+		/**
+		 * https://academy.bricksbuilder.io/article/filter-bricks-pagination-current_page/ (@since 2.2)
+		 * https://academy.bricksbuilder.io/article/filter-bricks-pagination-total_pages/ (@since 2.2)
+		 */
+		$current_page = apply_filters( 'bricks/pagination/current_page', $current_page, $query_settings, $this );
+		$total_pages  = apply_filters( 'bricks/pagination/total_pages', $total_pages, $query_settings, $this );
 
 		// Return: Less than two pages (@since 1.9.1)
 		if ( $total_pages <= 1 && ( bricks_is_builder_call() || bricks_is_builder() ) ) {
@@ -411,5 +425,27 @@ class Pagination extends Element {
 
 			$this->set_attribute( '_root', 'data-brx-filter', wp_json_encode( $filter_settings ) );
 		}
+	}
+
+	/**
+	 * Get default current page
+	 * Similar to get_paged_query_var()
+	 *
+	 * @return int
+	 */
+	private function get_default_current_page() {
+		$current_page = 1;
+
+		if ( Helpers::get_ajax_current_page() ) {
+			$current_page = Helpers::get_ajax_current_page();
+		} elseif ( get_query_var( 'page' ) ) {
+			$current_page = get_query_var( 'page' );
+		} elseif ( get_query_var( 'paged' ) ) {
+			$current_page = get_query_var( 'paged' );
+		} else {
+			$current_page = 1;
+		}
+
+		return $current_page;
 	}
 }

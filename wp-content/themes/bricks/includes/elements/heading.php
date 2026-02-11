@@ -194,9 +194,9 @@ class Element_Heading extends Element {
 			'inline'    => true,
 			'css'       => [
 				[
-					'property'  => 'align-items',
-					'selector'  => '&.has-separator',
-					'important' => true,
+					'property' => 'align-items',
+					'selector' => '&.has-separator',
+					// 'important' => true, // Not needed, as we use Cascade Layers and default style has :where() applied (@since 2.2 #86c3p8f91)
 				],
 			],
 		];

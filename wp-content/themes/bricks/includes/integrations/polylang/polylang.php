@@ -65,6 +65,90 @@ class Polylang {
 		add_action( 'bricks/render_query_result/start', [ $this, 'switch_locale' ] );
 		add_action( 'bricks/render_query_page/start', [ $this, 'switch_locale' ] );
 		add_action( 'bricks/render_popup_content/start', [ $this, 'switch_locale' ] );
+
+		// Register global settings strings (@since 2.2)
+		add_action( 'update_option_' . BRICKS_DB_GLOBAL_SETTINGS, [ $this, 'register_global_settings_strings' ], 10, 2 );
+
+		// Translate global settings strings
+		add_filter( 'bricks/user_activation_email/from_name', [ $this, 'translate_global_settings_string' ] );
+		add_filter( 'bricks/user_activation_email/subject', [ $this, 'translate_global_settings_string' ] );
+		add_filter( 'bricks/user_activation_email/content', [ $this, 'translate_global_settings_string' ] );
+
+		/**
+		 * Component translation support using Polylang String Translation
+		 *
+		 * @since 2.2
+		 */
+		if ( is_admin() ) {
+			// Register strings (components, global settings) only on relevant admin pages (Polylang requirement)
+			add_action( 'admin_init', [ $this, 'maybe_register_strings' ] );
+		}
+	}
+
+	/**
+	 * Register global settings strings for translation
+	 *
+	 * @param mixed $old_value The old option value.
+	 * @param mixed $value     The new option value.
+	 *
+	 * @since 2.2
+	 */
+	public function register_global_settings_strings( $old_value, $value ) {
+		if ( ! is_array( $value ) || empty( $value ) || ! function_exists( 'pll_register_string' ) ) {
+			return;
+		}
+
+		$strings = [
+			'userActivationLinkEmailFromName' => false,
+			'userActivationLinkEmailSubject'  => false,
+			'userActivationLinkEmailContent'  => true,
+		];
+
+		foreach ( $strings as $key => $is_multiline ) {
+			if ( ! empty( $value[ $key ] ) ) {
+				// Use the key as the name for simplicity and consistency
+				pll_register_string( $key, $value[ $key ], 'Bricks global settings', $is_multiline );
+			}
+		}
+	}
+
+	/**
+	 * Register global settings strings from database
+	 *
+	 * @since 2.2
+	 */
+	private function register_global_settings_strings_from_db() {
+		$settings = get_option( BRICKS_DB_GLOBAL_SETTINGS, [] );
+		$this->register_global_settings_strings( null, $settings );
+	}
+
+	/**
+	 * Translate global settings string
+	 *
+	 * @param string $value
+	 * @return string
+	 */
+	public function translate_global_settings_string( $value ) {
+		if ( ! function_exists( 'pll__' ) || ! function_exists( 'pll_translate_string' ) ) {
+			return $value;
+		}
+
+		// Check if we are in the context of a REST API request or AJAX request where the language might be set via query var
+		$lang = self::get_current_language();
+
+		if ( $lang ) {
+			return pll_translate_string( $value, $lang );
+		}
+
+		// Fallback: If locale is switched via switch_to_locale() in init.php, try to get language from that
+		$current_locale = get_locale();
+		$poly_lang      = \PLL()->model->get_language( $current_locale );
+
+		if ( $poly_lang && isset( $poly_lang->slug ) ) {
+			return pll_translate_string( $value, $poly_lang->slug );
+		}
+
+		return pll__( $value );
 	}
 
 	/**
@@ -515,5 +599,575 @@ class Polylang {
 		$args['post_id'] = \Bricks\Maintenance::get_original_post_id() ?? $args['post_id'];
 
 		return $args;
+	}
+
+	/**
+	 * Maybe register strings (components, global settings) - only on relevant admin pages
+	 *
+	 * Only runs on:
+	 * - Polylang strings admin page (admin.php?page=mlang_strings)
+	 *
+	 * @since 2.2
+	 */
+	public function maybe_register_strings() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Just checking admin page context, not processing form data
+		$current_page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
+
+		// Only register on Polylang strings page
+		$allowed_pages = [ 'mlang_strings' ];
+
+		if ( ! in_array( $current_page, $allowed_pages, true ) ) {
+			return;
+		}
+
+		$this->register_components_strings();
+		$this->register_global_settings_strings_from_db();
+	}
+
+	/**
+	 * Register component strings for translation
+	 *
+	 * Polylang requires strings to be registered on admin side.
+	 *
+	 * @since 2.2
+	 */
+	private function register_components_strings() {
+		if ( ! function_exists( 'pll_register_string' ) ) {
+			return;
+		}
+
+		// Get components from database
+		$components = get_option( BRICKS_DB_COMPONENTS, [] );
+
+		if ( ! is_array( $components ) || empty( $components ) ) {
+			return;
+		}
+
+		// Register each component's translatable strings
+		foreach ( $components as $component ) {
+			if ( ! isset( $component['id'] ) ) {
+				continue;
+			}
+
+			$component_id = $component['id'];
+
+			// Context for all strings in this component
+			$context = "bricks-component-$component_id";
+
+			// Process component elements if they exist
+			if ( isset( $component['elements'] ) && is_array( $component['elements'] ) ) {
+				// Build the elements tree and traverse it
+				$elements_tree = \Bricks\Helpers::build_elements_tree( $component['elements'] );
+				$this->traverse_elements_tree( $elements_tree, $context );
+			}
+
+			// Process component properties defaults if they exist
+			if ( isset( $component['properties'] ) && is_array( $component['properties'] ) ) {
+				$this->process_component_properties_defaults( $component['properties'], $context );
+			}
+		}
+	}
+
+	/**
+	 * Traverse the tree and process each element in a depth-first manner.
+	 *
+	 * @param array  $elements
+	 * @param string $context Polylang context string.
+	 *
+	 * @since 2.2
+	 */
+	private function traverse_elements_tree( $elements, $context ) {
+		if ( ! is_array( $elements ) ) {
+			\Bricks\Helpers::maybe_log( 'Bricks: Invalid elements provided to traverse_elements_tree' );
+			return;
+		}
+
+		foreach ( $elements as $element ) {
+			if ( ! isset( $element['id'] ) ) {
+				\Bricks\Helpers::maybe_log( 'Bricks: Invalid element encountered during traversal: missing ID' );
+				continue;
+			}
+
+			// Process the current element
+			$this->process_element( $element, $context );
+
+			// Recursively process children
+			if ( ! empty( $element['children'] ) && is_array( $element['children'] ) ) {
+				$this->traverse_elements_tree( $element['children'], $context );
+			}
+		}
+	}
+
+	/**
+	 * Process an element and register its translatable strings
+	 *
+	 * @param array  $element
+	 * @param string $context Polylang context string.
+	 *
+	 * @since 2.2
+	 */
+	private function process_element( $element, $context ) {
+		$element_name     = ! empty( $element['name'] ) ? $element['name'] : false;
+		$element_settings = ! empty( $element['settings'] ) ? $element['settings'] : false;
+		$element_config   = Elements::get_element( [ 'name' => $element_name ] );
+		$element_controls = ! empty( $element_config['controls'] ) ? $element_config['controls'] : false;
+
+		// Handle component properties (@since 2.2)
+		if ( isset( $element['cid'] ) && isset( $element['properties'] ) && is_array( $element['properties'] ) ) {
+			$this->process_component_properties( $element, $context );
+		}
+
+		if ( ! $element_settings || ! $element_name || ! is_array( $element_controls ) ) {
+			return;
+		}
+
+		$translatable_control_types = [ 'text', 'textarea', 'editor', 'repeater', 'link' ];
+
+		// Loop over element controls to get translatable settings
+		foreach ( $element_controls as $key => $control ) {
+			$this->process_control( $key, $control, $element_settings, $element, $translatable_control_types, $context );
+		}
+	}
+
+	/**
+	 * Process component properties for translation
+	 *
+	 * @param array  $element The element containing component properties.
+	 * @param string $context Polylang context string.
+	 *
+	 * @since 2.2
+	 */
+	private function process_component_properties( $element, $context ) {
+		if ( ! isset( $element['id'] ) || ! isset( $element['cid'] ) || ! isset( $element['properties'] ) ) {
+			return;
+		}
+
+		$element_id = $element['id'];
+		$properties = $element['properties'];
+
+		foreach ( $properties as $property_key => $property_value ) {
+			// Handle direct text/HTML strings (text & textarea properties)
+			if ( is_string( $property_value ) && ! empty( $property_value ) ) {
+				$string_name = "{$element_id}_prop_{$property_key}";
+				$this->register_polylang_string( $property_value, $string_name, $context );
+			}
+
+			// Handle objects with URLs (link property)
+			elseif ( is_array( $property_value ) ) {
+				// Handle link-type properties
+				if ( isset( $property_value['url'] ) && is_string( $property_value['url'] ) && ! empty( $property_value['url'] ) ) {
+					$string_name = "{$element_id}_prop_{$property_key}_url";
+					$this->register_polylang_string( $property_value['url'], $string_name, $context );
+				}
+
+				// Handle image galleries or image properties
+				if ( isset( $property_value['images'] ) && is_array( $property_value['images'] ) ) {
+					foreach ( $property_value['images'] as $index => $image ) {
+						if ( isset( $image['url'] ) && is_string( $image['url'] ) && ! empty( $image['url'] ) ) {
+							$string_name = "{$element_id}_prop_{$property_key}_image_{$index}_url";
+							$this->register_polylang_string( $image['url'], $string_name, $context );
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Process a control and register its translatable strings
+	 *
+	 * @param string $key
+	 * @param array  $control
+	 * @param array  $element_settings
+	 * @param array  $element
+	 * @param array  $translatable_control_types
+	 * @param string $context Polylang context string.
+	 *
+	 * @since 2.2
+	 */
+	private function process_control( $key, $control, $element_settings, $element, $translatable_control_types, $context ) {
+		$control_type = ! empty( $control['type'] ) ? $control['type'] : false;
+
+		if ( ! in_array( $control_type, $translatable_control_types ) ) {
+			return;
+		}
+
+		// Exclude certain controls from translation according to their key
+		$exclude_control_from_translation = [ 'customTag', '_gridTemplateColumns', '_gridTemplateRows', '_cssId', 'targetSelector' ];
+
+		if ( in_array( $key, $exclude_control_from_translation ) ) {
+			return;
+		}
+
+		$string_value = ! empty( $element_settings[ $key ] ) ? $element_settings[ $key ] : '';
+
+		if ( $control_type == 'repeater' && isset( $control['fields'] ) ) {
+			$this->process_repeater_control( $key, $control, $element_settings, $element, $translatable_control_types, $context );
+			return;
+		}
+
+		// If control type is link, specifically process the URL
+		if ( $control_type === 'link' && isset( $string_value['url'] ) ) {
+			$string_value = $string_value['url'];
+		}
+
+		if ( ! is_string( $string_value ) || empty( $string_value ) ) {
+			return;
+		}
+
+		$string_name = "{$element['id']}_{$key}";
+		$this->register_polylang_string( $string_value, $string_name, $context );
+	}
+
+	/**
+	 * Process a repeater control and register its translatable strings
+	 *
+	 * @param string $key
+	 * @param array  $control
+	 * @param array  $element_settings
+	 * @param array  $element
+	 * @param array  $translatable_control_types
+	 * @param string $context Polylang context string.
+	 *
+	 * @since 2.2
+	 */
+	private function process_repeater_control( $key, $control, $element_settings, $element, $translatable_control_types, $context ) {
+		$repeater_items = ! empty( $element_settings[ $key ] ) ? $element_settings[ $key ] : [];
+
+		if ( is_array( $repeater_items ) ) {
+			foreach ( $repeater_items as $repeater_index => $repeater_item ) {
+				if ( is_array( $repeater_item ) ) {
+					foreach ( $repeater_item as $repeater_key => $repeater_value ) {
+						// Get the type of this field, check if it's one of the accepted types
+						$repeater_field_type = isset( $control['fields'][ $repeater_key ]['type'] ) ? $control['fields'][ $repeater_key ]['type'] : false;
+						if ( ! in_array( $repeater_field_type, $translatable_control_types ) ) {
+							continue;
+						}
+
+						$string_value = ! empty( $repeater_value ) ? $repeater_value : '';
+
+						// If control type is link, get the URL
+						if ( $repeater_field_type === 'link' && isset( $string_value['url'] ) ) {
+							$string_value = $string_value['url'];
+						}
+
+						if ( ! is_string( $string_value ) || empty( $string_value ) ) {
+							continue;
+						}
+
+						$string_name = "{$element['id']}_{$key}_{$repeater_index}_{$repeater_key}";
+						$this->register_polylang_string( $string_value, $string_name, $context );
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Helper function to register a string for translation in Polylang
+	 *
+	 * @param string $string_value The string value to register.
+	 * @param string $string_name  The unique identifier for the string.
+	 * @param string $context      The context/group for the string.
+	 *
+	 * @since 2.2
+	 */
+	private function register_polylang_string( $string_value, $string_name, $context ) {
+		if ( ! $string_value || ! function_exists( 'pll_register_string' ) ) {
+			return;
+		}
+
+		pll_register_string( $string_name, $string_value, $context, false );
+	}
+
+	/**
+	 * Process component properties default values for translation
+	 *
+	 * @param array  $properties The component properties array.
+	 * @param string $context    Polylang context string.
+	 *
+	 * @since 2.2
+	 */
+	private function process_component_properties_defaults( $properties, $context ) {
+		foreach ( $properties as $property ) {
+			if ( ! isset( $property['id'] ) || ! isset( $property['type'] ) ) {
+				continue;
+			}
+
+			$property_id   = $property['id'];
+			$property_type = $property['type'];
+			$default_value = $property['default'] ?? null;
+
+			if ( ! $default_value ) {
+				continue;
+			}
+
+			switch ( $property_type ) {
+				case 'text':
+					if ( is_string( $default_value ) && ! empty( $default_value ) ) {
+						$string_name = "property_{$property_id}_default";
+						$this->register_polylang_string( $default_value, $string_name, $context );
+					}
+					break;
+
+				case 'editor':
+					if ( is_string( $default_value ) && ! empty( $default_value ) ) {
+						$string_name = "property_{$property_id}_default";
+						$this->register_polylang_string( $default_value, $string_name, $context );
+					}
+					break;
+
+				case 'image':
+					if ( is_array( $default_value ) && isset( $default_value['url'] ) && ! empty( $default_value['url'] ) ) {
+						$string_name = "property_{$property_id}_default_url";
+						$this->register_polylang_string( $default_value['url'], $string_name, $context );
+					}
+					break;
+
+				case 'image-gallery':
+					if ( is_array( $default_value ) && isset( $default_value['images'] ) && is_array( $default_value['images'] ) ) {
+						foreach ( $default_value['images'] as $index => $image ) {
+							if ( isset( $image['url'] ) && ! empty( $image['url'] ) ) {
+								$string_name = "property_{$property_id}_default_image_{$index}_url";
+								$this->register_polylang_string( $image['url'], $string_name, $context );
+							}
+						}
+					}
+					break;
+
+				case 'link':
+					if ( is_array( $default_value ) && isset( $default_value['type'] ) && $default_value['type'] === 'external' && isset( $default_value['url'] ) && ! empty( $default_value['url'] ) ) {
+						$string_name = "property_{$property_id}_default_url";
+						$this->register_polylang_string( $default_value['url'], $string_name, $context );
+					}
+					break;
+
+				case 'select':
+					if ( isset( $property['options'] ) && is_array( $property['options'] ) ) {
+						foreach ( $property['options'] as $option_index => $option ) {
+							if ( isset( $option['label'] ) && ! empty( $option['label'] ) ) {
+								$string_name = "property_{$property_id}_option_{$option_index}_label";
+								$this->register_polylang_string( $option['label'], $string_name, $context );
+							}
+							if ( isset( $option['value'] ) && ! empty( $option['value'] ) ) {
+								$string_name = "property_{$property_id}_option_{$option_index}_value";
+								$this->register_polylang_string( $option['value'], $string_name, $context );
+							}
+						}
+					}
+					break;
+			}
+		}
+	}
+
+	/**
+	 * Translate a component on-the-fly using Polylang string translations
+	 *
+	 * @param array $component The component to translate.
+	 * @return array The component with translated strings.
+	 *
+	 * @since 2.2
+	 */
+	public static function get_translated_component( $component ) {
+		$current_language = self::get_current_language();
+		$default_language = function_exists( 'pll_default_language' ) ? pll_default_language( 'slug' ) : null;
+
+		// Return original if current language is default or not set
+		if ( ! $current_language || $current_language === $default_language || ! function_exists( 'pll_translate_string' ) ) {
+			return $component;
+		}
+
+		// Each component has its own context based on ID
+		if ( ! isset( $component['id'] ) ) {
+			return $component;
+		}
+
+		$translated_component = $component;
+
+		// Translate component elements if they exist
+		if ( isset( $component['elements'] ) && is_array( $component['elements'] ) ) {
+			$translated_component['elements'] = self::get_translated_elements( $component['elements'], $current_language );
+		}
+
+		// Translate component properties defaults if they exist
+		if ( isset( $component['properties'] ) && is_array( $component['properties'] ) ) {
+			$translated_component['properties'] = self::get_translated_component_properties( $component['properties'], $current_language );
+		}
+
+		return $translated_component;
+	}
+
+	/**
+	 * Translate component elements on-the-fly
+	 *
+	 * @param array  $elements The elements to translate.
+	 * @param string $lang     The target language code.
+	 * @return array The translated elements.
+	 *
+	 * @since 2.2
+	 */
+	private static function get_translated_elements( $elements, $lang ) {
+		if ( ! is_array( $elements ) ) {
+			return $elements;
+		}
+
+		foreach ( $elements as &$element ) {
+			if ( ! isset( $element['id'] ) ) {
+				continue;
+			}
+
+			// Translate element settings
+			if ( isset( $element['settings'] ) && is_array( $element['settings'] ) ) {
+				foreach ( $element['settings'] as $setting_key => $setting_value ) {
+					if ( is_string( $setting_value ) && ! empty( $setting_value ) ) {
+						$translated_value = pll_translate_string( $setting_value, $lang );
+
+						if ( $translated_value !== $setting_value ) {
+							$element['settings'][ $setting_key ] = $translated_value;
+						}
+					}
+					// Handle link settings (URL translation)
+					elseif ( is_array( $setting_value ) && isset( $setting_value['url'] ) && ! empty( $setting_value['url'] ) ) {
+						$translated_url = pll_translate_string( $setting_value['url'], $lang );
+
+						if ( $translated_url !== $setting_value['url'] ) {
+							$element['settings'][ $setting_key ]['url'] = $translated_url;
+						}
+					}
+					// Handle repeater settings
+					elseif ( is_array( $setting_value ) ) {
+						foreach ( $setting_value as $repeater_index => $repeater_item ) {
+							if ( is_array( $repeater_item ) ) {
+								foreach ( $repeater_item as $repeater_key => $repeater_value ) {
+									if ( is_string( $repeater_value ) && ! empty( $repeater_value ) ) {
+										$translated_value = pll_translate_string( $repeater_value, $lang );
+										if ( $translated_value !== $repeater_value ) {
+											$element['settings'][ $setting_key ][ $repeater_index ][ $repeater_key ] = $translated_value;
+										}
+									}
+									// Handle link in repeater
+									elseif ( is_array( $repeater_value ) && isset( $repeater_value['url'] ) && ! empty( $repeater_value['url'] ) ) {
+										$translated_url = pll_translate_string( $repeater_value['url'], $lang );
+										if ( $translated_url !== $repeater_value['url'] ) {
+											$element['settings'][ $setting_key ][ $repeater_index ][ $repeater_key ]['url'] = $translated_url;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Handle component properties (for component instances)
+			if ( isset( $element['properties'] ) && is_array( $element['properties'] ) ) {
+				foreach ( $element['properties'] as $property_key => $property_value ) {
+					if ( is_string( $property_value ) && ! empty( $property_value ) ) {
+						$translated_value = pll_translate_string( $property_value, $lang );
+						if ( $translated_value !== $property_value ) {
+							$element['properties'][ $property_key ] = $translated_value;
+						}
+					}
+					// Handle link-type properties
+					elseif ( is_array( $property_value ) && isset( $property_value['url'] ) && ! empty( $property_value['url'] ) ) {
+						$translated_url = pll_translate_string( $property_value['url'], $lang );
+						if ( $translated_url !== $property_value['url'] ) {
+							$element['properties'][ $property_key ]['url'] = $translated_url;
+						}
+					}
+				}
+			}
+
+			// Recursively translate children
+			if ( isset( $element['children'] ) && is_array( $element['children'] ) ) {
+				$element['children'] = self::get_translated_elements( $element['children'], $lang );
+			}
+		}
+
+		return $elements;
+	}
+
+	/**
+	 * Translate component properties defaults on-the-fly
+	 *
+	 * @param array  $properties The properties to translate.
+	 * @param string $lang       The target language code.
+	 * @return array The translated properties.
+	 *
+	 * @since 2.2
+	 */
+	private static function get_translated_component_properties( $properties, $lang ) {
+		if ( ! is_array( $properties ) ) {
+			return $properties;
+		}
+
+		foreach ( $properties as &$property ) {
+			if ( ! isset( $property['id'] ) || ! isset( $property['type'] ) ) {
+				continue;
+			}
+
+			$property_id   = $property['id'];
+			$property_type = $property['type'];
+			$default_value = $property['default'] ?? null;
+
+			if ( ! $default_value ) {
+				continue;
+			}
+
+			switch ( $property_type ) {
+				case 'text':
+				case 'editor':
+					if ( is_string( $default_value ) && ! empty( $default_value ) ) {
+						$translated_value = pll_translate_string( $default_value, $lang );
+						if ( $translated_value !== $default_value ) {
+							$property['default'] = $translated_value;
+						}
+					}
+					break;
+
+				case 'image':
+					if ( is_array( $default_value ) && isset( $default_value['url'] ) && ! empty( $default_value['url'] ) ) {
+						$translated_url = pll_translate_string( $default_value['url'], $lang );
+						if ( $translated_url !== $default_value['url'] ) {
+							$property['default']['url'] = $translated_url;
+						}
+					}
+					break;
+
+				case 'link':
+					if ( is_array( $default_value ) && isset( $default_value['url'] ) && ! empty( $default_value['url'] ) ) {
+						$translated_url = pll_translate_string( $default_value['url'], $lang );
+						if ( $translated_url !== $default_value['url'] ) {
+							$property['default']['url'] = $translated_url;
+						}
+					}
+					break;
+
+				case 'select':
+					if ( isset( $property['options'] ) && is_array( $property['options'] ) ) {
+						foreach ( $property['options'] as $option_index => $option ) {
+							if ( isset( $option['label'] ) && ! empty( $option['label'] ) ) {
+								$translated_label = pll_translate_string( $option['label'], $lang );
+								if ( $translated_label !== $option['label'] ) {
+									$property['options'][ $option_index ]['label'] = $translated_label;
+								}
+							}
+							if ( isset( $option['value'] ) && ! empty( $option['value'] ) ) {
+								$translated_value = pll_translate_string( $option['value'], $lang );
+								if ( $translated_value !== $option['value'] ) {
+									$property['options'][ $option_index ]['value'] = $translated_value;
+								}
+							}
+						}
+					}
+					break;
+			}
+		}
+
+		return $properties;
 	}
 }

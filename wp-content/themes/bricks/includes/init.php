@@ -189,6 +189,9 @@ class Theme {
 
 		// Include Query API class (@since 2.1)
 		require_once BRICKS_PATH . 'includes/integrations/query/query-api.php';
+
+		// Include Query Array class (@since 2.2)
+		require_once BRICKS_PATH . 'includes/integrations/query/query-array.php';
 	}
 
 	/**

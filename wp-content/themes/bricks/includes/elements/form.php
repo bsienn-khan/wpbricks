@@ -417,7 +417,7 @@ class Element_Form extends Element {
 					'label'    => esc_html__( 'Error message', 'bricks' ),
 					'type'     => 'text',
 					'info'     => esc_html__( 'On input, blur and submit', 'bricks' ),
-					'required' => [ 'type', '!=', [ 'hidden', 'radio', 'checkbox', 'select', 'file', 'datepicker' ] ],
+					'required' => [ 'type', '!=', [ 'hidden', 'html', 'rememberme', 'select' ] ],
 				],
 
 				'fileUploadSeparator'        => [
@@ -540,7 +540,7 @@ class Element_Form extends Element {
 						],
 					],
 					'required'    => [
-						[ 'type', '!=', [ 'hidden', 'richtext' ] ],
+						[ 'type', '!=', [ 'hidden' ] ],
 					],
 				],
 
@@ -553,7 +553,7 @@ class Element_Form extends Element {
 							'property' => 'height',
 						],
 					],
-					'required' => [ 'type', '=', [ 'textarea' ] ],
+					'required' => [ 'type', '=', [ 'textarea', 'richtext' ] ],
 				],
 
 				// Added 'resize' option to textarea (@since 1.11)
@@ -796,6 +796,14 @@ class Element_Form extends Element {
 			'type'  => 'checkbox',
 		];
 
+		$this->controls['disableRequiredAsteriskInPlaceholder'] = [
+			'tab'      => 'content',
+			'group'    => 'fields',
+			'label'    => esc_html__( 'Disable required asterisk in placeholder', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'requiredAsterisk', '!=', '' ],
+		];
+
 		$this->controls['showLabels'] = [
 			'tab'   => 'content',
 			'group' => 'fields',
@@ -851,6 +859,25 @@ class Element_Form extends Element {
 				'blur'  => esc_html__( 'On blur', 'bricks' ),
 			],
 			'description' => esc_html__( 'By default, form fields are validated on input, blur and submit.', 'bricks' ),
+		];
+
+		// Don't use browser validation (on submit) (@since 2.2)
+		$this->controls['disableBrowserValidation'] = [
+			'tab'         => 'content',
+			'group'       => 'fields',
+			'label'       => esc_html__( 'Don\'t use browser validation', 'bricks' ),
+			'type'        => 'checkbox',
+			'description' => esc_html__( 'Adds the "novalidate" attribute to prevent browser validation and use custom validation instead.', 'bricks' ),
+		];
+
+		// Validate all fields on submit, and show error messages for all invalid fields (@since 2.2)
+		$this->controls['validateAllFieldsOnSubmit'] = [
+			'tab'         => 'content',
+			'group'       => 'fields',
+			'label'       => esc_html__( 'Validate all fields on submit', 'bricks' ),
+			'type'        => 'checkbox',
+			'description' => esc_html__( 'Show error messages for all invalid fields on form submission, not just the first invalid field.', 'bricks' ),
+			'required'    => [ 'disableBrowserValidation', '=', true ],
 		];
 
 		/**
@@ -936,7 +963,7 @@ class Element_Form extends Element {
 				// Use padding (as margin results in line-breaks)
 				[
 					'property' => 'padding',
-					'selector' => '.form-group:not(:last-child):not(.captcha)',
+					'selector' => '.form-group:not(.submit-button-wrapper):not(.message):not(.captcha)', // Updated selector to exclude specific fields (@since 2.2)
 				],
 			],
 		];
@@ -1371,7 +1398,8 @@ class Element_Form extends Element {
 					'type'           => 'code',
 					'hasDynamicData' => true,
 					'description'    => esc_html__( 'Customize how the data is structured. Leave empty to send all form fields.', 'bricks' ) . ' ' .
-								esc_html__( 'Example: {"name": "{{43f295}}", "email": "{{a5c626}}"}', 'bricks' ),
+								esc_html__( 'Example: {"name": "{{43f295}}", "email": "{{a5c626}}"}', 'bricks' ) . '<br>' .
+								esc_html__( 'Files: {{field_id:name|type|size|id|url}}', 'bricks' ),
 				],
 				'headers'      => [
 					'label'          => esc_html__( 'Headers', 'bricks' ),
@@ -2302,8 +2330,9 @@ class Element_Form extends Element {
 			'type'        => 'select',
 			'inline'      => true,
 			'options'     => [
-				'normal'  => esc_html__( 'Normal', 'bricks' ),
-				'compact' => esc_html__( 'Compact', 'bricks' ),
+				'normal'   => esc_html__( 'Normal', 'bricks' ),
+				'compact'  => esc_html__( 'Compact', 'bricks' ),
+				'flexible' => esc_html__( 'Flexible', 'bricks' ),
 			],
 			'placeholder' => esc_html__( 'Normal', 'bricks' ),
 			'required'    => [ 'enableTurnstile', '=', true ],
@@ -2321,6 +2350,14 @@ class Element_Form extends Element {
 			],
 			'placeholder' => esc_html__( 'Auto', 'bricks' ),
 			'required'    => [ 'enableTurnstile', '=', true ],
+		];
+
+		$this->controls['turnstileLabel'] = [
+			'tab'      => 'content',
+			'group'    => 'spam',
+			'label'    => 'Turnstile: ' . esc_html__( 'Label', 'bricks' ),
+			'type'     => 'text',
+			'required' => [ 'enableTurnstile', '=', true ],
 		];
 
 		// hCaptcha
@@ -2541,7 +2578,6 @@ class Element_Form extends Element {
 		$update_post_excerpt        = $settings['updatePostExcerpt'] ?? null;
 		$update_post_content        = $settings['updatePostContent'] ?? null;
 		$update_post_featured_image = $settings['updatePostFeaturedImage'] ?? null;
-		$current_term_ids           = [];
 
 		// Check: Update current post (@since 2.1)
 		if ( ! $update_post_id && in_array( 'update-post', $actions ) ) {
@@ -2628,12 +2664,25 @@ class Element_Form extends Element {
 			$this->set_attribute( '_root', 'data-validation-disabled-on', wp_json_encode( $settings['disableFormValidationOn'] ) );
 		}
 
+		// Add novalidate attribute to prevent browser validation (@since 2.2)
+		if ( isset( $settings['disableBrowserValidation'] ) ) {
+			$this->set_attribute( '_root', 'novalidate' );
+		}
+
+		// Add validate all fields on submit flag (@since 2.2)
+		if ( isset( $settings['validateAllFieldsOnSubmit'] ) && isset( $settings['disableBrowserValidation'] ) ) {
+			$this->set_attribute( '_root', 'data-validate-all-fields', 'true' );
+		}
+
 		// Use form element ID to get element settings in form submit logic
 		$this->set_attribute( '_root', 'data-element-id', $this->id );
 
 		// Add component ID for easier data retrieve in form submission (@since 2.1)
-		if ( ! empty( $this->element['cid'] ) ) {
-			$this->set_attribute( '_root', 'data-component-id', $this->element['cid'] );
+		// Check both when form IS a component (has 'cid') and when form is INSIDE a component (has 'instanceId')
+		$component_instance_id = $this->element['cid'] ?? $this->element['instanceId'] ?? false;
+
+		if ( $component_instance_id ) {
+			$this->set_attribute( '_root', 'data-component-id', $component_instance_id );
 		}
 
 		// Form inside loop: Store the loop object ID, so we can use it in the form submit logic (@since 1.11)
@@ -2655,6 +2704,11 @@ class Element_Form extends Element {
 		$global_element_id = Helpers::get_global_element( $this->element, 'global' );
 		if ( $global_element_id ) {
 			$this->set_attribute( '_root', 'data-global-id', $global_element_id );
+		}
+
+		// Pass current language to the form submit handler to switch language in AJAX request (@since 2.2)
+		if ( \Bricks\Integrations\Polylang\Polylang::$is_active || \Bricks\Integrations\Wpml\Wpml::$is_active ) {
+			$this->set_attribute( '_root', 'data-lang', get_locale() );
 		}
 
 		$this->set_attribute( 'enctype', 'method', 'multipart/form-data' );
@@ -2884,8 +2938,14 @@ class Element_Form extends Element {
 				$error_message = esc_attr( $field['errorMessage'] );
 
 				// Add error message attribute if field has validation rules
-				if ( isset( $field['required'] ) || isset( $field['min'] ) || isset( $field['max'] ) || $field['type'] === 'email' || $field['type'] === 'url' ) {
+				// Supports: text, textarea, number, email, url, radio, file, datepicker
+				if ( isset( $field['required'] ) || isset( $field['min'] ) || isset( $field['max'] ) || $field['type'] === 'email' || $field['type'] === 'url' || $field['type'] === 'radio' || $field['type'] === 'file' || $field['type'] === 'datepicker' ) {
 					$this->set_attribute( "field-$index", 'data-error-message', $error_message );
+				}
+
+				// For "radio" and "checkbox", we need to add the attribute to the wrapper (@since 2.2)
+				if ( $field['type'] === 'radio' || $field['type'] === 'checkbox' ) {
+					$this->set_attribute( "field-wrapper-$index", 'data-error-message', $error_message );
 				}
 			}
 
@@ -2954,7 +3014,7 @@ class Element_Form extends Element {
 			// Placeholder
 			if ( in_array( $field['type'], $placeholder_support ) ) {
 				if ( isset( $field['placeholder'] ) ) {
-					if ( isset( $settings['requiredAsterisk'] ) && isset( $field['required'] ) ) {
+					if ( isset( $settings['requiredAsterisk'] ) && isset( $field['required'] ) && ! isset( $settings['disableRequiredAsteriskInPlaceholder'] ) ) {
 						$field['placeholder'] = $field['placeholder'] . ' *';
 					}
 
@@ -3024,6 +3084,9 @@ class Element_Form extends Element {
 
 		$this->set_attribute( 'submit-button', 'class', $submit_button_classes );
 
+		// Get taxonomy information for "update/create post" action (@since 2.2)
+		$taxonomy_data = $this->get_taxonomy_data( $update_post_taxonomies, $update_post_id );
+
 		// STEP: Render
 		?>
 		<form <?php echo $this->render_attributes( '_root' ); ?>>
@@ -3034,7 +3097,8 @@ class Element_Form extends Element {
 			}
 
 			foreach ( $fields as $index => $field ) {
-				$field_value = isset( $field['value'] ) ? $this->render_dynamic_data( $field['value'] ) : '';
+				$current_term_ids = []; // Reset current term IDs for each field (#86c79vkfb; @since 2.2)
+				$field_value      = isset( $field['value'] ) ? $this->render_dynamic_data( $field['value'] ) : '';
 
 				/**
 				 * Action: Update post
@@ -3111,36 +3175,14 @@ class Element_Form extends Element {
 				 * Post taxonomies
 				 *
 				 * Field types: checkbox, radio, select
+				 * Taxonomy data handled in get_taxonomy_data() before looping each field (#86c79vkfb; @since 2.2)
 				 *
 				 * @since 2.1
 				 */
-				if ( $update_post_taxonomies && empty( $field['options'] ) ) {
-					// Populate $select_options with terms
-					$field['options'] = [];
-
-					foreach ( $update_post_taxonomies as $taxonomy ) {
-						if ( ! empty( $taxonomy['taxonomy'] ) && ! empty( $taxonomy['fieldId'] ) && $taxonomy['fieldId'] === $field['id'] ) {
-							$terms = get_terms(
-								[
-									'taxonomy'   => $taxonomy['taxonomy'],
-									'hide_empty' => false,
-								]
-							);
-
-							if ( ! is_wp_error( $terms ) && ! empty( $terms ) && is_array( $terms ) ) {
-								foreach ( $terms as $term ) {
-									$field['options'][] = "$term->term_id:{$term->name}";
-								}
-							}
-
-							$current_terms    = wp_get_post_terms( $update_post_id, $taxonomy['taxonomy'] );
-							$current_term_ids = wp_list_pluck( $current_terms, 'term_id' );
-						}
-					}
-
-					// Convert array to string value, separated by new line
-					$field['options'] = implode( "\n", $field['options'] );
-
+				if ( $update_post_taxonomies && empty( $field['options'] ) && ! empty( $taxonomy_data ) && isset( $taxonomy_data[ $field['id'] ] ) ) {
+					$tax_data                   = $taxonomy_data[ $field['id'] ];
+					$current_term_ids           = $tax_data['current_term_ids'];
+					$field['options']           = $tax_data['options'];
 					$field['valueLabelOptions'] = true;
 				}
 
@@ -3150,7 +3192,8 @@ class Element_Form extends Element {
 				 * @since 2.1
 				 */
 				if ( ( $create_post_type || $update_post_id ) && in_array( $field['type'], [ 'select', 'checkbox', 'radio' ] ) && empty( $field['options'] ) ) {
-					$meta_key = '';
+					$meta_key       = '';
+					$select_options = []; // Reset select options (#86c75jawt; @since 2.2)
 
 					// Get metaKey from $update_post_meta array by checking against field['id]
 					foreach ( $update_post_meta as $post_meta ) {
@@ -3233,12 +3276,33 @@ class Element_Form extends Element {
 
 					// Get images from post meta
 					if ( $update_post_id && $post_meta_key ) {
-						$field_value = get_post_meta( $update_post_id, $post_meta_key, true );
+						$field_value = get_post_meta( $update_post_id, $post_meta_key, false ); // Get as array (@since 2.2)
 						if ( ! empty( $field_value ) ) {
-							if ( is_array( $field_value ) ) {
+
+							// Multiple values stored separately in DB (e.g., Meta Box image_advanced) (@since 2.2)
+							if ( count( $field_value ) > 1 ) {
 								$image_ids = array_map( 'intval', $field_value );
-							} elseif ( is_string( $field_value ) ) {
-								$image_ids = array_map( 'intval', explode( ',', $field_value ) );
+							}
+							// Single value - check format and convert to array (@since 2.2)
+							else {
+									$first_value = $field_value[0];
+
+									// ACF gallery stores as array: [1,2,3]
+								if ( is_array( $first_value ) ) {
+										$image_ids = array_map( 'intval', $first_value );
+								}
+									// Comma-separated string: "1,2,3"
+								elseif ( is_string( $first_value ) && strpos( $first_value, ',' ) !== false ) {
+										$image_ids = array_map( 'intval', explode( ',', $first_value ) );
+								}
+									// Single numeric value
+								elseif ( is_numeric( $first_value ) ) {
+										$image_ids = [ intval( $first_value ) ];
+								}
+									// Invalid or empty value
+								else {
+										$image_ids = [];
+								}
 							}
 
 							$this->set_attribute( "field-$index", 'value', implode( ',', $image_ids ) );
@@ -3292,8 +3356,11 @@ class Element_Form extends Element {
 							}
 						}
 
-						$field_value = get_post_meta( $update_post_id ?? get_the_ID(), $post_meta_key, true );
-						$image_id    = ! empty( $field_value ) ? intval( $field_value ) : 0;
+						// Only proceed if postmeta key is set, otherwise the "value" for image is wrong (@since 2.2)
+						if ( $post_meta_key ) {
+							$field_value = get_post_meta( $update_post_id ?? get_the_ID(), $post_meta_key, true );
+							$image_id    = ! empty( $field_value ) ? intval( $field_value ) : 0;
+						}
 
 						if ( $image_id ) {
 							$this->set_attribute( "field-$index", 'value', $image_id );
@@ -3302,9 +3369,7 @@ class Element_Form extends Element {
 
 					// Show image & "remove" button
 					if ( $image_id ) {
-						if ( $image_id ) {
-							$this->set_attribute( "field-$index", 'value', $image_id );
-						}
+						$this->set_attribute( "field-$index", 'value', $image_id );
 
 						$image_tag = wp_get_attachment_image( $image_id, 'thumbnail', false, [ 'data-attachment-id' => $image_id ] );
 					}
@@ -3513,7 +3578,7 @@ class Element_Form extends Element {
 					if ( isset( $field['placeholder'] ) ) {
 						$select_placeholder = $field['placeholder'];
 
-						if ( isset( $settings['requiredAsterisk'] ) && isset( $field['required'] ) ) {
+						if ( isset( $settings['requiredAsterisk'] ) && isset( $field['required'] ) && ! isset( $settings['disableRequiredAsteriskInPlaceholder'] ) ) {
 							$select_placeholder .= ' *';
 						}
 
@@ -3664,7 +3729,7 @@ class Element_Form extends Element {
 			$captcha_html .= $this->generate_turnstile_html();
 
 			// Frontend: Render captcha HTML before submit button
-			if ( $captcha_html && bricks_is_frontend() ) {
+			if ( $captcha_html && bricks_is_frontend() && ! bricks_is_builder_call() ) {
 				echo "<div class=\"form-group captcha\">$captcha_html</div>";
 			}
 			?>
@@ -3829,7 +3894,20 @@ class Element_Form extends Element {
 		$this->set_attribute( 'turnstile', 'data-callback', 'bricksTurnstileCallback' );
 		$this->set_attribute( 'turnstile', 'data-error-callback', 'bricksTurnstileErrorCallback' );
 
-		return "<div {$this->render_attributes( 'turnstile' )}></div>";
+		$html = '';
+
+		// Add label if set for accessibility (#86c75vcz3; @since 2.2)
+		if ( ! empty( $this->settings['turnstileLabel'] ) ) {
+			$label = $this->render_dynamic_data( $this->settings['turnstileLabel'] );
+			if ( ! empty( $label ) ) {
+				$this->set_attribute( 'turnstile', 'aria-describedby', 'turnstile-label-' . esc_attr( $this->id ) );
+				$html .= '<p class="turnstile-label label" id="' . 'turnstile-label-' . esc_attr( $this->id ) . '">' . esc_html( $label ) . '</p>';
+			}
+		}
+
+		$html .= "<div {$this->render_attributes( 'turnstile' )}></div>";
+
+		return $html;
 	}
 
 	/**
@@ -3897,5 +3975,57 @@ class Element_Form extends Element {
 		}
 
 		return $css;
+	}
+
+	/**
+	 * Get taxonomy data for updating post taxonomies
+	 *
+	 * @param array $taxonomy_settings The taxonomy settings from the form
+	 * @param int   $post_id           The post ID to get current terms for
+	 * @return array An array of taxonomy data including field ID, taxonomy, options, and current term IDs
+	 *
+	 * @since 2.2
+	 */
+	public function get_taxonomy_data( $taxonomy_settings, $post_id ) {
+		$taxonomy_data = [];
+
+		if ( empty( $taxonomy_settings ) || ! is_array( $taxonomy_settings ) ) {
+			return $taxonomy_data;
+		}
+
+		foreach ( $taxonomy_settings as $taxonomy ) {
+			if ( ! empty( $taxonomy['taxonomy'] ) && ! empty( $taxonomy['fieldId'] ) ) {
+				$field_id      = $taxonomy['fieldId'];
+				$field_options = [];
+
+				$terms = get_terms(
+					[
+						'taxonomy'   => $taxonomy['taxonomy'],
+						'hide_empty' => false,
+					]
+				);
+
+				if ( ! is_wp_error( $terms ) && ! empty( $terms ) && is_array( $terms ) ) {
+					foreach ( $terms as $term ) {
+						$field_options[] = "$term->term_id:{$term->name}";
+					}
+				}
+
+				if ( $post_id ) {
+					$current_terms    = wp_get_post_terms( $post_id, $taxonomy['taxonomy'] );
+					$current_term_ids = wp_list_pluck( $current_terms, 'term_id' );
+				}
+
+				// Store taxonomy data
+				$taxonomy_data[ $field_id ] = [
+					'field_id'         => $field_id,
+					'taxonomy'         => $taxonomy['taxonomy'],
+					'options'          => implode( "\n", $field_options ),
+					'current_term_ids' => $current_term_ids ?? [],
+				];
+			}
+		}
+
+		return $taxonomy_data;
 	}
 }

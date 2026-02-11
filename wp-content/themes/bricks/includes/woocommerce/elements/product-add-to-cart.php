@@ -52,6 +52,12 @@ class Product_Add_To_Cart extends Element {
 			'tab'   => 'content',
 		];
 
+		// Grouped product style (@since 2.2)
+		$this->control_groups['groupedProduct'] = [
+			'title' => esc_html__( 'Grouped product', 'bricks' ),
+			'tab'   => 'content',
+		];
+
 		// @since 1.6.1
 		if ( Woocommerce::enabled_ajax_add_to_cart() ) {
 			$this->control_groups['ajax'] = [
@@ -577,6 +583,36 @@ class Product_Add_To_Cart extends Element {
 			'required' => [ 'hideStock', '=', '' ]
 		];
 
+		// In stock typography (@since 2.2)
+		$this->controls['inStockTypography'] = [
+			'tab'      => 'content',
+			'group'    => 'stock',
+			'label'    => esc_html__( 'Typography', 'bricks' ) . ' (' . esc_html__( 'In stock', 'bricks' ) . ')',
+			'type'     => 'typography',
+			'css'      => [
+				[
+					'property' => 'font',
+					'selector' => '.stock.in-stock',
+				],
+			],
+			'required' => [ 'hideStock', '=', '' ],
+		];
+
+		// Out of stock typography (@since 2.2)
+		$this->controls['outOfStockTypography'] = [
+			'tab'      => 'content',
+			'group'    => 'stock',
+			'label'    => esc_html__( 'Typography', 'bricks' ) . ' (' . esc_html__( 'Out of stock', 'bricks' ) . ')',
+			'type'     => 'typography',
+			'css'      => [
+				[
+					'property' => 'font',
+					'selector' => '.stock.out-of-stock',
+				],
+			],
+			'required' => [ 'hideStock', '=', '' ],
+		];
+
 		// FORM (@since 1.12.2)
 		$this->controls['formInfo'] = [
 			'tab'     => 'content',
@@ -970,6 +1006,258 @@ class Product_Add_To_Cart extends Element {
 			'required'    => [
 				[ 'icon', '!=', '' ],
 				[ 'iconOnly', '=', '' ],
+			],
+		];
+
+		// GROUPED PRODUCT (@since 2.2)
+
+		// Table cell
+		$this->controls['groupedProductTablePadding'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'label' => esc_html__( 'Table cell', 'bricks' ) . ': ' . esc_html__( 'Padding', 'bricks' ),
+			'type'  => 'spacing',
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .group_table td',
+					'property' => 'padding',
+				],
+			],
+		];
+
+		// Quantity
+		$this->controls['groupedProductQuantitySeparator'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'label' => esc_html__( 'Quantity', 'bricks' ),
+			'type'  => 'separator',
+		];
+
+		$this->controls['groupedProductQuantityWidth'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'number',
+			'units' => true,
+			'label' => esc_html__( 'Width', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .quantity',
+					'property' => 'width',
+				],
+			],
+		];
+
+		$this->controls['groupedProductQuantityBackground'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'color',
+			'label' => esc_html__( 'Background', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .quantity',
+					'property' => 'background-color',
+				],
+			],
+		];
+
+		$this->controls['groupedProductQuantityBorder'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'border',
+			'label' => esc_html__( 'Border', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .quantity .minus',
+					'property' => 'border',
+				],
+				[
+					'selector' => '.cart.grouped_form .quantity .plus',
+					'property' => 'border',
+				],
+				[
+					'selector' => '.cart.grouped_form .quantity .qty',
+					'property' => 'border',
+				],
+			],
+		];
+
+		// Label
+		$this->controls['groupedProductLabelSeparator'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'label' => esc_html__( 'Label', 'bricks' ),
+			'type'  => 'separator',
+		];
+
+		$this->controls['groupedProductLabelTypography'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'typography',
+			'label' => esc_html__( 'Typography', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .woocommerce-grouped-product-list-item__label a',
+					'property' => 'font',
+				],
+			],
+		];
+
+		// Stock
+		$this->controls['groupedProductStockSeparator'] = [
+			'tab'      => 'content',
+			'group'    => 'groupedProduct',
+			'label'    => esc_html__( 'Stock', 'bricks' ),
+			'type'     => 'separator',
+			'required' => [ 'hideStock', '=', '' ]
+		];
+
+		$this->controls['groupedProductStockTypography'] = [
+			'tab'      => 'content',
+			'group'    => 'groupedProduct',
+			'type'     => 'typography',
+			'label'    => esc_html__( 'Typography', 'bricks' ),
+			'css'      => [
+				[
+					'selector' => '.cart.grouped_form .stock',
+					'property' => 'font',
+				],
+			],
+			'required' => [ 'hideStock', '=', '' ]
+		];
+
+		$this->controls['groupedProductInStockTypography'] = [
+			'tab'      => 'content',
+			'group'    => 'groupedProduct',
+			'label'    => esc_html__( 'Typography', 'bricks' ) . ' (' . esc_html__( 'In stock', 'bricks' ) . ')',
+			'type'     => 'typography',
+			'css'      => [
+				[
+					'property' => 'font',
+					'selector' => '.cart.grouped_form .stock.in-stock',
+				],
+			],
+			'required' => [ 'hideStock', '=', '' ],
+		];
+
+		$this->controls['groupedProductOutOfStockTypography'] = [
+			'tab'      => 'content',
+			'group'    => 'groupedProduct',
+			'label'    => esc_html__( 'Typography', 'bricks' ) . ' (' . esc_html__( 'Out of stock', 'bricks' ) . ')',
+			'type'     => 'typography',
+			'css'      => [
+				[
+					'property' => 'font',
+					'selector' => '.cart.grouped_form .stock.out-of-stock',
+				],
+			],
+			'required' => [ 'hideStock', '=', '' ],
+		];
+
+		// Price
+		$this->controls['groupedProductPriceSeparator'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'label' => esc_html__( 'Price', 'bricks' ),
+			'type'  => 'separator',
+		];
+
+		$this->controls['groupedProductPriceTypography'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'typography',
+			'label' => esc_html__( 'Typography', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .woocommerce-grouped-product-list-item__price .woocommerce-Price-amount',
+					'property' => 'font',
+				],
+			],
+		];
+
+		$this->controls['groupedProductSalePriceTypography'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'typography',
+			'label' => esc_html__( 'Sale price typography', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .woocommerce-grouped-product-list-item__price ins .woocommerce-Price-amount',
+					'property' => 'font',
+				],
+			],
+		];
+
+		$this->controls['groupedProductRegularPriceTypography'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'typography',
+			'label' => esc_html__( 'Regular price typography', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .woocommerce-grouped-product-list-item__price del .woocommerce-Price-amount',
+					'property' => 'font',
+				],
+			],
+		];
+
+		// Button
+		$this->controls['groupedProductButtonSeparator'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'label' => esc_html__( 'Button', 'bricks' ),
+			'type'  => 'separator',
+		];
+
+		$this->controls['groupedProductButtonWidth'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'number',
+			'units' => true,
+			'label' => esc_html__( 'Width', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .group_table .button',
+					'property' => 'min-width',
+				],
+			],
+		];
+
+		$this->controls['groupedProductButtonPadding'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'spacing',
+			'label' => esc_html__( 'Padding', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .group_table .button',
+					'property' => 'padding',
+				],
+			],
+		];
+
+		$this->controls['groupedProductButtonTypography'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'typography',
+			'label' => esc_html__( 'Typography', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .group_table .button',
+					'property' => 'font',
+				],
+			],
+		];
+
+		$this->controls['groupedProductButtonBackground'] = [
+			'tab'   => 'content',
+			'group' => 'groupedProduct',
+			'type'  => 'color',
+			'label' => esc_html__( 'Background color', 'bricks' ),
+			'css'   => [
+				[
+					'selector' => '.cart.grouped_form .group_table .button',
+					'property' => 'background-color',
+				],
 			],
 		];
 

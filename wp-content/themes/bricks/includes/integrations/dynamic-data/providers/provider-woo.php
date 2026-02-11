@@ -711,4 +711,29 @@ class Provider_Woo extends Base {
 			$button_args
 		);
 	}
+
+	/**
+	 * {woo_product_images} and {woo_product_gallery_images} are supported in query loops post__in parameter
+	 *
+	 * @since 2.2
+	 */
+	public function get_query_supported_tags() {
+		$supported_tags = [];
+
+		foreach ( $this->tags as $tag ) {
+			if ( in_array( $tag['name'], [ '{woo_product_images}', '{woo_product_gallery_images}' ], true ) ) {
+				$supported_tags[] = [
+					'name'     => $tag['name'],
+					'type'     => 'media',
+					'label'    => $tag['label'],
+					'params'   => [
+						'post__in',
+					],
+					'provider' => $tag['provider'],
+				];
+			}
+		}
+
+		return $supported_tags;
+	}
 }

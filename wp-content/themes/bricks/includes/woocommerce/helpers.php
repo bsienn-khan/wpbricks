@@ -358,14 +358,19 @@ class Woocommerce_Helpers {
 			];
 		}
 
+		// Collect all post__in arrays to intersect later (#86c6d80ba; @since 2.2)
+		$post_in_collections = [];
+
 		// Settings: Include products
 		if ( ! empty( $settings['include'] ) ) {
-			$product_args['post__in'] = $settings['include'];
+			// Save to collection for later intersection
+			$post_in_collections['queryInclude'] = $settings['include'];
 		}
 
 		// Query Loop (since 1.5)
 		elseif ( ! empty( $settings['post__in'] ) ) {
-			$product_args['post__in'] = $settings['post__in'];
+			// Save to collection for later intersection
+			$post_in_collections['queryInclude'] = $settings['post__in'];
 		}
 
 		// Settings: Exclude products
@@ -385,18 +390,6 @@ class Woocommerce_Helpers {
 			}
 		}
 
-		// Show only products on sale (post__in)
-		if ( isset( $settings['onSale'] ) ) {
-			$post_in                  = isset( $product_args['post__in'] ) ? $product_args['post__in'] : [];
-			$product_args['post__in'] = array_merge( $post_in, wc_get_product_ids_on_sale() );
-
-			// Ensure no products are returned if no "on sale" products are published.
-			// Necessary as empty 'post__in' array returns all prodcts instead of no products (@since 1.6)
-			if ( ! count( $product_args['post__in'] ) ) {
-				$product_args['post__in'] = [ 999999 ];
-			}
-		}
-
 		// Show only products featured (tax_query)
 		if ( isset( $settings['featured'] ) ) {
 			$visibility_term_ids = wc_get_product_visibility_term_ids();
@@ -408,10 +401,21 @@ class Woocommerce_Helpers {
 			];
 		}
 
+		// Show only products on sale (post__in)
+		if ( isset( $settings['onSale'] ) ) {
+			// Default to an empty array for this collection
+			$post_in_collections['onSale'] = [];
+			$on_sale_ids                   = wc_get_product_ids_on_sale();
+
+			if ( ! empty( $on_sale_ids ) ) {
+				$post_in_collections['onSale'] = $on_sale_ids;
+			}
+		}
+
 		// Upsell (@since 1.10)
 		if ( isset( $settings['upSells'] ) ) {
-			// Default: Array with 0 to return no products
-			$upsell_post_ids = [ 0 ];
+			// Default to an empty array for this collection
+			$post_in_collections['upSells'] = [];
 
 			// Get the current product
 			$product_id = Database::$page_data['preview_or_post_id'] ?? get_the_ID();
@@ -419,63 +423,52 @@ class Woocommerce_Helpers {
 
 			// Ensure it's a product
 			if ( is_a( $product, 'WC_Product' ) ) {
-				// Get upsell products
 				$upsell_ids = $product->get_upsell_ids();
 
-				// Only use the upsell products if there are any
 				if ( ! empty( $upsell_ids ) ) {
-					$upsell_post_ids = $upsell_ids;
+					$post_in_collections['upSells'] = $upsell_ids;
 				}
 			}
-
-			// Set the post__in query arg and overwrite post__in
-			$product_args['post__in'] = $upsell_post_ids;
 		}
 
 		// Cart Cross-sell (@since 1.10)
 		if ( isset( $settings['cartCrossSells'] ) ) {
-			// Default to an array with 0 to return no products
-			$cross_sell_post_ids = [ 0 ];
+			// Default to an empty array for this collection
+			$post_in_collections['cartCrossSells'] = [];
 
 			// Cross-sells should only get from cart data
 			if ( function_exists( 'WC' ) && WC()->cart ) {
 				// Get cross-sell products
 				$cross_sell_ids = WC()->cart->get_cross_sells();
 
-				// Only use the cross-sell products if there are any
 				if ( ! empty( $cross_sell_ids ) ) {
-					$cross_sell_post_ids = $cross_sell_ids;
+					$post_in_collections['cartCrossSells'] = $cross_sell_ids;
 				}
 			}
-
-			// Set the post__in query arg and overwrite post__in
-			$product_args['post__in'] = $cross_sell_post_ids;
 		}
 
 		// Product Cross-sell (@since 1.11.1)
 		if ( isset( $settings['crossSells'] ) ) {
+			// Default to an empty array for this collection
+			$post_in_collections['crossSells'] = [];
 			// Get the current product
 			$product_id = Database::$page_data['preview_or_post_id'] ?? get_the_ID();
 			$product    = wc_get_product( $product_id );
-			// Default to an array with 0 to return no product (@since 2.0)
-			$product_cross_sell_post_ids = [ 0 ];
 
-			// Ensure it's a product
 			if ( is_a( $product, 'WC_Product' ) ) {
 				// Get cross-sell products
 				$cross_sell_ids = $product->get_cross_sell_ids();
 
-				// Only use the cross-sell products if there are any
 				if ( ! empty( $cross_sell_ids ) ) {
-					$product_cross_sell_post_ids = $cross_sell_ids;
+					$post_in_collections['crossSells'] = $cross_sell_ids;
 				}
-
-				$product_args['post__in'] = $product_cross_sell_post_ids;
 			}
 		}
 
 		// Related Products (@since 1.10)
 		if ( isset( $settings['relatedProducts'] ) ) {
+			// Default to an empty array for this collection
+			$post_in_collections['relatedProducts'] = [];
 			// Get the current product
 			$product_id = Database::$page_data['preview_or_post_id'] ?? get_the_ID();
 			$product    = wc_get_product( $product_id );
@@ -486,11 +479,52 @@ class Woocommerce_Helpers {
 				$limit       = isset( $settings['posts_per_page'] ) ? intval( $settings['posts_per_page'] ) : 5;
 				$related_ids = wc_get_related_products( $product_id, $limit, $product->get_upsell_ids() );
 
-				// Only use the related products if there are any
 				if ( ! empty( $related_ids ) ) {
-					$product_args['post__in'] = $related_ids;
+					$post_in_collections['relatedProducts'] = $related_ids;
 				}
 			}
+		}
+
+		// Intersect all post__in collections (AND operation) (@since 2.2)
+		if ( ! empty( $post_in_collections ) ) {
+			// Check if any collection is empty (no results available)
+			$has_empty_collection = false;
+			$posts_in_ids         = [];
+			foreach ( $post_in_collections as $collection ) {
+				if ( empty( $collection ) ) {
+					$has_empty_collection = true;
+					break;
+				}
+				// Maybe $collection is [ 0 ], which means no products that could be set by other logic before this
+				if ( count( $collection ) === 1 && intval( $collection[0] ) === 0 ) {
+					$has_empty_collection = true;
+					break;
+				}
+			}
+
+			// If any collection is empty, no products should match
+			if ( $has_empty_collection ) {
+				$posts_in_ids = [ 0 ]; // Use 0 instead of 999999 to ensure no products
+			} else {
+				// Get the first collection without removing it
+				$intersected_ids = reset( $post_in_collections );
+
+				// Skip the first element and intersect with remaining collections
+				$remaining_collections = array_slice( $post_in_collections, 1 );
+
+				foreach ( $remaining_collections as $collection ) {
+					$intersected_ids = array_intersect( $intersected_ids, $collection );
+				}
+
+				if ( ! empty( $intersected_ids ) ) {
+					$posts_in_ids = array_values( $intersected_ids );
+				} else {
+					// Intersection resulted in no common products
+					$posts_in_ids = [ 0 ];
+				}
+			}
+
+			$product_args['post__in'] = $posts_in_ids;
 		}
 
 		// Ensure post_type is set to product and product_variation for cross-sells and upsells (@since 1.10)
@@ -1278,7 +1312,7 @@ class Woocommerce_Helpers {
 	 * single-product/rating.php
 	 *
 	 * @param WC_Product $product Product instance.
-	 * @param array      $params  Keys: show_empty_stars, hide_reviews_link, $wrapper.
+	 * @param array      $params  Keys: show_empty_stars, hide_reviews_link, wrapper, reviews_link_text_single, reviews_link_text_plural.
 	 * @param bool       $render  Render (echo) or return.
 	 *
 	 * @since 1.8
@@ -1310,9 +1344,19 @@ class Woocommerce_Helpers {
 
 			// Populate review link
 			if ( comments_open() && ! $hide_reviews_link ) {
+
+				// Use custom text if provided, otherwise use WooCommerce defaults
+				$text_single = ! empty( $params['reviews_link_text_single'] )
+					? bricks_render_dynamic_data( $params['reviews_link_text_single'] )
+					: esc_html__( '%s customer review', 'woocommerce' );
+
+				$text_plural = ! empty( $params['reviews_link_text_plural'] )
+					? bricks_render_dynamic_data( $params['reviews_link_text_plural'] )
+					: esc_html__( '%s customer reviews', 'woocommerce' );
+
 				$html .= '<a href="#reviews" class="woocommerce-review-link" rel="nofollow">';
 				// translators: %s: review count
-				$html .= sprintf( _n( '%s customer review', '%s customer reviews', $review_count, 'woocommerce' ), '<span class="count">' . esc_html( $review_count ) . '</span>' );
+				$html .= sprintf( _n( $text_single, $text_plural, $review_count, 'woocommerce' ), '<span class="count">' . esc_html( $review_count ) . '</span>' );
 				$html .= '</a>';
 			}
 

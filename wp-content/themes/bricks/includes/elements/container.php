@@ -66,6 +66,17 @@ class Element_Container extends Element {
 			],
 		];
 
+		$this->controls['_gridItemJustifySelf'] = [
+			'label'          => esc_html__( 'Justify self', 'bricks' ),
+			'type'           => 'align-items',
+			'hasDynamicData' => false,
+			'css'            => [
+				[
+					'property' => 'justify-self',
+				],
+			],
+		];
+
 		$this->controls['_gridItemSeparatorAfter'] = [
 			'type' => 'separator',
 		];
@@ -751,8 +762,9 @@ class Element_Container extends Element {
 
 				// Video poster (@since 1.11)
 				if ( ! empty( $background['videoPoster'] ) ) {
-					$video_attributes[] = 'poster="' . $background['videoPoster']['url'] . '"';
-					$attributes[]       = 'data-background-video-poster="' . $background['videoPoster']['url'] . '"';
+					$poster_url         = $this->extract_background_video_poster_url( $background['videoPoster'] );
+					$video_attributes[] = 'poster="' . $poster_url . '"';
+					$attributes[]       = 'data-background-video-poster="' . $poster_url . '"';
 				}
 				// YouTube video poster (@since 1.11)
 				if ( ! empty( $background['videoPosterYouTube'] ) ) {
@@ -999,5 +1011,39 @@ class Element_Container extends Element {
 		}
 
 		return $html;
+	}
+
+	/**
+	 * Extract Video poster from background settings
+	 *
+	 * @param array $background Background video poster settings
+	 * @return string Video poster URL
+	 * @since 2.2
+	 */
+	public function extract_background_video_poster_url( $video_poster ) {
+		// If it contains 'url' key, return as is
+		if ( isset( $video_poster['url'] ) ) {
+			return $video_poster['url'];
+		}
+
+		$video_poster['size'] = ! empty( $video_poster['size'] ) ? $video_poster['size'] : BRICKS_DEFAULT_IMAGE_SIZE;
+
+		// If it's "useDynamicData", then render dynamic tag
+		if ( ! empty( $video_poster['useDynamicData'] ) ) {
+			$dynamic_image = $this->render_dynamic_data_tag( $video_poster['useDynamicData'], 'image', [ 'size' => $video_poster['size'] ] );
+
+			if ( ! empty( $dynamic_image[0] ) ) {
+				if ( is_numeric( $dynamic_image[0] ) ) {
+					// Use the image ID to populate and set $dynamic_image['url']
+					return wp_get_attachment_image_url( $dynamic_image[0], $video_poster['size'] );
+				} else {
+					return $dynamic_image[0];
+				}
+			} else {
+				return '';
+			}
+		}
+
+		return '';
 	}
 }

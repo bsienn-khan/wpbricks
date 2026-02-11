@@ -147,12 +147,30 @@ class Map_Connector extends Element {
 		$this->set_attribute( '_root', 'data-brx-infobox-template', $template_id );
 	}
 
-	// Generate marker image settings.
+	/**
+	 * Generate marker image settings
+	 */
 	public function get_marker_image( $image ) {
+		// Recursive function to render dynamic data for nested arrays (@since 2.2)
+		$process_data = function( $value ) use ( &$process_data ) {
+			if ( is_array( $value ) ) {
+				// Recursively process nested arrays
+				return array_map( $process_data, $value );
+			}
+
+			// Render dynamic data for non-array values
+			return $this->render_dynamic_data( $value );
+		};
+
 		$images = Helpers::get_normalized_image_settings( $this, [ 'items' => $image ] );
 
 		if ( ! empty( $images['items']['images'] ) && isset( $images['items']['images'][0]['url'] ) ) {
 			return $images['items']['images'][0];
+		}
+
+		// When the image is using custom URL (@since 2.2)
+		if ( ! empty( $images['items']['images'] ) && isset( $images['items']['images']['url'] ) ) {
+			return $process_data( $images['items']['images'] );
 		}
 
 		return '';

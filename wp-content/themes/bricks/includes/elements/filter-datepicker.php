@@ -4,11 +4,12 @@ namespace Bricks;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Filter_DatePicker extends Filter_Element {
-	public $name        = 'filter-datepicker';
-	public $icon        = 'ti-calendar';
-	public $filter_type = 'datepicker';
-	public $min_date    = null; // timestamp
-	public $max_date    = null; // timestamp
+	public $name         = 'filter-datepicker';
+	public $icon         = 'ti-calendar';
+	public $filter_type  = 'datepicker';
+	public $min_date     = null; // timestamp
+	public $max_date     = null; // timestamp
+	public $css_selector = 'input';
 
 	public function get_label() {
 		return esc_html__( 'Filter', 'bricks' ) . ' - ' . esc_html__( 'Datepicker', 'bricks' );
@@ -142,7 +143,7 @@ class Filter_DatePicker extends Filter_Element {
 			'css'   => [
 				[
 					'property' => 'font',
-					'selector' => '&::placeholder',
+					'selector' => 'input::placeholder',
 				],
 			],
 		];
@@ -154,6 +155,46 @@ class Filter_DatePicker extends Filter_Element {
 			'inline'         => true,
 			'hasDynamicData' => false,
 			'description'    => '<a href="https://github.com/flatpickr/flatpickr/tree/master/src/l10n" target="_blank">' . esc_html__( 'Language codes', 'bricks' ) . '</a> (de, es, fr, etc.)',
+		];
+
+		// Icon (Clear)
+		$this->controls['iconSep'] = [
+			'group' => 'input',
+			'label' => esc_html__( 'Icon', 'bricks' ) . ' (' . esc_html__( 'Clear', 'bricks' ) . ')',
+			'type'  => 'separator',
+		];
+
+		$this->controls['icon'] = [
+			'group' => 'input',
+			'label' => esc_html__( 'Icon', 'bricks' ),
+			'type'  => 'icon',
+		];
+
+		$this->controls['iconColor'] = [
+			'group'    => 'input',
+			'label'    => esc_html__( 'Icon color', 'bricks' ),
+			'type'     => 'color',
+			'required' => [ 'icon', '!=', '' ],
+			'css'      => [
+				[
+					'selector' => '.icon',
+					'property' => 'color',
+				],
+			],
+		];
+
+		$this->controls['iconSize'] = [
+			'group'    => 'input',
+			'label'    => esc_html__( 'Icon size', 'bricks' ),
+			'type'     => 'number',
+			'units'    => true,
+			'required' => [ 'icon', '!=', '' ],
+			'css'      => [
+				[
+					'selector' => '.icon',
+					'property' => 'font-size',
+				],
+			],
 		];
 	}
 
@@ -253,7 +294,7 @@ class Filter_DatePicker extends Filter_Element {
 		$filter_settings                 = $this->get_common_filter_settings();
 		$filter_settings['filterSource'] = $settings['filterSource'];
 
-		$this->set_attribute( '_root', 'data-brx-filter', wp_json_encode( $filter_settings ) );
+		$this->set_attribute( 'input', 'data-brx-filter', wp_json_encode( $filter_settings ) );
 	}
 
 	public function render() {
@@ -261,6 +302,7 @@ class Filter_DatePicker extends Filter_Element {
 		$placeholder      = ! empty( $settings['placeholder'] ) ? $this->render_dynamic_data( $settings['placeholder'] ) : esc_html__( 'Date', 'bricks' );
 		$this->input_name = $settings['name'] ?? "form-field-{$this->id}";
 		$query_id         = $settings['filterQueryId'] ?? false;
+		$icon             = $settings['icon'] ?? false;
 
 		if ( $this->is_filter_input() ) {
 			$this->set_as_filter();
@@ -326,13 +368,13 @@ class Filter_DatePicker extends Filter_Element {
 			$datepicker_options['locale'] = $settings['l10n'];
 		}
 
+		$default_date = []; // Current selected date(s)
 		// In filter AJAX call, filterValue is the current filter value, previously use 'value' attribute, now use flatpickr defaultDate
 		if ( isset( $settings['filterValue'] ) && $query_id ) {
 			// Get active filter for this element
 			$active_filter = Query_Filters::get_active_filter_by_element_id( $this->id, $query_id );
 
 			if ( $active_filter && is_array( $active_filter ) && isset( $active_filter['parsed_dates'] ) && ! empty( $active_filter['parsed_dates'] ) ) {
-				$default_date = [];
 				foreach ( $active_filter['parsed_dates'] as $parsed_date ) {
 					// Use the object if it's a valid DateTime object
 					$date_object = $parsed_date['object'] ?? false;
@@ -349,14 +391,42 @@ class Filter_DatePicker extends Filter_Element {
 		// Undocumented filter
 		$datepicker_options = apply_filters( 'bricks/filter-element/datepicker_options', $datepicker_options, $this );
 
-		$this->set_attribute( '_root', 'data-bricks-datepicker-options', wp_json_encode( $datepicker_options ) );
-		$this->set_attribute( '_root', 'name', $this->input_name );
-		$this->set_attribute( '_root', 'placeholder', $placeholder );
-		$this->set_attribute( '_root', 'type', 'text' );
-		$this->set_attribute( '_root', 'autocomplete', 'off' );
-		$this->set_attribute( '_root', 'aria-label', $placeholder );
+		$this->set_attribute( 'input', 'data-bricks-datepicker-options', wp_json_encode( $datepicker_options ) );
+		$this->set_attribute( 'input', 'name', $this->input_name );
+		$this->set_attribute( 'input', 'placeholder', $placeholder );
+		$this->set_attribute( 'input', 'type', 'text' );
+		$this->set_attribute( 'input', 'autocomplete', 'off' );
+		$this->set_attribute( 'input', 'aria-label', $placeholder );
 
-		echo "<input {$this->render_attributes('_root')}>";
+		echo "<div {$this->render_attributes('_root')}>";
+
+		echo "<input {$this->render_attributes('input')}>";
+
+		// Clear icon (@since 2.2)
+		if ( $icon ) {
+			$classes = [ 'icon' ];
+
+			// Show the icon if the value is not empty or in the builder
+			if ( ! empty( $default_date ) || bricks_is_builder() || bricks_is_builder_call() ) {
+				$classes[] = 'brx-show';
+			}
+
+			$icon = self::render_icon(
+				$icon,
+				[
+					'aria-label' => esc_html__( 'Clear', 'bricks' ),
+					'class'      => $classes,
+					'role'       => 'button',
+					'tabindex'   => 0,
+				]
+			);
+
+			if ( $icon ) {
+				echo $icon;
+			}
+		}
+
+		echo '</div>';
 	}
 
 	private function get_date_format() {

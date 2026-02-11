@@ -147,6 +147,17 @@ class Assets_Files {
 		}
 
 		if ( ! Helpers::render_with_bricks( $post_id ) ) {
+			// Components as blocks: Generate CSS file if post content contains Bricks components (@since 2.2)
+			if ( Database::get_setting( 'bricksComponentsInBlockEditor' ) ) {
+				$blocks = parse_blocks( $post->post_content );
+
+				$elements = $this->get_component_elements_from_blocks( $blocks );
+
+				if ( ! empty( $elements ) ) {
+					self::generate_post_css_file( $post_id, 'content', $elements );
+				}
+			}
+
 			return;
 		}
 
@@ -500,15 +511,29 @@ class Assets_Files {
 		Database::$global_data['components'] = get_option( BRICKS_DB_COMPONENTS, [] );
 
 		// STEP: Get active element names
-		$active_element_names = [];
+		$active_element_names   = [];
+		$elements_in_components = [];
+
 		foreach ( $elements as $element ) {
-			$active_element_names[] = $element['name'];
+			if ( isset( $element['name'] ) ) {
+				$active_element_names[] = $element['name'];
+			}
 
 			// Get component elements (@since 1.12)
 			if ( ! empty( $element['cid'] ) ) {
 				$component_instance = Helpers::get_component_instance( $element );
 				if ( ! empty( $component_instance['elements'] ) ) {
-					$active_element_names = array_merge( $active_element_names, array_column( $component_instance['elements'], 'name' ) );
+					// Collect all elements used in components recursively (to catch nested components) (#86c4zfhru @since 2.2)
+					Helpers::get_component_elements_recursive( $component_instance, $elements_in_components );
+				}
+			}
+		}
+
+		// Merge component elements (#86c4zfhru @since 2.2)
+		if ( ! empty( $elements_in_components ) ) {
+			foreach ( $elements_in_components as $element ) {
+				if ( isset( $element['name'] ) ) {
+					$active_element_names[] = $element['name'];
 				}
 			}
 		}
@@ -690,7 +715,7 @@ class Assets_Files {
 
 		switch ( $data ) {
 			case 'colorPalettes':
-				$file_name = Assets_Color_Palettes::generate_css_file( get_option( BRICKS_DB_COLOR_PALETTE, [] ) );
+				$file_name = Assets_Color_Palettes::generate_css_file( Database::$global_data['colorPalette'] ?? [] );
 				break;
 
 			case 'globalCustomCss':
@@ -760,6 +785,68 @@ class Assets_Files {
 		}
 
 		wp_send_json_success( [ 'file_name' => $file_name ] );
+	}
+
+	/**
+	 * Recursively scan blocks for Bricks component blocks
+	 *
+	 * @since 2.2
+	 *
+	 * @param array $blocks Array of blocks.
+	 * @return array Array of Bricks elements.
+	 */
+	private function get_component_elements_from_blocks( $blocks ) {
+		$elements = [];
+
+		foreach ( $blocks as $block ) {
+			// Check for Bricks component block
+			if ( isset( $block['blockName'] ) && strpos( $block['blockName'], 'bricks-components/' ) === 0 ) {
+				$component_id = str_replace( 'bricks-components/', '', $block['blockName'] );
+				$attributes   = $block['attrs'];
+
+				$component = Helpers::get_component_by_cid( $component_id );
+
+				if ( $component ) {
+					// Get main element name
+					$main_element_name = false;
+					foreach ( $component['elements'] as $el ) {
+						if ( $el['id'] === $component_id ) {
+							$main_element_name = $el['name'];
+							break;
+						}
+					}
+
+					if ( ! $main_element_name ) {
+						continue;
+					}
+
+					$properties = $attributes['properties'] ?? [];
+					$block_id   = $attributes['blockId'] ?? '';
+					$element_id = $block_id ? $component_id . '-' . $block_id : $component_id;
+
+					$element = [
+						'id'         => $element_id,
+						'name'       => $main_element_name,
+						'cid'        => $component_id,
+						'properties' => $properties,
+						'settings'   => [],
+					];
+
+					if ( ! empty( $attributes['variant'] ) ) {
+						$element['variant'] = $attributes['variant'];
+					}
+
+					$elements[] = $element;
+				}
+			}
+
+			// Recursively check inner blocks
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$elements = array_merge( $elements, $this->get_component_elements_from_blocks( $block['innerBlocks'] ) );
+			}
+		}
+
+		return $elements;
 	}
 
 	/**

@@ -331,19 +331,20 @@ class Element_Posts extends Custom_Render_Element {
 			 */
 			unset( $this->controls['_aspectRatio'] );
 			$this->controls['_aspectRatio'] = [
-				'tab'      => 'content',
-				'group'    => 'image',
-				'label'    => esc_html__( 'Aspect ratio', 'bricks' ) . ' (' . esc_html__( 'Grid', 'bricks' ) . ')',
-				'type'     => 'text',
-				'inline'   => true,
-				'dd'       => false,
-				'css'      => [
+				'tab'          => 'content',
+				'group'        => 'image',
+				'label'        => esc_html__( 'Aspect ratio', 'bricks' ) . ' (' . esc_html__( 'Grid', 'bricks' ) . ')',
+				'type'         => 'text',
+				'inline'       => true,
+				'dd'           => false,
+				'hasVariables' => true,
+				'css'          => [
 					[
 						'selector' => '[data-layout="grid"] .image',
 						'property' => 'aspect-ratio',
 					],
 				],
-				'required' => [ 'imageRatio', '=', 'custom' ],
+				'required'     => [ 'imageRatio', '=', 'custom' ],
 			];
 
 			$this->controls['imageSize'] = [

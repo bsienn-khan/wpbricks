@@ -239,50 +239,72 @@ class Custom_Fonts {
 		foreach ( $font_faces as $key => $font_face ) {
 			$font_weight = filter_var( $key, FILTER_SANITIZE_NUMBER_INT );
 			$font_style  = str_replace( $font_weight, '', $key );
-			$src         = [];
 
-			foreach ( $font_face as $format => $value ) {
-				$font_variant_url = wp_get_attachment_url( $font_face[ $format ] );
-
-				if ( $font_variant_url ) {
-					if ( $format === 'ttf' ) {
-						$format = 'truetype';
-					} elseif ( $format === 'otf' ) {
-						$format = 'opentype';
-					} elseif ( $format === 'eot' ) {
-						$format = 'embedded-opentype';
-					}
-
-					// Load woff2 first (smaller file size, almost same support as 'woff')
-					if ( $format === 'woff2' ) {
-						array_unshift( $src, "url($font_variant_url) format(\"$format\")" );
-					} else {
-						array_push( $src, "url($font_variant_url) format(\"$format\")" );
-					}
-				}
+			// Check if new structure (array of subsets) or legacy (single subset)
+			// Legacy: ['woff2' => 123, 'woff' => 124] (associative, keys are formats)
+			// New: [['woff2' => 123, 'unicode-range' => '...'], ['woff2' => 125]] (numeric keys)
+			$subsets = [];
+			if ( isset( $font_face[0] ) && is_array( $font_face[0] ) ) {
+				$subsets = $font_face;
+			} else {
+				$subsets = [ $font_face ];
 			}
 
-			if ( ! count( $src ) ) {
-				continue; // Skip this variant if no sources found, but continue processing others
-			}
+			foreach ( $subsets as $subset ) {
+				$src           = [];
+				$unicode_range = ! empty( $subset['unicode-range'] ) ? $subset['unicode-range'] : '';
 
-			$src = implode( ',', $src );
+				foreach ( $subset as $format => $value ) {
+					if ( $format === 'unicode-range' ) {
+						continue;
+					}
 
-			if ( $font_family && $src ) {
-				$font_face_rules .= '@font-face{';
-				$font_face_rules .= "font-family:\"$font_family\";";
+					$font_variant_url = wp_get_attachment_url( $subset[ $format ] );
 
-				if ( $font_weight ) {
-					$font_face_rules .= "font-weight:$font_weight;";
+					if ( $font_variant_url ) {
+						if ( $format === 'ttf' ) {
+							$format = 'truetype';
+						} elseif ( $format === 'otf' ) {
+							$format = 'opentype';
+						} elseif ( $format === 'eot' ) {
+							$format = 'embedded-opentype';
+						}
+
+						// Load woff2 first (smaller file size, almost same support as 'woff')
+						if ( $format === 'woff2' ) {
+							array_unshift( $src, "url($font_variant_url) format(\"$format\")" );
+						} else {
+							array_push( $src, "url($font_variant_url) format(\"$format\")" );
+						}
+					}
 				}
 
-				if ( $font_style ) {
-					$font_face_rules .= "font-style:$font_style;";
+				if ( ! count( $src ) ) {
+					continue; // Skip this subset if no sources found
 				}
 
-				$font_face_rules .= 'font-display:swap;';
-				$font_face_rules .= "src:$src;";
-				$font_face_rules .= '}';
+				$src = implode( ',', $src );
+
+				if ( $font_family && $src ) {
+					$font_face_rules .= '@font-face{';
+					$font_face_rules .= "font-family:\"$font_family\";";
+
+					if ( $font_weight ) {
+						$font_face_rules .= "font-weight:$font_weight;";
+					}
+
+					if ( $font_style ) {
+						$font_face_rules .= "font-style:$font_style;";
+					}
+
+					if ( $unicode_range ) {
+						$font_face_rules .= "unicode-range:$unicode_range;";
+					}
+
+					$font_face_rules .= 'font-display:swap;';
+					$font_face_rules .= "src:$src;";
+					$font_face_rules .= '}';
+				}
 			}
 		}
 
@@ -520,7 +542,17 @@ class Custom_Fonts {
 
 		if ( is_array( $font_faces ) && count( $font_faces ) ) {
 			foreach ( $font_faces as $font_variant => $font_face ) {
-				echo self::render_font_faces_meta_box( $font_face, $font_variant );
+				// Handle new structure (array of subsets) vs legacy (single subset)
+				$subsets = [];
+				if ( isset( $font_face[0] ) && is_array( $font_face[0] ) ) {
+					$subsets = $font_face;
+				} else {
+					$subsets = [ $font_face ];
+				}
+
+				foreach ( $subsets as $subset ) {
+					echo self::render_font_faces_meta_box( $subset, $font_variant );
+				}
 			}
 		} else {
 			echo self::render_font_faces_meta_box( [], 400 );
@@ -530,9 +562,10 @@ class Custom_Fonts {
 	}
 
 	public static function render_font_faces_meta_box( $font_face = [], $font_variant = 400 ) {
-		$mime_types  = self::get_custom_fonts_mime_types();
-		$font_weight = substr( $font_variant, 0, 3 );
-		$font_style  = substr( $font_variant, 3, strlen( $font_variant ) );
+		$mime_types    = self::get_custom_fonts_mime_types();
+		$font_weight   = substr( $font_variant, 0, 3 );
+		$font_style    = substr( $font_variant, 3, strlen( $font_variant ) );
+		$unicode_range = isset( $font_face['unicode-range'] ) ? $font_face['unicode-range'] : '';
 
 		ob_start();
 		?>
@@ -562,6 +595,10 @@ class Custom_Fonts {
 						<option value="italic" <?php selected( $font_style, 'italic', true ); ?>><?php esc_html_e( 'Italic', 'bricks' ); ?></option>
 						<option value="oblique" <?php selected( $font_style, 'oblique', true ); ?>><?php esc_html_e( 'Oblique', 'bricks' ); ?></option>
 					</select>
+				</div>
+
+				<div class="bricks-font-unicode-range-wrapper" style="margin-left: 10px; flex-grow: 1;<?php echo ! $unicode_range ? ' display: none;' : ''; ?>">
+					<input type="text" name="unicode_range" value="<?php echo esc_attr( $unicode_range ); ?>" placeholder="<?php esc_attr_e( 'Unicode Range (e.g. U+0025-00A9)', 'bricks' ); ?>" style="width: 100%;" readonly>
 				</div>
 
 				<div
@@ -794,28 +831,51 @@ class Custom_Fonts {
 
 		if ( $font_faces ) {
 			foreach ( $font_faces as $key => $face ) {
-				$url      = '';
-				$type     = '';
-				$filename = '';
-
-				// Check each format in order of preference
-				foreach ( [ 'woff2', 'woff', 'ttf' ] as $format ) {
-					if ( isset( $face[ $format ] ) && $face[ $format ] ) {
-						$attachment_id = $face[ $format ];
-						$url           = wp_get_attachment_url( $attachment_id );
-						if ( $url ) {
-							$type     = 'font/' . $format;
-							$filename = basename( get_attached_file( $attachment_id ) );
-							break;
-						}
-					}
+				$subsets = [];
+				if ( isset( $face[0] ) && is_array( $face[0] ) ) {
+					// New structure: array of subsets
+					$subsets = $face;
+				} else {
+					// Legacy structure: single subset
+					$subsets[] = $face;
 				}
 
-				$font_data[ $key ] = [
-					'url'      => $url,
-					'type'     => $type,
-					'filename' => $filename
-				];
+				$processed_subsets = [];
+
+				foreach ( $subsets as $subset ) {
+					$url           = '';
+					$type          = '';
+					$filename      = '';
+					$unicode_range = ! empty( $subset['unicode-range'] ) ? $subset['unicode-range'] : '';
+
+					// Check each format in order of preference
+					foreach ( [ 'woff2', 'woff', 'ttf' ] as $format ) {
+						if ( isset( $subset[ $format ] ) && $subset[ $format ] ) {
+							$attachment_id = $subset[ $format ];
+							$url           = wp_get_attachment_url( $attachment_id );
+							if ( $url ) {
+								$type     = 'font/' . $format;
+								$filename = basename( get_attached_file( $attachment_id ) );
+								break;
+							}
+						}
+					}
+
+					$processed_subsets[] = [
+						'url'           => $url,
+						'type'          => $type,
+						'filename'      => $filename,
+						'unicode-range' => $unicode_range,
+					];
+				}
+
+				// If it's legacy (single subset), return just the object to maintain BC if needed?
+				// Actually, frontend should be updated to handle array. But for now, let's return array if > 1 or if it was new structure.
+				// However, if we change the structure, frontend needs to know.
+				// The plan says: "Handle the new array-based structure when loading font data." in frontend.
+				// So I can return array of subsets. But to be safe for existing frontend code (if it's not updated yet? No I update it now),
+				// I'll return array of objects for this key.
+				$font_data[ $key ] = $processed_subsets;
 			}
 		}
 
@@ -1003,34 +1063,22 @@ class Custom_Fonts {
 				throw new \Exception( esc_html__( 'Invalid CSS response from Google Fonts.', 'bricks' ) );
 			}
 
-			// Extract font URLs
-			preg_match_all( '/url\((.*?)\)\s*format\([\'"](\w+)[\'"]\)/', $css, $matches );
-			$font_urls = [];
-
-			if ( ! empty( $matches[1] ) && ! empty( $matches[2] ) ) {
-				$matches_count = count( $matches[1] );
-				for ( $i = 0; $i < $matches_count; $i++ ) {
-					$url         = trim( $matches[1][ $i ], '"\'' );
-					$format      = $matches[2][ $i ];
-					$font_urls[] = [
-						'url'    => $url,
-						'format' => $format
-					];
-				}
-			}
-
-			if ( empty( $font_urls ) ) {
-				throw new \Exception( esc_html__( 'No font files found in the CSS.', 'bricks' ) );
-			}
-
-			// Extract font-weight and font-style for each @font-face
+			// Extract font-weight, font-style, unicode-range, and url for each @font-face
 			preg_match_all( '/@font-face\s*{([^}]+)}/i', $css, $font_face_matches );
-			$variant_url_map = [];
+
+			// Store parsed font faces grouped by key: '400normal' => [ {url, format, unicode-range}, ... ]
+			$parsed_font_faces = [];
 
 			if ( ! empty( $font_face_matches[1] ) ) {
-				$url_index = 0;
 				foreach ( $font_face_matches[1] as $font_face_css ) {
-					if ($url_index >= count( $font_urls )) break;
+					// Extract URL and Format
+					preg_match( '/url\((.*?)\)\s*format\([\'"](\w+)[\'"]\)/', $font_face_css, $url_match );
+					$url    = isset( $url_match[1] ) ? trim( $url_match[1], '"\'' ) : '';
+					$format = isset( $url_match[2] ) ? $url_match[2] : '';
+
+					if ( ! $url ) {
+						continue;
+					}
 
 					// Extract font-weight
 					preg_match( '/font-weight:\s*(\d+)/i', $font_face_css, $weight_match );
@@ -1040,18 +1088,30 @@ class Custom_Fonts {
 					preg_match( '/font-style:\s*(\w+)/i', $font_face_css, $style_match );
 					$style = isset( $style_match[1] ) && $style_match[1] === 'italic' ? 'italic' : '';
 
+					// Extract unicode-range
+					preg_match( '/unicode-range:\s*([^;]+)/i', $font_face_css, $range_match );
+					$unicode_range = isset( $range_match[1] ) ? trim( $range_match[1] ) : '';
+
 					// Create variant key
 					$variant_key = $weight . $style;
 
-					// Map this variant to the corresponding URL
-					$variant_url_map[ $variant_key ] = $url_index;
+					if ( ! isset( $parsed_font_faces[ $variant_key ] ) ) {
+						$parsed_font_faces[ $variant_key ] = [];
+					}
 
-					$url_index++;
+					$parsed_font_faces[ $variant_key ][] = [
+						'url'           => $url,
+						'format'        => $format,
+						'unicode-range' => $unicode_range
+					];
 				}
 			}
 
 			$font_faces    = [];
 			$error_message = false;
+
+			// Cache downloaded files to avoid re-downloading same file for multiple ranges if that happens
+			$downloaded_files_cache = [];
 
 			foreach ( $variants as $variant ) {
 				$weight = filter_var( $variant, FILTER_SANITIZE_NUMBER_INT );
@@ -1061,59 +1121,84 @@ class Custom_Fonts {
 				$style = strpos( $variant, 'italic' ) !== false ? 'italic' : '';
 				$key   = $weight . $style;
 
-				// Use the correct URL for this variant if we have a mapping, otherwise use the first URL
-				$url_index = isset( $variant_url_map[ $key ] ) ? $variant_url_map[ $key ] : 0;
-
-				$font_data   = $font_urls[ $url_index ];
-				$font_url    = $font_data['url'];
-				$font_format = $font_data['format'];
-
-				$font_response = wp_remote_get( $font_url );
-
-				if ( is_wp_error( $font_response ) ) {
+				if ( ! isset( $parsed_font_faces[ $key ] ) ) {
 					continue;
 				}
 
-				$font_content = wp_remote_retrieve_body( $font_response );
-				if ( empty( $font_content ) ) {
-					continue;
+				$subsets = [];
+
+				foreach ( $parsed_font_faces[ $key ] as $font_data ) {
+					$font_url      = $font_data['url'];
+					$font_format   = $font_data['format'];
+					$attachment_id = 0;
+
+					// Check cache first
+					if ( isset( $downloaded_files_cache[ $font_url ] ) ) {
+						$attachment_id = $downloaded_files_cache[ $font_url ];
+					} else {
+						$font_response = wp_remote_get( $font_url );
+
+						if ( is_wp_error( $font_response ) ) {
+							continue;
+						}
+
+						$font_content = wp_remote_retrieve_body( $font_response );
+						if ( empty( $font_content ) ) {
+							continue;
+						}
+
+						$temp_file = wp_tempnam( 'bricks-font-' );
+						if ( ! file_put_contents( $temp_file, $font_content ) ) {
+							continue;
+						}
+
+						$extension = $font_format === 'truetype' ? 'ttf' : $font_format;
+						$filename  = sanitize_file_name(
+							sprintf(
+								'%s-%s-%s-%s.%s',
+								strtolower( str_replace( ' ', '-', $font_family ) ),
+								$weight,
+								$style ? 'italic' : 'normal',
+								substr( md5( $font_url ), 0, 6 ),
+								$extension
+							)
+						);
+
+						$file_array = [
+							'name'     => $filename,
+							'tmp_name' => $temp_file,
+							'type'     => 'font/' . $extension
+						];
+
+						$attachment_id = media_handle_sideload( $file_array, $font_post_id );
+
+						// Remove temp file
+						@unlink( $temp_file );
+
+						if ( is_wp_error( $attachment_id ) ) {
+							$error_message = $attachment_id->get_error_message();
+							continue;
+						}
+
+						$downloaded_files_cache[ $font_url ] = $attachment_id;
+					}
+
+					if ( $attachment_id ) {
+						$subset = [
+							$extension => $attachment_id
+						];
+
+						if ( ! empty( $font_data['unicode-range'] ) ) {
+							$subset['unicode-range'] = $font_data['unicode-range'];
+						}
+
+						$subsets[] = $subset;
+					}
 				}
 
-				$temp_file = wp_tempnam( 'bricks-font-' );
-				if ( ! file_put_contents( $temp_file, $font_content ) ) {
-					continue;
+				if ( ! empty( $subsets ) ) {
+					$font_faces[ $key ] = $subsets;
 				}
-
-				$extension = $font_format === 'truetype' ? 'ttf' : $font_format;
-				$filename  = sanitize_file_name(
-					sprintf(
-						'%s-%s-%s.%s',
-						strtolower( str_replace( ' ', '-', $font_family ) ),
-						$weight,
-						$style ? 'italic' : 'normal',
-						$extension
-					)
-				);
-
-				$file_array = [
-					'name'     => $filename,
-					'tmp_name' => $temp_file,
-					'type'     => 'font/' . $extension
-				];
-
-				$attachment_id = media_handle_sideload( $file_array, $font_post_id );
-
-				// Remove temp file
-				@unlink( $temp_file );
-
-				if ( is_wp_error( $attachment_id ) ) {
-					$error_message = $attachment_id->get_error_message();
-					continue;
-				}
-
-				$font_faces[ $key ] = [
-					$extension => $attachment_id
-				];
 			}
 
 			// Return: Error

@@ -94,6 +94,24 @@ class WooCommerce {
 					[ 'filterSource', '=', 'wcField' ],
 				],
 			],
+			// Rating logic (@since 2.2)
+			'wcRatingLogic'     => [
+				'type'        => 'select',
+				'label'       => esc_html__( 'Logic', 'bricks' ),
+				'inline'      => true,
+				'options'     => [
+					'greater_equal' => esc_html__( 'Greater than or equal to', 'bricks' ),
+					'equal'         => esc_html__( 'Equal to', 'bricks' ),
+				],
+				'placeholder' => esc_html__( 'Greater than or equal to', 'bricks' ),
+				'description' => esc_html__( '"Greater than or equal to" will include products with a rating equal to or higher than the selected value. "Equal to" will include products whose rating, when rounded down, matches the selected value (for example, ratings of 4.2 or 4.9 will be treated as 4).', 'bricks' ),
+				'required'    => [
+					[ 'filterQueryId', '!=', '' ],
+					[ 'filterAction', '=', [ '', 'filter' ] ],
+					[ 'filterSource', '=', 'wcField' ],
+					[ 'wcField', '=', 'wcRating' ],
+				],
+			],
 			'wcHideNotOnSale'   => [
 				'type'     => 'checkbox',
 				'label'    => esc_html__( 'Hide', 'bricks' ) . ' "' . esc_html__( 'Not on sale', 'bricks' ) . '" ' . esc_html__( 'Option', 'bricks' ),
@@ -150,8 +168,9 @@ class WooCommerce {
 			return $filtered_source;
 		}
 
-		$settings  = $element->settings ?? [];
-		$filter_by = $settings['wcField'] ?? false;
+		$settings        = $element->settings ?? [];
+		$filter_by       = $settings['wcField'] ?? false;
+		$wc_rating_logic = $settings['wcRatingLogic'] ?? 'greater_equal';
 
 		if ( $filter_by !== 'wcRating' ) {
 			return $filtered_source;
@@ -170,8 +189,15 @@ class WooCommerce {
 			foreach ( $original_filtered_source as $choices ) {
 				$meta_value = $choices['filter_value'] ?? 0;
 
-				if ( $meta_value >= $rating ) {
-					$rating_count += $choices['count'];
+				if ( $wc_rating_logic === 'equal' ) {
+					// $rating in integer, $meta_value can be float, 4.67 rounddown to 4
+					if ( (int) floor( $meta_value ) == $rating ) {
+						$rating_count += $choices['count'];
+					}
+				} else {
+					if ( $meta_value >= $rating ) {
+						$rating_count += $choices['count'];
+					}
 				}
 			}
 
@@ -384,7 +410,8 @@ class WooCommerce {
 
 			case 'wcRating':
 				// Use choices source
-				$choices_source = $element->choices_source ?? [];
+				$choices_source  = $element->choices_source ?? [];
+				$wc_rating_logic = $settings['wcRatingLogic'] ?? 'greater_equal';
 
 				// Set a placeholder option if this is a select input
 				if ( $element->filter_type === 'select' ) {
@@ -419,8 +446,15 @@ class WooCommerce {
 						foreach ( $choices_source as $choices ) {
 							$meta_value = $choices['filter_value'] ?? 0;
 
-							if ( $meta_value >= $rating ) {
-								$rating_count += $choices['count'];
+							if ( $wc_rating_logic === 'equal' ) {
+								// $rating in integer, $meta_value can be float, 4.67 rounddown to 4
+								if ( (int) floor( $meta_value ) == $rating ) {
+									$rating_count += $choices['count'];
+								}
+							} else {
+								if ( $meta_value >= $rating ) {
+									$rating_count += $choices['count'];
+								}
 							}
 						}
 
@@ -451,8 +485,9 @@ class WooCommerce {
 			return $count_source;
 		}
 
-		$settings  = $element->settings ?? [];
-		$filter_by = $settings['wcField'] ?? false;
+		$settings        = $element->settings ?? [];
+		$filter_by       = $settings['wcField'] ?? false;
+		$wc_rating_logic = $settings['wcRatingLogic'] ?? 'greater_equal';
 
 		if ( $filter_by !== 'wcRating' ) {
 			return $count_source;
@@ -470,8 +505,15 @@ class WooCommerce {
 			foreach ( $count_source as $counted ) {
 				$meta_value = $counted['filter_value'] ?? 0;
 
-				if ( $meta_value >= $rating ) {
-					$rating_count += $counted['count'];
+				if ( $wc_rating_logic === 'equal' ) {
+					// $rating in integer, $meta_value can be float, 4.67 rounddown to 4
+					if ( (int) floor( $meta_value ) == $rating ) {
+						$rating_count += $counted['count'];
+					}
+				} else {
+					if ( $meta_value >= $rating ) {
+						$rating_count += $counted['count'];
+					}
 				}
 			}
 
@@ -1101,7 +1143,8 @@ class WooCommerce {
 					$filter_value = (int) reset( $filter_value );
 				}
 
-				$rating_ids = $this->get_wc_product_ids_by_rating( $filter_value, $filter['filter_id'] );
+				$wc_rating_logic = $settings['wcRatingLogic'] ?? 'greater_equal';
+				$rating_ids      = $this->get_wc_product_ids_by_rating( $filter_value, $filter['filter_id'], $wc_rating_logic );
 
 				// No IDs found from the index table, force set to 0
 				if ( empty( $rating_ids ) ) {
@@ -1243,7 +1286,7 @@ class WooCommerce {
 	/**
 	 * Get all product ids by rating from index table
 	 */
-	private function get_wc_product_ids_by_rating( $value, $filter_id ) {
+	private function get_wc_product_ids_by_rating( $value, $filter_id, $wc_rating_logic ) {
 		$cache_key = 'wc_product_ids_by_rating_' . $value;
 
 		if ( isset( self::$cache[ $cache_key ] ) ) {
@@ -1255,13 +1298,33 @@ class WooCommerce {
 
 		global $wpdb;
 
-		$product_ids = $wpdb->get_col(
-			$wpdb->prepare(
-				"SELECT DISTINCT object_id FROM {$index_table_name} WHERE filter_id = %s AND filter_value >= %d",
-				$filter_id,
-				$value
-			)
-		);
+		// Ensure $value is integer
+		$value = (int) $value;
+
+		if ( $wc_rating_logic === 'equal' ) {
+			/**
+			 * Equal logic, get products with rating between value to value + 0.99
+			 * Example, $value = 4, get products with rating between 4.0 to 4.99
+			 *
+			 * @since 2.2
+			 */
+			$product_ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT DISTINCT object_id FROM {$index_table_name} WHERE filter_id = %s AND filter_value >= %d AND filter_value < %d",
+					$filter_id,
+					$value,
+					$value + 1
+				)
+			);
+		} else {
+			$product_ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT DISTINCT object_id FROM {$index_table_name} WHERE filter_id = %s AND filter_value >= %d",
+					$filter_id,
+					$value
+				)
+			);
+		}
 
 		self::$cache[ $cache_key ] = $product_ids;
 

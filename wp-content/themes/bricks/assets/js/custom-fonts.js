@@ -113,8 +113,11 @@ function bricksCustomSaveFontFaces() {
 			var fontVariant = fontVariants[i]
 			var fontWeight = fontVariant.querySelector('[name=font_weight]').value
 			var fontStyle = fontVariant.querySelector('[name=font_style]').value
+			var unicodeRange = fontVariant.querySelector('[name=unicode_range]').value // @since 2.2
 
 			var fontFaces = fontVariant.querySelectorAll('.font-face')
+			var subset = {}
+			var hasFiles = false
 
 			for (var i2 = 0; i2 < fontFaces.length; i2++) {
 				var fontFace = fontFaces[i2]
@@ -124,14 +127,23 @@ function bricksCustomSaveFontFaces() {
 
 				// Add font variant to font post meta data (Key Google Fonts naming convention: '300', '300italic', '700oblique', etc.)
 				if (fontId && fontExtension) {
-					fontVariant = fontWeight + fontStyle
-
-					if (!fontPostMeta.hasOwnProperty(fontVariant)) {
-						fontPostMeta[fontVariant] = {}
-					}
-
-					fontPostMeta[fontVariant][fontExtension] = parseInt(fontId)
+					subset[fontExtension] = parseInt(fontId)
+					hasFiles = true
 				}
+			}
+
+			if (hasFiles) {
+				var variantKey = fontWeight + fontStyle
+
+				if (!fontPostMeta.hasOwnProperty(variantKey)) {
+					fontPostMeta[variantKey] = []
+				}
+
+				if (unicodeRange) {
+					subset['unicode-range'] = unicodeRange
+				}
+
+				fontPostMeta[variantKey].push(subset)
 			}
 		}
 

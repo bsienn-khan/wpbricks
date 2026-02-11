@@ -242,18 +242,19 @@ class Product_Gallery extends Element {
 		];
 
 		$this->controls['thumbnailWrapperMaxHeight'] = [
-			'tab'      => 'content',
-			'label'    => esc_html__( 'Slider', 'bricks' ) . ': ' . esc_html__( 'Height', 'bricks' ) . ' (px)',
-			'type'     => 'number',
-			'units'    => true,
-			'css'      => [
+			'tab'          => 'content',
+			'label'        => esc_html__( 'Slider', 'bricks' ) . ': ' . esc_html__( 'Height', 'bricks' ) . ' (px)',
+			'type'         => 'number',
+			'hasVariables' => false,
+			'units'        => true,
+			'css'          => [
 				[
 					'selector' => '&.thumbnail-slider .brx-product-gallery-thumbnail-slider',
 					'property' => 'max-height',
 				],
 			],
-			'rerender' => true,
-			'required' => [
+			'rerender'     => true,
+			'required'     => [
 				[ 'thumbnailSlider', '=', true ],
 				[ 'thumbnailPosition', '=', [ 'left', 'right' ] ],
 			],
@@ -261,11 +262,12 @@ class Product_Gallery extends Element {
 
 		// NOTE: 'itemMargin' doesn't support gap in 'vertical' direction, so we have to use 'magin-bottom' instead
 		$this->controls['itemMargin'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Slider', 'bricks' ) . ': ' . esc_html__( 'Gap', 'bricks' ) . ' (px)',
-			'type'        => 'number',
-			'units'       => true,
-			'css'         => [
+			'tab'          => 'content',
+			'label'        => esc_html__( 'Slider', 'bricks' ) . ': ' . esc_html__( 'Gap', 'bricks' ) . ' (px)',
+			'type'         => 'number',
+			'hasVariables' => false,
+			'units'        => true,
+			'css'          => [
 				[
 					'selector' => '&.thumbnail-slider[data-pos="top"] .brx-product-gallery-thumbnail-slider .woocommerce-product-gallery__image',
 					'property' => 'margin-inline-end',
@@ -283,9 +285,9 @@ class Product_Gallery extends Element {
 					'property' => 'margin-bottom',
 				],
 			],
-			'placeholder' => '30',
-			'rerender'    => true,
-			'required'    => [ 'thumbnailSlider', '=', true ],
+			'placeholder'  => '30',
+			'rerender'     => true,
+			'required'     => [ 'thumbnailSlider', '=', true ],
 		];
 
 		// $this->controls['minItems'] = [
@@ -475,6 +477,7 @@ class Product_Gallery extends Element {
 		add_filter( 'woocommerce_gallery_image_size', [ $this, 'set_gallery_image_size' ] );
 		add_filter( 'woocommerce_gallery_full_size', [ $this, 'set_gallery_full_size' ] );
 		add_filter( 'woocommerce_gallery_image_html_attachment_image_params', [ $this, 'add_image_class_prevent_lazy_loading' ], 10, 4 );
+		add_filter( 'woocommerce_single_product_image_gallery_classes', [ $this, 'add_product_gallery_class' ] );
 
 		ob_start();
 		wc_get_template( 'single-product/product-image.php' );
@@ -484,6 +487,7 @@ class Product_Gallery extends Element {
 		remove_filter( 'woocommerce_gallery_image_size', [ $this, 'set_gallery_image_size' ] );
 		remove_filter( 'woocommerce_gallery_full_size', [ $this, 'set_gallery_full_size' ] );
 		remove_filter( 'woocommerce_gallery_image_html_attachment_image_params', [ $this, 'add_image_class_prevent_lazy_loading' ], 10, 4 );
+		remove_filter( 'woocommerce_single_product_image_gallery_classes', [ $this, 'add_product_gallery_class' ] );
 
 		return $gallery_html;
 	}
@@ -657,5 +661,21 @@ class Product_Gallery extends Element {
 		// $attr['data-pswp-id']     = $this->id;
 
 		return $attr;
+	}
+
+	/**
+	 * Add unique class to product gallery for the current product so frontend scripts can target the correct gallery when multiple galleries are present on the page.
+	 *
+	 * @since 2.2
+	 */
+	public function add_product_gallery_class( $classes ) {
+		$product = $this->product;
+
+		if ( ! is_a( $product, 'WC_Product' ) ) {
+			return $classes;
+		}
+
+		$classes[] = 'bricks-product-gallery-for-' . $product->get_id();
+		return $classes;
 	}
 }

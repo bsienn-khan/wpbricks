@@ -24,6 +24,7 @@ class Element_Image extends Element {
 	public function enqueue_scripts() {
 		if ( isset( $this->settings['link'] ) && $this->settings['link'] === 'lightbox' ) {
 			wp_enqueue_script( 'bricks-photoswipe' );
+			wp_enqueue_script( 'bricks-photoswipe-lightbox' );
 			wp_enqueue_style( 'bricks-photoswipe' );
 
 			// Lightbox caption (@since 1.10)
@@ -133,12 +134,13 @@ class Element_Image extends Element {
 			unset( $this->controls['_aspectRatio'] );
 
 			$this->controls['_aspectRatio'] = [
-				'label'       => esc_html__( 'Aspect ratio', 'bricks' ),
-				'type'        => 'text',
-				'inline'      => true,
-				'dd'          => false,
-				'placeholder' => '',
-				'css'         => [
+				'label'        => esc_html__( 'Aspect ratio', 'bricks' ),
+				'type'         => 'text',
+				'inline'       => true,
+				'dd'           => false,
+				'hasVariables' => true,
+				'placeholder'  => '',
+				'css'          => [
 					[
 						'selector' => $img_css_selector,
 						'property' => 'aspect-ratio',
@@ -353,6 +355,29 @@ class Element_Image extends Element {
 		$this->controls['url'] = [
 			'type'     => 'link',
 			'required' => [ 'link', '=', 'url' ],
+		];
+
+			// Attributes for lightbox link (@since 2.2)
+		$this->controls['attributesSep'] = [
+			'type'     => 'separator',
+			'label'    => esc_html__( 'Attributes', 'bricks' ),
+			'required' => [ 'link', '=', 'lightbox' ],
+		];
+
+		$this->controls['lightboxAriaLabel'] = [
+			'label'          => 'aria-label',
+			'type'           => 'text',
+			'inline'         => true,
+			'hasDynamicData' => true,
+			'required'       => [ 'link', '=', 'lightbox' ],
+		];
+
+		$this->controls['lightboxTitle'] = [
+			'label'          => 'title',
+			'type'           => 'text',
+			'inline'         => true,
+			'hasDynamicData' => true,
+			'required'       => [ 'link', '=', 'lightbox' ],
 		];
 
 		// Icon
@@ -825,7 +850,7 @@ class Element_Image extends Element {
 
 		// Check for custom "Alt Text" setting
 		if ( ! empty( $settings['altText'] ) ) {
-			$this->set_attribute( 'img', 'alt', esc_attr( $settings['altText'] ) );
+			$this->set_attribute( 'img', 'alt', esc_attr( $this->render_dynamic_data( $settings['altText'] ) ) );
 		}
 
 		// Set 'loading' attribute: eager or lazy
@@ -924,8 +949,14 @@ class Element_Image extends Element {
 			}
 		}
 
-		// Sources set, but no link: Wrap image in 'picture' tag
-		if ( $output_sources && ! $link ) {
+		// When caption is present, we need a figure wrapper (not picture as root) (@since 2.2)
+		if ( $image_caption ) {
+			$this->tag    = 'figure';
+			$has_html_tag = true;
+		}
+
+		// Sources set, but no link and no caption: Wrap image in 'picture' tag
+		elseif ( $output_sources && ! $link ) {
 			$this->tag    = 'picture';
 			$has_html_tag = true;
 		}
@@ -999,6 +1030,22 @@ class Element_Image extends Element {
 					$this->set_attribute( 'link', 'data-animation-type', esc_attr( $settings['lightboxAnimationType'] ) );
 				}
 
+				// @since 2.2
+				if ( ! empty( $settings['lightboxAriaLabel'] ) ) {
+					$aria_label = wp_strip_all_tags( $this->render_dynamic_data( $settings['lightboxAriaLabel'] ) );
+					if ( $aria_label !== '' ) {
+						$this->set_attribute( 'link', 'aria-label', esc_attr( $aria_label ) );
+					}
+				}
+
+				// @since 2.2
+				if ( ! empty( $settings['lightboxTitle'] ) ) {
+					$title = wp_strip_all_tags( $this->render_dynamic_data( $settings['lightboxTitle'] ) );
+					if ( $title !== '' ) {
+						$this->set_attribute( 'link', 'title', esc_attr( $title ) );
+					}
+				}
+
 				if ( ! empty( $settings['lightboxPadding'] ) ) {
 					$this->set_attribute( 'link', 'data-lightbox-padding', wp_json_encode( $settings['lightboxPadding'] ) );
 				}
@@ -1044,8 +1091,8 @@ class Element_Image extends Element {
 
 		// Render <source> tags
 		if ( $output_sources ) {
-			// Render <picture> tag if $link set
-			if ( $link ) {
+			// Render <picture> tag if $link is set OR if we have a caption (figure is root, need picture inside) (@since 2.2)
+			if ( $link || $image_caption ) {
 				$output .= '<picture>';
 			}
 
@@ -1119,6 +1166,17 @@ class Element_Image extends Element {
 			$output .= "<img {$this->render_attributes( 'img', true )}>";
 		}
 
+		// Close <picture> tag BEFORE figcaption (if sources exist and link or caption is present) (@since 2.2)
+		if ( $output_sources && ( $link || $image_caption ) ) {
+			$output .= '</picture>';
+		}
+
+		// Close link tag if present
+		if ( $link ) {
+			$output .= '</a>';
+		}
+
+		// Render figcaption AFTER picture/link tags are closed
 		if ( $image_caption ) {
 			// Assign a class to the caption element based on the theme style setting (@since 2.1)
 			if ( isset( $this->theme_styles['captionCustomStyles'] ) ) {
@@ -1128,15 +1186,6 @@ class Element_Image extends Element {
 			}
 
 			$output .= "<figcaption {$this->render_attributes( 'figcaption' )}>" . $image_caption . '</figcaption>';
-		}
-
-		if ( $link ) {
-			$output .= '</a>';
-		}
-
-		// Render <source> tags plus <picture> tag if $link set
-		if ( $output_sources && $link ) {
-			$output .= '</picture>';
 		}
 
 		if ( $has_html_tag ) {
@@ -1163,7 +1212,11 @@ class Element_Image extends Element {
 		$this->set_attribute( 'figure', 'class', $figure_classes );
 
 		$this->set_attribute( 'image', 'src', $settings['image']['url'] );
-		$this->set_attribute( 'image', 'alt', isset( $settings['altText'] ) ? $settings['altText'] : '' );
+
+		// Standardize same logic as in render() method for setting alt attribute (@since 2.2)
+		if ( ! empty( $settings['altText'] ) ) {
+			$this->set_attribute( 'image', 'alt', esc_attr( $this->render_dynamic_data( $settings['altText'] ) ) );
+		}
 
 		if ( $image_id ) {
 			$this->set_attribute( 'image', 'class', 'wp-image-' . $image_id );

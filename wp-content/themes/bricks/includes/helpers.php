@@ -166,11 +166,24 @@ class Helpers {
 
 		$terms = get_terms( $term_args );
 
+		if ( is_wp_error( $terms ) ) {
+			return [];
+		}
+
 		$response = [];
 
 		$all_terms = [];
 
 		foreach ( $terms as $term ) {
+			// Ensure term is an object
+			if ( is_array( $term ) ) {
+				$term = (object) $term;
+			}
+
+			if ( ! isset( $term->taxonomy ) ) {
+				continue;
+			}
+
 			// Skip term if term taxonomy is not a taxonomy of requested post type
 			if ( isset( $post_type ) && $post_type !== 'any' ) {
 				$post_type_taxonomies = get_object_taxonomies( $post_type );
@@ -1108,6 +1121,10 @@ class Helpers {
 			$component = \Bricks\Integrations\Wpml\Wpml::get_translated_component( $component );
 		}
 
+		if ( \Bricks\Integrations\Polylang\Polylang::$is_active && $component ) { // @since 2.2
+			$component = \Bricks\Integrations\Polylang\Polylang::get_translated_component( $component );
+		}
+
 		return $component;
 	}
 
@@ -1132,6 +1149,14 @@ class Helpers {
 					// Apply WPML translation on-the-fly if WPML is active
 					if ( \Bricks\Integrations\Wpml\Wpml::is_wpml_active() ) {
 						$translated_component = \Bricks\Integrations\Wpml\Wpml::get_translated_component( $component );
+						if ( isset( $translated_component['elements'][ $component_child_index ] ) ) {
+							$element = $translated_component['elements'][ $component_child_index ];
+						}
+					}
+
+					// Apply Polylang translation on-the-fly if Polylang is active
+					if ( \Bricks\Integrations\Polylang\Polylang::$is_active ) {
+						$translated_component = \Bricks\Integrations\Polylang\Polylang::get_translated_component( $component );
 						if ( isset( $translated_component['elements'][ $component_child_index ] ) ) {
 							$element = $translated_component['elements'][ $component_child_index ];
 						}
@@ -1163,6 +1188,111 @@ class Helpers {
 		$component = self::get_component_by_cid( $component_id );
 
 		return $component && $key && isset( $component[ $key ] ) ? $component[ $key ] : $component;
+	}
+
+	/**
+	 * Resolve parent property value for nested component instances.
+	 *
+	 * @param string $connection_string The parent property connection string.
+	 * @param array  $request_elements Optional. Elements from current request (builder data).
+	 * @param string $parent_instance_id The parent component instance ID from render context.
+	 *
+	 * @return mixed The resolved parent property value or property default if not found.
+	 * @since 2.2
+	 */
+	public static function resolve_parent_property_value( $connection_string, $request_elements = [], $parent_instance_id = '' ) {
+		$parts = explode( ':', $connection_string );
+
+		if ( count( $parts ) < 3 || $parts[0] !== 'parent' ) {
+			return '';
+		}
+
+		$parent_component_id = str_replace( 'cid_', '', $parts[1] );
+		$parent_property_id  = str_replace( 'prop_', '', $parts[2] );
+
+		// Get parent component
+		$parent_component = self::get_component_by_cid( $parent_component_id );
+
+		if ( ! $parent_component ) {
+			return '';
+		}
+
+		// Find the parent property definition
+		$parent_properties = $parent_component['properties'] ?? [];
+		$parent_property   = null;
+
+		foreach ( $parent_properties as $prop ) {
+			if ( $prop['id'] === $parent_property_id ) {
+				$parent_property = $prop;
+				break;
+			}
+		}
+
+		if ( ! $parent_property ) {
+			return '';
+		}
+
+		// Find parent instance by matching CID and instance ID
+		$parent_instance = null;
+
+		if ( ! empty( $parent_instance_id ) ) {
+			// Search in Assets::$elements (during CSS generation; @since 2.2)
+			if ( class_exists( 'Bricks\Assets' ) && ! empty( \Bricks\Assets::$elements ) ) {
+				foreach ( \Bricks\Assets::$elements as $element ) {
+					if ( isset( $element['cid'] ) && $element['cid'] === $parent_component_id && $element['id'] === $parent_instance_id ) {
+						$parent_instance = $element;
+						break;
+					}
+				}
+			}
+
+			// Fallback: Search in Frontend::$elements (flat list of elements being rendered)
+			if ( ! $parent_instance && class_exists( 'Bricks\Frontend' ) && ! empty( \Bricks\Frontend::$elements ) ) {
+				foreach ( \Bricks\Frontend::$elements as $element ) {
+					if ( isset( $element['cid'] ) && $element['cid'] === $parent_component_id && $element['id'] === $parent_instance_id ) {
+						$parent_instance = $element;
+						break;
+					}
+				}
+			}
+
+			// Fallback: Search in request_elements (builder data)
+			if ( ! $parent_instance && ! empty( $request_elements ) && is_array( $request_elements ) ) {
+				foreach ( $request_elements as $element ) {
+					if ( isset( $element['cid'] ) && $element['cid'] === $parent_component_id && $element['id'] === $parent_instance_id ) {
+						$parent_instance = $element;
+						break;
+					}
+				}
+			}
+
+			// Fallback: Search in page data (frontend)
+			if ( ! $parent_instance ) {
+				$page_elements = Database::$page_data['elements'] ?? [];
+				foreach ( $page_elements as $element ) {
+					if ( isset( $element['cid'] ) && $element['cid'] === $parent_component_id && $element['id'] === $parent_instance_id ) {
+						$parent_instance = $element;
+						break;
+					}
+				}
+			}
+		}
+
+		if ( ! $parent_instance ) {
+			// Fallback to property default value if parent instance not found
+			return $parent_property['default'] ?? '';
+		}
+
+		// Get parent property value from instance or use default
+		$parent_instance_props = $parent_instance['properties'] ?? [];
+		$parent_value          = $parent_instance_props[ $parent_property_id ] ?? '';
+
+		// Use parent property default if no instance value set
+		if ( $parent_value === '' ) {
+			$parent_value = $parent_property['default'] ?? '';
+		}
+
+		return $parent_value;
 	}
 
 	/**
@@ -1199,11 +1329,20 @@ class Helpers {
 			$element[ $key ] = $component_element[ $key ];
 		}
 
+		// Get parent instance ID from rendering context (set in Frontend::render_element() for nested components)
+		$parent_instance_id = $element['instanceId'] ?? $element['id'];
+
 		// Loop over connected properties to populate component element settings with custom or default values
 		foreach ( $component_props as $prop ) {
 			$instance_value            = isset( $instance_props[ $prop['id'] ] ) ? $instance_props[ $prop['id'] ] : '';
 			$default_value             = isset( $prop['default'] ) ? $prop['default'] : '';
 			$connections_by_element_id = $prop['connections'] ?? [];
+
+			// Resolve parent property connections for nested components (@since 2.2)
+			if ( is_string( $instance_value ) && strpos( $instance_value, 'parent:' ) === 0 ) {
+				$resolved_value = self::resolve_parent_property_value( $instance_value, [], $parent_instance_id );
+				$instance_value = $resolved_value;
+			}
 
 			foreach ( $connections_by_element_id as $element_id => $setting_keys ) {
 				// Update component element settings
@@ -1405,6 +1544,38 @@ class Helpers {
 
 		// Return component or specific key-value like 'elements'
 		return $key && isset( $component[ $key ] ) ? $component[ $key ] : $component;
+	}
+
+	/**
+	 * Get all component elements recursively inside block-editor.php
+	 * Similar logic as in assets.php $process_component_elements function
+	 *
+	 * @since 2.2 (#86c7ac7wk)
+	 */
+	public static function get_component_elements_recursive( $component_instance, &$all_elements, $include_hidden = false ) {
+		// Add component instance but exclude elements array to avoid duplication
+		$component_instance_without_elements = $component_instance;
+		unset( $component_instance_without_elements['elements'] );
+		$all_elements[] = $component_instance_without_elements;
+
+		if ( empty( $component_instance['elements'] ) || ! is_array( $component_instance['elements'] ) ) {
+			return;
+		}
+
+		foreach ( $component_instance['elements'] as $component_element ) {
+			// Check if element is a nested component instance
+			if ( ! empty( $component_element['cid'] ) ) {
+				$nested_component_instance = self::get_component_instance( $component_element );
+				if ( ! empty( $nested_component_instance ) ) {
+					// Recursively process nested component elements
+					self::get_component_elements_recursive( $nested_component_instance, $all_elements, $include_hidden );
+				}
+			}
+			// Add non-hidden elements (or all elements if in builder)
+			elseif ( $include_hidden || empty( $component_element['settings']['_hideElementFrontend'] ) ) {
+				$all_elements[] = $component_element;
+			}
+		}
 	}
 
 	/**
@@ -2622,8 +2793,11 @@ class Helpers {
 		// Priority: 11
 		$content = do_shortcode( $content );
 
-		// Priority: 20
-		$content = convert_smilies( $content );
+		// Only convert smilies if not disabled in Bricks settings (#86c695he9) (@since 2.2)
+		if ( ! isset( Database::$global_settings['disableEmojis'] ) ) {
+			// Priority: 20
+			$content = convert_smilies( $content );
+		}
 
 		return $content;
 	}
@@ -3066,6 +3240,8 @@ class Helpers {
 						'objectType'             => 'post', // @since 1.9.3
 						'bricks_skip_query_vars' => true, // Skip Query::prepare_query_vars_from_settings() @since 1.9.3
 						'no_found_rows'          => true, // No pagination
+						'suppress_filters'       => true, // WPML @since 2.2
+						'lang'                   => '', // Polylang @since 2.2
 					];
 
 					$images = $settings['items']['images'] ?? $settings['items'];
@@ -3707,6 +3883,11 @@ class Helpers {
 			}
 
 			if ( ! empty( $element_name ) && isset( $element_data['element']['settings'] ) ) {
+				// Set 'hasLoop' to true for posts element as it has no 'hasLoop' control by default (#86c6g2f54; @since 2.2)
+				if ( in_array( $element_name, [ 'posts', 'carousel', 'related-posts' ], true ) ) {
+					$element_data['element']['settings']['hasLoop'] = true;
+				}
+
 				// Populate query settings for elements that is not using standard query controls (@since 1.9.3)
 				if ( in_array( $element_name, [ 'carousel', 'related-posts' ] ) ) {
 					$query_settings = self::populate_query_vars_for_element( $element_data['element'], $post_id );
@@ -3737,7 +3918,7 @@ class Helpers {
 				}
 
 				// Only init query if query settings is available
-				// @since 2.x: Check hasLoop too as user might turn off loop but leave query settings
+				// @since 2.2: Check hasLoop too as user might turn off loop but leave query settings
 				if ( isset( $element_data['element']['settings']['query'] ) && isset( $element_data['element']['settings']['hasLoop'] ) ) {
 					$query_object = new Query( $element_data['element'] );
 					if ( $query_object ) {
@@ -3865,6 +4046,15 @@ class Helpers {
 		$subject    = Database::get_setting( 'userActivationLinkEmailSubject' );
 		$content    = Database::get_setting( 'userActivationLinkEmailContent' );
 		$is_html    = Database::get_setting( 'userActivationLinkEmailIsHtml', false );
+
+		/**
+		 * Filter user activation email settings (for translation)
+		 *
+		 * @since 2.2
+		 */
+		$from_name = apply_filters( 'bricks/user_activation_email/from_name', $from_name, $user_id );
+		$subject   = apply_filters( 'bricks/user_activation_email/subject', $subject, $user_id );
+		$content   = apply_filters( 'bricks/user_activation_email/content', $content, $user_id );
 
 		$additional_params = [];
 
@@ -4468,10 +4658,10 @@ class Helpers {
 		}
 
 		// Create a map of all element IDs for quick lookup
-		$element_ids = [];
+		$element_map = [];
 		foreach ( $elements as $element ) {
 			if ( isset( $element['id'] ) ) {
-				$element_ids[ $element['id'] ] = true;
+				$element_map[ $element['id'] ] = $element;
 			}
 		}
 
@@ -4490,8 +4680,28 @@ class Helpers {
 				continue;
 			}
 
-			// Check if parent exists
-			if ( ! isset( $element_ids[ $parent_id ] ) ) {
+			// 1. Check if parent exists
+			if ( ! isset( $element_map[ $parent_id ] ) ) {
+				$orphaned_elements[] = $element['id'];
+				continue;
+			}
+
+			// 2. Child ID must be in parent's children array
+			$parent = $element_map[ $parent_id ];
+
+			$is_child = isset( $parent['children'] ) && is_array( $parent['children'] ) && in_array( $element['id'], $parent['children'], true );
+
+			// 3. If not in children, check slotChildren
+			if ( ! $is_child && ! empty( $parent['slotChildren'] ) && is_array( $parent['slotChildren'] ) ) {
+				foreach ( $parent['slotChildren'] as $slot ) {
+					if ( is_array( $slot ) && in_array( $element['id'], $slot, true ) ) {
+						$is_child = true;
+						break;
+					}
+				}
+			}
+
+			if ( ! $is_child ) {
 				$orphaned_elements[] = $element['id'];
 			}
 		}
@@ -4635,12 +4845,29 @@ class Helpers {
 		// Clean up children arrays (remove references to deleted elements)
 		foreach ( $cleaned_elements as $key => $element ) {
 			if ( isset( $element['children'] ) && is_array( $element['children'] ) ) {
-				$cleaned_elements[ $key ]['children'] = array_filter(
-					$element['children'],
-					function( $child_id ) use ( $ids_to_remove ) {
-						return ! in_array( $child_id, $ids_to_remove );
-					}
+				$cleaned_elements[ $key ]['children'] = array_values(
+					array_filter(
+						$element['children'],
+						function( $child_id ) use ( $ids_to_remove ) {
+							return ! in_array( $child_id, $ids_to_remove );
+						}
+					)
 				);
+			}
+
+			if ( isset( $element['slotChildren'] ) && is_array( $element['slotChildren'] ) ) {
+				foreach ( $element['slotChildren'] as $slot_key => $slot ) {
+					if ( is_array( $slot ) ) {
+						$cleaned_elements[ $key ]['slotChildren'][ $slot_key ] = array_values(
+							array_filter(
+								$slot,
+								function( $child_id ) use ( $ids_to_remove ) {
+									return ! in_array( $child_id, $ids_to_remove );
+								}
+							)
+						);
+					}
+				}
 			}
 		}
 
@@ -4667,6 +4894,16 @@ class Helpers {
 		if ( isset( $element_map[ $element_id ]['children'] ) && is_array( $element_map[ $element_id ]['children'] ) ) {
 			foreach ( $element_map[ $element_id ]['children'] as $child_id ) {
 				self::collect_descendants( $child_id, $element_map, $ids_to_remove );
+			}
+		}
+
+		if ( isset( $element_map[ $element_id ]['slotChildren'] ) && is_array( $element_map[ $element_id ]['slotChildren'] ) ) {
+			foreach ( $element_map[ $element_id ]['slotChildren'] as $slot ) {
+				if ( is_array( $slot ) ) {
+					foreach ( $slot as $child_id ) {
+						self::collect_descendants( $child_id, $element_map, $ids_to_remove );
+					}
+				}
 			}
 		}
 	}
@@ -4697,5 +4934,70 @@ class Helpers {
 		}
 
 		return $query_settings;
+	}
+
+	/**
+	 * Extract name from CSS variable
+	 *
+	 * Converts "var(--primary)" to "--primary"
+	 * Converts "var(--color-1)" to "--color-1"
+	 *
+	 * @param string $css_var CSS variable string
+	 * @return string|false Variable name or false if invalid
+	 *
+	 * @since 2.2
+	 */
+	public static function extract_name_from_css_variable( $css_var ) {
+		if ( empty( $css_var ) || ! is_string( $css_var ) ) {
+			return false;
+		}
+
+		// Remove var() wrapper if present
+		$css_var = trim( $css_var );
+		$css_var = str_replace( 'var(', '', $css_var );
+		$css_var = str_replace( ')', '', $css_var );
+		$css_var = trim( $css_var );
+
+		// Ensure it starts with --
+		if ( strpos( $css_var, '--' ) !== 0 ) {
+			$css_var = '--' . $css_var;
+		}
+
+		return $css_var;
+	}
+
+	/**
+	 * Get Bricks AJAX endpoint current page
+	 *
+	 * AJAX pagination: Supported
+	 * Query Filters pagination is not supported yet but the code is here for future use
+	 *
+	 * @since 2.2
+	 */
+	public static function get_ajax_current_page() {
+		$current_page = false;
+
+		if ( Api::is_current_endpoint( 'load_query_page' ) ) {
+			$current_page = isset( Api::$request_data['page'] ) ? absint( Api::$request_data['page'] ) : false;
+		}
+
+		// Query Filters for custom query loop not supported yet
+		if ( self::enabled_query_filters() && Api::is_current_endpoint( 'query_result' ) ) {
+			$current_query_id = Api::$request_data['queryElementId'] ?? false;
+			// Get the value from query filters
+			if ( $current_query_id && isset( Query_Filters::$active_filters[ $current_query_id ] ) ) {
+				$active_filters = Query_Filters::$active_filters[ $current_query_id ];
+
+				// Find active filter that query_type is 'pagination'
+				foreach ( $active_filters as $filter ) {
+					if ( isset( $filter['query_type'] ) && $filter['query_type'] === 'pagination' && isset( $filter['query_vars']['paged'] ) ) {
+						$current_page = absint( $filter['query_vars']['paged'] );
+						break;
+					}
+				}
+			}
+		}
+
+		return $current_page;
 	}
 }

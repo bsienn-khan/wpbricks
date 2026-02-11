@@ -1378,4 +1378,42 @@ class Provider_Acf extends Base {
 
 		return $supported_tags;
 	}
+
+	/**
+	 * Retrieve all registered tags which are supported "Results Filter" (Array conditions)"
+	 * - Repeater fields
+	 *
+	 * @since 2.2
+	 */
+	public function get_array_supported_tags() {
+		$field_types = [
+			'repeater',
+		];
+
+		$supported_tags = [];
+
+		foreach ( $this->loop_tags as $key => $tag ) {
+			if ( ! isset( $tag['field'] ) ) {
+				continue;
+			}
+
+			if ( isset( $tag['deprecated'] ) ) {
+				continue;
+			}
+
+			$field      = $tag['field'] ?? [];
+			$field_type = $field['type'] ?? '';
+
+			if ( in_array( $field_type, $field_types, true ) ) {
+				$supported_tags[] = [
+					'name'       => $tag['name'],
+					'type'       => $field_type,
+					'label'      => $tag['label'],
+					'provider'   => $tag['provider'],
+					'objectType' => $key,
+				];
+			}
+		}
+		return $supported_tags;
+	}
 }

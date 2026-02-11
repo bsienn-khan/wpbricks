@@ -275,8 +275,10 @@ class Field_Acf {
 
 					if ( $date instanceof \DateTime ) {
 						// Save the date in required format (query index)
-						$db_format = $field_type == 'date_picker' ? 'Y-m-d' : 'Y-m-d H:i:s';
-						$acf_value = $date->format( $db_format );
+						$label_format                         = $field_type == 'date_picker' ? 'Y-m-d' : 'Y-m-d H:i:s';
+						$value_format                         = $field_type == 'date_picker' ? 'Ymd' : 'Y-m-d H:i:s'; // ACF store datepicker value in this format in DB
+						$acf_value                            = $date->format( $value_format );
+						$acf_field['brx_label'][ $acf_value ] = $date->format( $label_format );
 					}
 				}
 
@@ -413,6 +415,11 @@ class Field_Acf {
 				'value'   => $filter_value,
 				'compare' => $compare_operator,
 			];
+
+			// Special handling for date_time_picker field because ACF store the value in Y-m-d H:i:s format (@since 2.2)
+			if ( $acf_field_type === 'date_time_picker' ) {
+				$meta_query['type'] = 'DATETIME';
+			}
 		}
 
 		else {

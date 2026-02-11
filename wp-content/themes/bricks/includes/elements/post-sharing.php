@@ -235,7 +235,7 @@ class Element_Post_Sharing extends Element {
 					$aria_label = 'X';
 
 					$data = [
-						'url'     => "https://x.com/share?text=$title&amp;url=$url",
+						'url'     => "https://twitter.com/intent/tweet?text=$title&amp;url=$url", // @see https://developer.x.com/en/docs/x-for-websites/web-intents/overview
 						// translators: %s: Service name
 						'tooltip' => sprintf( esc_html__( 'Share on %s', 'bricks' ), $aria_label ),
 						'class'   => 'twitter',

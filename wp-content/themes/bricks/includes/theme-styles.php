@@ -159,6 +159,11 @@ class Theme_Styles {
 	 * Get all theme style controls
 	 */
 	public static function get_controls() {
+		// Return cached controls (#86c6fbh3t; @since 2.2)
+		if ( ! empty( self::$controls ) ) {
+			return self::$controls;
+		}
+
 		$theme_styles_controls = [];
 
 		foreach ( glob( BRICKS_PATH . 'includes/theme-styles/controls/*.php' ) as $file ) {
@@ -178,7 +183,7 @@ class Theme_Styles {
 				}
 			}
 
-			$element          = require_once $file;
+			$element          = require $file;
 			$element_name     = isset( $element['name'] ) ? $element['name'] : '';
 			$element_controls = isset( $element['controls'] ) ? $element['controls'] : '';
 

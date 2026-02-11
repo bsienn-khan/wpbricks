@@ -362,7 +362,7 @@ class Interactions {
 					'description' => esc_html__( 'Set if your dynamic data in AJAX popup is rendered incorrectly.', 'bricks' ),
 					'placeholder' => esc_html__( 'Post', 'bricks' ),
 					'required'    => [
-						[ 'action', '=', 'show' ],
+						[ 'action', '=', [ 'show', 'startAnimation' ] ],
 						[ 'target', '=', 'popup' ],
 					],
 				],
@@ -373,7 +373,7 @@ class Interactions {
 					'type'        => 'text',
 					'description' => esc_html__( 'Set if your dynamic data in AJAX popup is rendered incorrectly.', 'bricks' ),
 					'required'    => [
-						[ 'action', '=', 'show' ],
+						[ 'action', '=', [ 'show', 'startAnimation' ] ],
 						[ 'target', '=', 'popup' ],
 					],
 				],

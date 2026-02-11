@@ -99,6 +99,11 @@ abstract class Base implements Provider_Interface {
 			'object_type' => '',
 		];
 
+		// Force 'is-array' argument to true when currently parsing Array query loop 'arrayEditor' field (@since 2.2)
+		if ( \Bricks\Query_Array::$is_parsing_array_loop_dd ) {
+			$filters['is-array'] = true;
+		}
+
 		if ( empty( $args ) || ! is_array( $args ) ) {
 			return $filters;
 		}
@@ -240,6 +245,13 @@ abstract class Base implements Provider_Interface {
 	 */
 	public function format_value_for_context( $value, $tag, $post_id, $filters, $context = 'text' ) {
 		$object_type = ! empty( $filters['object_type'] ) ? $filters['object_type'] : '';
+
+		// Handle 'is-array' filter to force array value into json string (@since 2.2)
+		if ( isset( $filters['is-array'] ) && $filters['is-array'] && is_array( $value ) ) {
+			// Force array value into json string
+			$context = 'text';
+			$value   = wp_json_encode( $value );
+		}
 
 		switch ( $context ) {
 			case 'text':

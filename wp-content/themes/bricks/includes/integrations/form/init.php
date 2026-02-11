@@ -42,43 +42,31 @@ class Init {
 		$post_id           = isset( $_POST['postId'] ) ? absint( $_POST['postId'] ) : 0;
 		$loop_post_id      = isset( $submitted_data['loopId'] ) ? absint( $submitted_data['loopId'] ) : 0; // Get query loop post ID to parse dynamic data (@since 1.11.1)
 
+		/**
+		 * Switch language based on the form submission data
+		 *
+		 * @since 2.2
+		 */
+		$locale = isset( $_POST['lang'] ) ? sanitize_text_field( $_POST['lang'] ) : '';
+		if ( $locale ) {
+			switch_to_locale( $locale );
+		}
+
 		$this->form_settings = \Bricks\Helpers::get_element_settings( $post_id, $form_element_id );
 		$this->form_id       = $form_element_id;
 		$this->post_id       = $post_id;
 
+		// STEP: Apply component property values to form settings (@since 2.2)
+		if ( $form_component_id ) {
+			$this->apply_component_properties( $post_id, $form_component_id, $form_element_id );
+		}
+
 		// No form settings found: Try to get from component element (@since 1.12.2)
 		if ( empty( $this->form_settings ) ) {
-			// Find the element from component data
 			$component_element = \Bricks\Helpers::get_component_element_by_id( $form_element_id );
 
-			// This form element is a component as well (@since 2.1)
-			if ( $form_component_id && $component_element ) {
-				// Get the component instance settings (@since 2.1)
-				$component_instance_settings = \Bricks\Helpers::get_component_instance( $component_element, 'settings' );
-
-				if ( ! empty( $component_instance_settings ) ) {
-					$this->form_settings = $component_instance_settings;
-				}
-			}
-
-			// This is a normal form inside a component
-			elseif ( isset( $component_element['settings'] ) ) {
+			if ( isset( $component_element['settings'] ) ) {
 				$this->form_settings = $component_element['settings'];
-			}
-
-			// Fallback: Special handling for components as blocks
-			if ( empty( $this->form_settings ) && $form_component_id && strpos( $form_element_id, $form_component_id . '-' ) === 0 ) {
-				// Get form settings directly from component
-				$component = \Bricks\Helpers::get_component_by_cid( $form_component_id );
-
-				if ( $component && isset( $component['elements'] ) ) {
-					foreach ( $component['elements'] as $element ) {
-						if ( isset( $element['name'] ) && $element['name'] === 'form' && isset( $element['settings'] ) ) {
-							$this->form_settings = $element['settings'];
-							break;
-						}
-					}
-				}
 			}
 		}
 
@@ -110,8 +98,11 @@ class Init {
 
 		/**
 		 * STEP: Google reCAPTCHA v3 (invisible)
+		 *
+		 * Only verify if enabled in form settings and API key is set (#86c83pftd)
 		 */
-		if ( isset( $this->form_settings['enableRecaptcha'] ) ) {
+		$google_recaptcha_enabled = isset( $this->form_settings['enableRecaptcha'] ) && \Bricks\Database::get_setting( 'apiKeyGoogleRecaptcha', false );
+		if ( $google_recaptcha_enabled ) {
 			$recaptcha_secret_key = \Bricks\Database::get_setting( 'apiSecretKeyGoogleRecaptcha', false );
 			$recaptcha_token      = ! empty( $_POST['recaptchaToken'] ) ? sanitize_text_field( $_POST['recaptchaToken'] ) : false;
 			$recaptcha_verified   = false;
@@ -161,10 +152,12 @@ class Init {
 		/**
 		 * STEP: Verify visible hCaptcha
 		 *
+		 * Only verify if enabled in form settings and API key is set (#86c83pftd)
+		 *
 		 * @since 1.9.2
 		 */
-		// hCaptcha enabled: Verify response
-		if ( isset( $this->form_settings['enableHCaptcha'] ) ) {
+		$hcaptcha_enabled = isset( $this->form_settings['enableHCaptcha'] ) && \Bricks\Database::get_setting( 'apiKeyHCaptcha', false );
+		if ( $hcaptcha_enabled ) {
 			$hcaptcha_secret_key = \Bricks\Database::get_setting( 'apiSecretKeyHCaptcha' );
 			$hcaptcha_response   = isset( $_POST['h-captcha-response'] ) ? sanitize_text_field( $_POST['h-captcha-response'] ) : false;
 			$hcaptcha_verified   = false;
@@ -207,9 +200,12 @@ class Init {
 		 *
 		 * https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
 		 *
+		 * Only verify if enabled in form settings and API key is set (#86c83pftd)
+		 *
 		 * @since 1.9.2
 		 */
-		if ( isset( $this->form_settings['enableTurnstile'] ) ) {
+		$turnstile_enabled = isset( $this->form_settings['enableTurnstile'] ) && \Bricks\Database::get_setting( 'apiKeyTurnstile', false );
+		if ( $turnstile_enabled ) {
 			$turnstile_secret_key = \Bricks\Database::get_setting( 'apiSecretKeyTurnstile' );
 			$turnstile_response   = isset( $_POST['cf-turnstile-response'] ) ? sanitize_text_field( $_POST['cf-turnstile-response'] ) : false;
 			$turnstile_data       = [];
@@ -399,6 +395,16 @@ class Init {
 			// Halts execution if an action reported an error (to run validator before running the form action)
 			$this->maybe_stop_processing();
 		}
+
+		/**
+		 * STEP: Handle file uploads early if create-post or update-post actions are present
+		 *
+		 * These actions need attachment IDs to save to ACF/Meta Box fields,
+		 * so files must be uploaded to media library before actions run.
+		 *
+		 * @since 2.2
+		 */
+		$this->maybe_handle_files_early();
 
 		// STEP: Run selected form submit 'actions'
 		$available_actions = self::get_available_actions();
@@ -820,9 +826,12 @@ class Init {
 	/**
 	 * Remove (default), keep uploaded or move files to media library (as attachment)
 	 *
+	 * @param string $mode 'early' = Only process attachments for create-post/update-post actions
+	 *                     'final' = Process all remaining files after actions complete (@since 2.2)
+	 *
 	 * @since 1.9.2
 	 */
-	public function handle_uploaded_files() {
+	public function handle_uploaded_files( $mode = 'final' ) {
 		$uploaded_files = $this->get_uploaded_files();
 
 		if ( empty( $uploaded_files ) ) {
@@ -844,10 +853,20 @@ class Init {
 				}
 			}
 
+			// Early mode: Only process files that should be saved as attachments (@since 2.2)
+			if ( $mode === 'early' && $save_file !== 'attachment' ) {
+				continue;
+			}
+
 			switch ( $save_file ) {
 				case 'attachment':
 					// Move uploaded files to media library as attachment
-					foreach ( $files as $file ) {
+					foreach ( $files as $index => $file ) {
+						// Skip if already processed in early mode (@since 2.2)
+						if ( isset( $file['attachment_id'] ) ) {
+							continue;
+						}
+
 						$attachment = [
 							'post_mime_type' => $file['type'],
 							'post_title'     => sanitize_file_name( $file['name'] ),
@@ -862,6 +881,11 @@ class Init {
 							// Add attachment metadata from file
 							$attachment_data = wp_generate_attachment_metadata( $attachment_id, $file['file'] );
 							wp_update_attachment_metadata( $attachment_id, $attachment_data );
+
+							// Store attachment ID in early mode for create-post/update-post actions (@since 2.2)
+							if ( $mode === 'early' ) {
+								$this->uploaded_files[ $input_name ][ $index ]['attachment_id'] = $attachment_id;
+							}
 						}
 					}
 					break;
@@ -871,13 +895,40 @@ class Init {
 					break;
 
 				default:
-					// Default: Remove uploaded files
-					foreach ( $files as $file ) {
-						@unlink( $file['file'] );
+					// Default: Remove uploaded files (only in final mode @since 2.2)
+					if ( $mode === 'final' ) {
+						foreach ( $files as $file ) {
+							@unlink( $file['file'] );
+						}
 					}
 					break;
 			}
 		}
+	}
+
+	/**
+	 * Handle file uploads early if create-post or update-post actions are present
+	 *
+	 * These actions need attachment IDs to save to ACF/Meta Box fields,
+	 * so files must be uploaded to media library before actions run.
+	 *
+	 * @since 2.2
+	 */
+	private function maybe_handle_files_early() {
+		// Check if create-post or update-post actions are present
+		$needs_early_upload = false;
+		$actions            = $this->form_settings['actions'] ?? [];
+
+		if ( in_array( 'create-post', $actions, true ) || in_array( 'update-post', $actions, true ) || in_array( 'webhook', $actions, true ) ) {
+			$needs_early_upload = true;
+		}
+
+		if ( ! $needs_early_upload ) {
+			return;
+		}
+
+		// Process files in early mode (only attachments)
+		$this->handle_uploaded_files( 'early' );
 	}
 
 	/**
@@ -903,24 +954,46 @@ class Init {
 	 *
 	 * @param string $content
 	 */
-	public function render_data( $content ) {
+	public function render_data( $content, $has_file_properties = false ) {
 		// \w: Matches any word character (alphanumeric & underscore).
 		// Only matches low-ascii characters (no accented or non-roman characters).
 		// Equivalent to [A-Za-z0-9_]
 		// https://regexr.com/
 
-		preg_match_all( '/{{(\w+)}}/', $content, $matches );
+		if ( $has_file_properties ) {
+			preg_match_all( '/{{(\w+)(?::(\w+))?}}/', $content, $matches, PREG_SET_ORDER );
 
-		if ( ! empty( $matches[0] ) ) {
-			foreach ( $matches[1] as $key => $field_id ) {
-				// Format: '{{zjkcdw}}' // Dynamic email data format
-				$tag = $matches[0][ $key ];
+			if ( ! empty( $matches ) ) {
+				foreach ( $matches as $match ) {
+					// Format: '{{zjkcdw}}' or '{{zjkcdw:url}}'
+					$tag      = $match[0];
+					$field_id = $match[1];
+					$property = $match[2] ?? '';
 
-				$value = $this->get_field_value( $field_id );
+					if ( $property ) {
+						$value = $this->get_file_field_property( $field_id, $property );
+					} else {
+						$value = $this->get_field_value( $field_id );
+						$value = ! empty( $value ) && is_array( $value ) ? implode( ', ', $value ) : $value;
+					}
 
-				$value = ! empty( $value ) && is_array( $value ) ? implode( ', ', $value ) : $value;
+					$content = str_replace( $tag, $value, $content );
+				}
+			}
+		} else {
+			preg_match_all( '/{{(\w+)}}/', $content, $matches );
 
-				$content = str_replace( $tag, $value, $content );
+			if ( ! empty( $matches[0] ) ) {
+				foreach ( $matches[1] as $key => $field_id ) {
+					// Format: '{{zjkcdw}}' // Dynamic email data format
+					$tag = $matches[0][ $key ];
+
+					$value = $this->get_field_value( $field_id );
+
+					$value = ! empty( $value ) && is_array( $value ) ? implode( ', ', $value ) : $value;
+
+					$content = str_replace( $tag, $value, $content );
+				}
 			}
 		}
 
@@ -953,6 +1026,69 @@ class Init {
 		}
 
 		return $form_fields[ "form-field-{$field_id}" ];
+	}
+
+	/**
+	 * Get property of file field by field ID
+	 *
+	 * @param string $field_id Field ID.
+	 * @param string $property Property name (name, type, size, id, url).
+	 *
+	 * @return string
+	 * @since 2.2
+	 */
+	public function get_file_field_property( $field_id, $property ) {
+		$uploaded_files = $this->get_uploaded_files();
+
+		// Find input name
+		$input_name = "form-field-$field_id";
+
+		if ( ! empty( $this->form_settings['fields'] ) ) {
+			foreach ( $this->form_settings['fields'] as $field ) {
+				if ( $field['id'] === $field_id && ! empty( $field['name'] ) ) {
+					$input_name = $field['name'];
+					break;
+				}
+			}
+		}
+
+		if ( empty( $uploaded_files[ $input_name ] ) ) {
+			return '';
+		}
+
+		$files  = $uploaded_files[ $input_name ];
+		$values = [];
+
+		foreach ( $files as $file ) {
+			switch ( $property ) {
+				case 'name':
+					$values[] = $file['name'];
+					break;
+				case 'type':
+					$values[] = $file['type'];
+					break;
+				case 'size':
+					$values[] = $file['size'];
+					break;
+				case 'id':
+					if ( isset( $file['attachment_id'] ) ) {
+						$values[] = $file['attachment_id'];
+					}
+					break;
+				case 'url':
+					if ( isset( $file['attachment_id'] ) ) {
+						$values[] = wp_get_attachment_url( $file['attachment_id'] );
+					} elseif ( isset( $file['file'] ) ) {
+						$upload_dir = wp_upload_dir();
+						if ( strpos( $file['file'], $upload_dir['basedir'] ) === 0 ) {
+							$values[] = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $file['file'] );
+						}
+					}
+					break;
+			}
+		}
+
+		return implode( ', ', $values );
 	}
 
 	/**
@@ -1131,6 +1267,8 @@ class Init {
 	/**
 	 * Get ACF field key from meta key
 	 *
+	 * Supports nested fields inside groups, repeaters, and flexible content.
+	 *
 	 * @since 2.1
 	 */
 	public static function get_acf_field_key_from_meta_key( $meta_key = '', $post_id = '', $post_type = '' ) {
@@ -1153,16 +1291,93 @@ class Init {
 		}
 
 		$groups = acf_get_field_groups( $group_query_args );
+
 		foreach ( $groups as $group ) {
 			$fields = ! empty( $group['key'] ) ? acf_get_fields( $group['key'] ) : [];
+
+			// STEP 1: Try simple direct match first (most common case - top-level fields)
 			foreach ( $fields as $field ) {
-				if ( ! empty( $field['name'] ) && $field['name'] === $meta_key ) {
-					$acf_field_key = $field['key'];
+				if ( ! empty( $field['name'] ) && $field['name'] === $meta_key && ! empty( $field['key'] ) ) {
+					return $field['key'];
+				}
+			}
+
+			// STEP 2: If not found and meta_key contains underscore, search nested fields
+			if ( strpos( $meta_key, '_' ) !== false ) {
+				$acf_field_key = self::search_acf_fields_for_meta_key( $fields, $meta_key );
+
+				if ( $acf_field_key ) {
+					return $acf_field_key;
 				}
 			}
 		}
 
 		return $acf_field_key;
+	}
+
+	/**
+	 * Recursively search ACF fields for a matching meta key
+	 *
+	 * Handles nested fields in groups, repeaters, and flexible content.
+	 *
+	 * @param array  $fields   Array of ACF fields to search
+	 * @param string $meta_key The meta key to find
+	 * @param string $prefix   Meta key prefix from parent fields (for nested fields)
+	 *
+	 * @return string Field key if found, empty string otherwise
+	 *
+	 * @since 2.2
+	 */
+	private static function search_acf_fields_for_meta_key( $fields, $meta_key, $prefix = '' ) {
+		if ( empty( $fields ) || ! is_array( $fields ) ) {
+			return '';
+		}
+
+		foreach ( $fields as $field ) {
+			$field_name = $field['name'] ?? '';
+
+			if ( empty( $field_name ) ) {
+				continue;
+			}
+
+			// Build the full meta key for this field (including parent prefixes)
+			$full_meta_key = $prefix ? $prefix . '_' . $field_name : $field_name;
+
+			// Check if this field matches the meta key
+			if ( $full_meta_key === $meta_key && ! empty( $field['key'] ) ) {
+				return $field['key'];
+			}
+
+			// Only recurse if the meta_key starts with the current field's full path
+			// This optimization avoids searching branches that can't possibly match
+			if ( strpos( $meta_key, $full_meta_key . '_' ) !== 0 ) {
+				continue;
+			}
+
+			// Search in sub_fields (groups, repeaters, etc.)
+			if ( ! empty( $field['sub_fields'] ) && is_array( $field['sub_fields'] ) ) {
+				$found = self::search_acf_fields_for_meta_key( $field['sub_fields'], $meta_key, $full_meta_key );
+
+				if ( $found ) {
+					return $found;
+				}
+			}
+
+			// Search in flexible content layouts
+			if ( ! empty( $field['layouts'] ) && is_array( $field['layouts'] ) ) {
+				foreach ( $field['layouts'] as $layout ) {
+					if ( ! empty( $layout['sub_fields'] ) && is_array( $layout['sub_fields'] ) ) {
+						$found = self::search_acf_fields_for_meta_key( $layout['sub_fields'], $meta_key, $full_meta_key );
+
+						if ( $found ) {
+							return $found;
+						}
+					}
+				}
+			}
+		}
+
+		return '';
 	}
 
 	/**
@@ -1183,5 +1398,143 @@ class Init {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Apply component property values to form settings
+	 *
+	 * When a form is inside a component, retrieve the component instance
+	 * and apply property values to form settings
+	 *
+	 * @param int    $post_id           Post ID
+	 * @param string $form_component_id Component instance ID
+	 * @param string $form_element_id   Form element ID
+	 *
+	 * @since 2.2
+	 */
+	private function apply_component_properties( $post_id, $form_component_id, $form_element_id ) {
+		// Extract component ID (Gutenberg uses format: component_id-uuid)
+		$component_id = strpos( $form_component_id, '-' ) !== false ? explode( '-', $form_component_id )[0] : $form_component_id;
+
+		$instance_element = false;
+
+		// Detect if this is a Gutenberg block (contains UUID with hyphens)
+		$is_gutenberg = strpos( $form_component_id, '-' ) !== false || strpos( $form_element_id, '-' ) !== false;
+
+		// For Bricks content, try to get component instance
+		if ( ! $is_gutenberg ) {
+			// First try: form_component_id (works for "form INSIDE component")
+			$instance_data    = \Bricks\Helpers::get_element_data( $post_id, $form_component_id );
+			$instance_element = $instance_data['element'] ?? false;
+
+			// Second try: form_element_id (works for "form IS component")
+			if ( ! $instance_element || ! isset( $instance_element['cid'] ) ) {
+				$instance_data    = \Bricks\Helpers::get_element_data( $post_id, $form_element_id );
+				$instance_element = $instance_data['element'] ?? false;
+			}
+		}
+
+		// If not found in Bricks content, try Gutenberg blocks
+		if ( ! $instance_element || ! isset( $instance_element['cid'] ) ) {
+			// For Gutenberg, search using the ID that contains the UUID
+			// - Form IS component: form_element_id has UUID, form_component_id doesn't
+			// - Form INSIDE component: form_component_id has UUID
+			$search_id = strpos( $form_component_id, '-' ) !== false ? $form_component_id : $form_element_id;
+
+			$block_properties = $this->get_gutenberg_block_properties( $post_id, $component_id, $search_id );
+			$component        = \Bricks\Helpers::get_component_by_cid( $component_id );
+
+			if ( ! $component || empty( $component['elements'] ) ) {
+				return;
+			}
+
+			// Create instance element for get_component_instance()
+			$instance_element = [
+				'id'         => $form_component_id,
+				'cid'        => $component_id,
+				'properties' => $block_properties,
+			];
+		}
+
+		// Apply properties to component elements
+		$component_instance = \Bricks\Helpers::get_component_instance( $instance_element );
+
+		if ( empty( $component_instance['elements'] ) ) {
+			return;
+		}
+
+		// Determine target element ID
+		// - Bricks: form_element_id = component_id means form IS the component
+		// - Gutenberg: form_element_id starts with component_id- means form IS the component
+		$is_form_the_component = ( $form_element_id === $component_id ) || ( strpos( $form_element_id, $component_id . '-' ) === 0 );
+		$target_id             = $is_form_the_component ? $component_id : $form_element_id;
+
+		// Find and apply form settings with properties
+		foreach ( $component_instance['elements'] as $element ) {
+			if ( $element['id'] === $target_id && isset( $element['settings'] ) ) {
+				$this->form_settings = $element['settings'];
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Get Gutenberg block properties from post content
+	 *
+	 * @param int    $post_id           Post ID
+	 * @param string $component_id      Component template ID
+	 * @param string $form_element_id   Form element ID (may contain UUID)
+	 *
+	 * @return array Block properties
+	 *
+	 * @since 2.2
+	 */
+	private function get_gutenberg_block_properties( $post_id, $component_id, $form_element_id ) {
+		$post = get_post( $post_id );
+
+		if ( ! $post || empty( $post->post_content ) || ! function_exists( 'parse_blocks' ) ) {
+			return [];
+		}
+
+		$blocks = parse_blocks( $post->post_content );
+
+		return $this->find_block_properties_recursive( $blocks, $component_id, $form_element_id );
+	}
+
+	/**
+	 * Recursively search for block properties in parsed blocks
+	 *
+	 * @param array  $blocks            Parsed blocks array
+	 * @param string $component_id      Component template ID
+	 * @param string $form_element_id   Form element ID (may contain UUID)
+	 *
+	 * @return array Block properties
+	 *
+	 * @since 2.2
+	 */
+	private function find_block_properties_recursive( $blocks, $component_id, $form_element_id ) {
+		foreach ( $blocks as $block ) {
+			// Check if this is a matching Bricks component block
+			if ( isset( $block['blockName'] ) && $block['blockName'] === 'bricks-components/' . $component_id ) {
+				$attrs    = $block['attrs'] ?? [];
+				$block_id = $attrs['blockId'] ?? '';
+
+				// Match by blockId (check if form_element_id contains the blockId)
+				if ( ! $block_id || strpos( $form_element_id, $block_id ) !== false ) {
+					return $attrs['properties'] ?? [];
+				}
+			}
+
+			// Recursively search inner blocks
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$properties = $this->find_block_properties_recursive( $block['innerBlocks'], $component_id, $form_element_id );
+
+				if ( ! empty( $properties ) ) {
+					return $properties;
+				}
+			}
+		}
+
+		return [];
 	}
 }

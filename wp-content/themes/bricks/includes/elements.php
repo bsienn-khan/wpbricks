@@ -38,6 +38,9 @@ class Elements {
 			'block', // @since 1.5
 			'div', // @since 1.5
 
+			// Components
+			'slot', // @since 2.2
+
 			// Basic
 			'heading',
 			'text-basic', // @since 1.3.6
@@ -53,6 +56,7 @@ class Elements {
 			'dropdown', // @since 1.8
 			'offcanvas', // @since 1.8
 			'toggle', // @since 1.8
+			'toggle-mode', // @since 2.2
 
 			'divider',
 			'icon-box',

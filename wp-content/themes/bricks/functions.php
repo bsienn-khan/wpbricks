@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
  *
  * @since 1.0
  */
-define( 'BRICKS_VERSION', '2.1.4' );
+define( 'BRICKS_VERSION', '2.2' );
 define( 'BRICKS_NAME', 'Bricks' );
 define( 'BRICKS_TEMP_DIR', 'bricks-temp' ); // Template import/export (JSON & ZIP)
 define( 'BRICKS_TEMPLATE_SCREENSHOTS_DIR', 'bricks/template-screenshots' ); // Template screenshots (@since 1.10)
@@ -28,6 +28,7 @@ define( 'BRICKS_DB_BUILDER_WIDTH_LOCKED', 'bricks_builder_width_locked' );
 define( 'BRICKS_DB_COMPONENTS', 'bricks_components' );
 define( 'BRICKS_DB_COLOR_PALETTE', 'bricks_color_palette' );
 define( 'BRICKS_DB_BREAKPOINTS', 'bricks_breakpoints' );
+define( 'BRICKS_DB_STYLE_MANAGER', 'bricks_style_manager' ); // @since 2.2
 define( 'BRICKS_DB_GLOBAL_QUERIES', 'bricks_global_queries' );
 define( 'BRICKS_DB_GLOBAL_QUERIES_CATEGORIES', 'bricks_global_queries_categories' );
 define( 'BRICKS_DB_GLOBAL_SETTINGS', 'bricks_global_settings' );

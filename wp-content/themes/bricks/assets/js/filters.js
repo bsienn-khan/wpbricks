@@ -26,6 +26,41 @@ if (window.bricksUtils) {
 		})
 	}
 
+	window.bricksUtils.hideOrShowLiveSearchWrapper = function (queryId) {
+		// Get queryLoopInstance from window.bricksData.queryLoopInstances
+		const queryLoopInstance = window.bricksData.queryLoopInstances[queryId] || false
+
+		// Exit if no queryLoopInstance or not a live search
+		if (!queryLoopInstance || !queryLoopInstance.isLiveSearch) {
+			return
+		}
+
+		// Get all search filters targeting this query
+		const searchFilters = Object.values(window.bricksData.filterInstances || {}).filter(
+			(filter) => {
+				return filter.targetQueryId === queryId && filter.filterType === 'search'
+			}
+		)
+
+		// Check if any search filter has a non-empty value, have to fulfil minCharacters if set
+		const hasActiveSearch = searchFilters.some((filter) => {
+			// Check current element input value instead of instance currentValue
+			const value = filter.filterElement ? filter.filterElement.value : ''
+			// Check minCharacters
+			const filterMinChars = filter.filterMinChars || 3
+			if (filterMinChars > 0) {
+				return value.trim().length >= filterMinChars
+			}
+			return value.trim() !== ''
+		})
+
+		if (hasActiveSearch) {
+			bricksUtils.showLiveSearchWrapper(queryId)
+		} else {
+			bricksUtils.hideLiveSearchWrapper(queryId)
+		}
+	}
+
 	// Update selected filters for a targetQuery (@since 1.11)
 	window.bricksUtils.updateSelectedFilters = function (
 		targetQueryId,
@@ -57,8 +92,9 @@ if (window.bricksUtils) {
 				(filterInstance.currentValue === 0 && filterInstance.filterType === 'pagination') ||
 				(Array.isArray(filterInstance.currentValue) && filterInstance.currentValue.length === 0) ||
 				(filterInstance.filterType === 'range' &&
-					JSON.stringify(filterInstance.currentValue) ===
-						JSON.stringify([filterInstance.min, filterInstance.max]))
+					(JSON.stringify(filterInstance.currentValue) ===
+						JSON.stringify([filterInstance.min, filterInstance.max]) ||
+						!filterInstance.hasChanged))
 			)
 		}
 
@@ -199,15 +235,7 @@ if (window.bricksUtils) {
 				filter.currentValue = originalValue
 
 				// Hide or show search icon based on the originalValue
-				const searchIcon = element.nextElementSibling || false
-
-				if (searchIcon) {
-					if (originalValue === '') {
-						searchIcon.classList.remove('brx-show')
-					} else {
-						searchIcon.classList.add('brx-show')
-					}
-				}
+				bricksUtils.updateSearchFilterIconVisibility(filter)
 
 				// Update the live search term
 				bricksUtils.updateLiveSearchTerm(targetQueryId, originalValue)
@@ -269,11 +297,13 @@ if (window.bricksUtils) {
 
 				flatpickrInstance.setDate(originalValue, false) // No fire change event
 				filter.currentValue = originalValue
+
+				bricksUtils.updateDatepickerFilterIconVisibility(filter)
 				break
 
 			case 'range':
 				filter.currentValue = [...originalValue]
-
+				filter.hasChanged = false
 				break
 		}
 	}
@@ -451,11 +481,40 @@ if (window.bricksUtils) {
 		return selectedFilters
 	}
 
+	// Hide reset filter button if there is no active filters immediately before fetching filter results for better UX. (#86c3zpqyj) (@since 2.2)
+	window.bricksUtils.maybeHideResetFilterButton = function (targetQueryId) {
+		if (!targetQueryId) {
+			return
+		}
+
+		// Get all selected filters for the targetQueryId
+		const selectedFilters = bricksUtils.getSelectedFiltersForQuery(targetQueryId)
+
+		// Only proceed if there is no selected (active) filters
+		if (Object.keys(selectedFilters).length !== 0) {
+			return
+		}
+
+		// Find all reset filter instances for the targetQueryId with hideOnNoFilter = true
+		const resetFilterInstances = bricksUtils.getFiltersForQuery(targetQueryId).filter((filter) => {
+			return filter.filterType === 'reset' && filter.hideOnNoFilter === true
+		})
+
+		resetFilterInstances.forEach((filterInstance) => {
+			const element = filterInstance.filterElement
+			if (element) {
+				element.classList.add('brx-no-active-filter')
+			}
+		})
+	}
+
 	// Fetch filter results for a specific query (@since 1.11)
 	window.bricksUtils.fetchFilterResults = function (targetQueryId, isPopState = false) {
 		if (!targetQueryId || !window.bricksData.queryLoopInstances[targetQueryId]) {
 			return
 		}
+
+		bricksUtils.maybeHideResetFilterButton(targetQueryId)
 
 		bricksGetQueryResult(targetQueryId, isPopState)
 			.then((res) => {
@@ -514,6 +573,57 @@ if (window.bricksUtils) {
 			}
 		})
 	}
+
+	// Update Search Filter Icon Visibility (@since 2.2)
+	window.bricksUtils.updateSearchFilterIconVisibility = function (
+		filterInstance,
+		searchValue = null
+	) {
+		// Ensure it's a search filter
+		if (filterInstance.filterType !== 'search') {
+			return
+		}
+		const element = filterInstance.filterElement
+		const searchIcon = element.nextElementSibling || false
+
+		if (!searchIcon) {
+			return
+		}
+
+		const compareValue = searchValue !== null ? searchValue : filterInstance.currentValue
+
+		if (compareValue === '') {
+			searchIcon.classList.remove('brx-show')
+		} else {
+			searchIcon.classList.add('brx-show')
+		}
+	}
+
+	// Update Datepicker Filter Icon Visibility (@since 2.2)
+	window.bricksUtils.updateDatepickerFilterIconVisibility = function (
+		filterInstance,
+		dateValue = null
+	) {
+		// Ensure it's a datepicker filter
+		if (filterInstance.filterType !== 'datepicker') {
+			return
+		}
+
+		const element = filterInstance.filterElement
+		const datepickerIcon = element.parentElement?.querySelector('.icon') || false
+
+		if (!datepickerIcon) {
+			return
+		}
+
+		const compareValue = dateValue !== null ? dateValue : filterInstance.currentValue
+
+		if (compareValue === '') {
+			datepickerIcon.classList.remove('brx-show')
+		} else {
+			datepickerIcon.classList.add('brx-show')
+		}
+	}
 }
 
 // Init all filters settings and save them into window.bricksData.filterInstances
@@ -567,6 +677,9 @@ const bricksFiltersFn = new BricksFunction({
 
 					break
 				case 'reset':
+					if (element.dataset.brxHideOnNoFilter === 'true') {
+						filterSettings.hideOnNoFilter = true
+					}
 					break
 				case 'apply':
 					break
@@ -659,6 +772,13 @@ const bricksFiltersFn = new BricksFunction({
 
 					filterSettings.currentValue = [...currentValue]
 					filterSettings.originalValue = [filterSettings.min, filterSettings.max]
+
+					// Determine if the range has changed from the original min/max (#86c3vf095; @since 2.2)
+					if (currentValue[0] !== filterSettings.min || currentValue[1] !== filterSettings.max) {
+						filterSettings.hasChanged = true
+					} else {
+						filterSettings.hasChanged = false
+					}
 					break
 			}
 
@@ -709,32 +829,18 @@ const bricksSearchFilterFn = new BricksFunction({
 
 		// STEP: Base on the filterMethod, decide to use AJAX or change the URL
 		if (filterMethod === 'ajax') {
-			// Function to hide or show the icon based on searchValue
-			const hideOrShowIcon = (searchValue) => {
-				const icon = element.nextElementSibling || false
-
-				if (!icon) {
-					return
-				}
-
-				if (searchValue === '') {
-					icon.classList.remove('brx-show')
-				} else {
-					icon.classList.add('brx-show')
-				}
-			}
-
 			// Search input
 			const search = (e) => {
 				const searchValue = element.value
 				const isEnter = e.key === 'Enter'
 
-				hideOrShowIcon(searchValue)
+				bricksUtils.updateSearchFilterIconVisibility(filterInstance, searchValue)
 
+				// Should continue with the search even if the searchValue is the same as currentValue when because it might be a XHR abort on previous request
 				// Return: searchValue is the same as currentValue
-				if (!isEnter && searchValue === filterInstance.currentValue) {
-					return
-				}
+				// if (!isEnter && searchValue === filterInstance.currentValue) {
+				// 	return
+				// }
 
 				// Save searchValue as currentValue
 				filterInstance.currentValue = searchValue
@@ -749,6 +855,12 @@ const bricksSearchFilterFn = new BricksFunction({
 				// If it's a live search, hide the [data-brx-ls-wrapper] if searchValue is empty
 				if (queryInstance?.isLiveSearch && searchValue === '') {
 					bricksUtils.hideLiveSearchWrapper(targetQueryId)
+					// Update selected filters
+					bricksUtils.updateSelectedFilters(targetQueryId, filterInstance)
+
+					// Make API call to refresh filter options
+					bricksUtils.fetchFilterResults(targetQueryId)
+
 					return
 				}
 
@@ -776,14 +888,22 @@ const bricksSearchFilterFn = new BricksFunction({
 			// Possible filterApplyOn values: change, click (on filter apply button)
 			if (filterApplyOn === 'change') {
 				// Abort previous AJAX request search on keyup without debounce (@since 1.12)
-				element.addEventListener('keyup', () => bricksUtils.maybeAbortXhr(targetQueryId))
+				element.addEventListener('input', () => bricksUtils.maybeAbortXhr(targetQueryId))
 
-				element.addEventListener('keyup', bricksUtils.debounce(search, filterInputDebounce))
+				element.addEventListener('input', bricksUtils.debounce(search, filterInputDebounce))
+
+				// Still listen to Enter key for immediate search
+				element.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault()
+						search(e)
+					}
+				})
 			} else {
 				element.addEventListener('input', search)
 
 				// Listen to keyup "Enter" event as well
-				element.addEventListener('keyup', (e) => {
+				element.addEventListener('keydown', (e) => {
 					if (e.key === 'Enter') {
 						search(e)
 					}
@@ -792,17 +912,17 @@ const bricksSearchFilterFn = new BricksFunction({
 
 			// Maybe show the [data-brx-ls-wrapper] if queryInstance.isLiveSearch on focus, if searchValue is not empty
 			element.addEventListener('focus', (e) => {
-				const searchValue = e.target.value
-
 				// Get query instance and check if it's a live search
 				const queryInstance = window.bricksData.queryLoopInstances[targetQueryId] || false
 
 				if (!queryInstance) {
 					return
 				}
+				const activeFilters = bricksUtils.getSelectedFiltersForQuery(targetQueryId)
+				const hasActiveFilters = Object.keys(activeFilters).length > 0
 
-				// If it's a live search, show the [data-brx-ls-wrapper] if searchValue is not empty
-				if (queryInstance?.isLiveSearch && searchValue !== '') {
+				// If it's a live search, show the [data-brx-ls-wrapper] if there is any active filters (#86c3zpqyj)
+				if (queryInstance?.isLiveSearch && hasActiveFilters) {
 					bricksUtils.showLiveSearchWrapper(targetQueryId)
 				}
 			})
@@ -1202,6 +1322,16 @@ const bricksRangeFilterFn = new BricksFunction({
 
 				// Set new rangeValue as currentValue
 				filterInstance.currentValue = [...rangeValue]
+
+				// If currentValue is not same as originalValue, set hasChanged to true (#86c3vf095; @since 2.2)
+				if (
+					filterInstance.currentValue[0] !== filterInstance.originalValue[0] ||
+					filterInstance.currentValue[1] !== filterInstance.originalValue[1]
+				) {
+					filterInstance.hasChanged = true
+				} else {
+					filterInstance.hasChanged = false
+				}
 
 				// Only execute filter if filterApplyOn is change
 				if (filterApplyOn !== 'change') {
@@ -1652,7 +1782,7 @@ function bricksCheckboxFilter() {
 // Datepicker filter
 const bricksDatePickerFilterFn = new BricksFunction({
 	parentNode: document,
-	selector: '.brxe-filter-datepicker[data-brx-filter]',
+	selector: '.brxe-filter-datepicker input[data-brx-filter]',
 	frontEndOnly: true,
 	eachElement: (element) => {
 		// Get filterInstance
@@ -1689,6 +1819,50 @@ const bricksDatePickerFilterFn = new BricksFunction({
 				flatpickrOptions = JSON.parse(flatpickrOptions)
 				flatpickrOptions.disableMobile = true
 
+				// Setup clear button function for datepicker (@since 2.2)
+				const setupClearButton = () => {
+					// Setup clear button
+					const clearButton = filterInstance.filterElement.parentElement?.querySelector('.icon')
+
+					if (clearButton) {
+						const clearValue = () => {
+							bricksUtils.resetFilterValue(filterInstance)
+
+							// Only execute filter if filterApplyOn is change
+							if (filterApplyOn !== 'change') {
+								return
+							}
+
+							// Get query instance
+							const queryInstance = window.bricksData.queryLoopInstances[targetQueryId] || false
+
+							if (!queryInstance) {
+								return
+							}
+
+							// STEP: Update selected filters
+							bricksUtils.updateSelectedFilters(targetQueryId, filterInstance)
+
+							// STEP: Execute filter
+							bricksUtils.fetchFilterResults(targetQueryId)
+						}
+
+						// Click event
+						clearButton.addEventListener('click', function (e) {
+							e.preventDefault()
+							clearValue()
+						})
+
+						// Keydown event for accessibility
+						clearButton.addEventListener('keydown', function (e) {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault()
+								clearValue()
+							}
+						})
+					}
+				}
+
 				// Listen to the flatpickr ready event to set the aria-label and id
 				flatpickrOptions.onReady = (a, b, fp) => {
 					// Add the aria-label to flatpickr altInput
@@ -1701,6 +1875,8 @@ const bricksDatePickerFilterFn = new BricksFunction({
 						// Remove the id tag on the original input to avoid duplicate id
 						element.removeAttribute('id')
 					}
+					// Setup clear button
+					setupClearButton()
 				}
 
 				// Listen to the datepicker change event
@@ -1775,6 +1951,8 @@ const bricksDatePickerFilterFn = new BricksFunction({
 
 					// Save bricksDateStr as currentValue
 					filterInstance.currentValue = bricksDateStr
+
+					bricksUtils.updateDatepickerFilterIconVisibility(filterInstance)
 
 					// Only execute filter if filterApplyOn is change
 					if (filterApplyOn !== 'change') {
@@ -1931,7 +2109,6 @@ const bricksResetFilterFn = new BricksFunction({
 				if (queryInstance?.isLiveSearch) {
 					// Hide the [data-brx-ls-wrapper]
 					bricksUtils.hideLiveSearchWrapper(targetQueryId)
-					return
 				}
 
 				// STEP: Update selected filters
@@ -2216,8 +2393,8 @@ function bricksActiveFiltersCountDD() {
  * Logic to show/hide the [data-brx-ls-wrapper] based certain conditions
  */
 function bricksLiveSearchWrappersInit() {
-	// Listen to bricks/ajax/start event and show the [data-brx-ls-wrapper] if queryInstance.isLiveSearch && !isPopStateCall
-	document.addEventListener('bricks/ajax/start', function (event) {
+	// Listen to bricks/query_result/displayed event and run hideOrShowLiveSearchWrapper if queryInstance.isLiveSearch && !isPopStateCall
+	document.addEventListener('bricks/ajax/query_result/displayed', function (event) {
 		// Get the queryId from the event
 		const queryId = event.detail.queryId || false
 		const isPopStateCall = event.detail?.isPopState || false
@@ -2228,10 +2405,12 @@ function bricksLiveSearchWrappersInit() {
 
 		const queryInstance = window.bricksData.queryLoopInstances[queryId] || false
 
-		if (queryInstance?.isLiveSearch) {
-			// Show the [data-brx-ls-wrapper]
-			bricksUtils.showLiveSearchWrapper(queryId)
+		if (!queryInstance?.isLiveSearch) {
+			return
 		}
+
+		// Use the new function to check current state and show/hide wrapper
+		bricksUtils.hideOrShowLiveSearchWrapper(queryId)
 	})
 
 	// Listen to document click event and maybe hide the [data-brx-ls-wrapper]
@@ -2410,10 +2589,15 @@ function bricksBrowserHistorySupport() {
 		return
 	}
 
+	/**
+	 * This is causing issues when using back/forward browser navigation and bad UX
+	 * No obvious issue with Scroll To interaction, so commenting it out.
+	 * (#86c0rbuhb; @since 2.2)
+	 */
 	// Disable scroll restoration in modern browsers
-	if ('scrollRestoration' in history) {
-		history.scrollRestoration = 'manual'
-	}
+	// if ('scrollRestoration' in history) {
+	// 	history.scrollRestoration = 'manual'
+	// }
 
 	window.addEventListener('popstate', function (event) {
 		if (event.state && event.state.isBricksFilter) {
@@ -2487,8 +2671,12 @@ function bricksSearchValueUpdater() {
 				if (filterElement.value !== currentValue) {
 					filterElement.value = currentValue
 
+					bricksUtils.updateSearchFilterIconVisibility(filter)
 					bricksUtils.updateLiveSearchTerm(targetQueryId, currentValue)
 				}
+
+				// Always update live search term as the search filter might be triggered via submit button (#86c55zec4; @since 2.2)
+				bricksUtils.updateLiveSearchTerm(targetQueryId, currentValue)
 			})
 		}
 	})

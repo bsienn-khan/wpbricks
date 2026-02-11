@@ -126,7 +126,7 @@ class Frontend {
 				$meta_value = bricks_render_dynamic_data( $meta_value, $post_id );
 			}
 
-			echo '<meta name="' . $name . '" content="' . esc_attr( $meta_value ) . '">';
+			echo '<meta name="' . esc_attr( $name ) . '" content="' . esc_attr( $meta_value ) . '">';
 		}
 	}
 
@@ -224,7 +224,7 @@ class Frontend {
 		$facebook_app_id = Database::$global_settings['facebookAppId'] ?? false;
 
 		if ( $facebook_app_id ) {
-			$open_graph_meta_tags[] = '<meta property="fb:app_id" content="' . $facebook_app_id . '" />';
+			$open_graph_meta_tags[] = '<meta property="fb:app_id" content="' . esc_attr( $facebook_app_id ) . '" />';
 		}
 
 		/**
@@ -237,10 +237,10 @@ class Frontend {
 		global $wp;
 		$og_url = home_url( add_query_arg( [], $wp->request ? trailingslashit( $wp->request ) : '' ) );
 
-		$open_graph_meta_tags[] = '<meta property="og:url" content="' . $og_url . '" />';
+		$open_graph_meta_tags[] = '<meta property="og:url" content="' . esc_url( $og_url ) . '" />';
 
 		// Site Name
-		$open_graph_meta_tags[] = '<meta property="og:site_name" content="' . get_bloginfo( 'name' ) . '" />';
+		$open_graph_meta_tags[] = '<meta property="og:site_name" content="' . esc_attr( get_bloginfo( 'name' ) ) . '" />';
 
 		// Title
 		if ( ! empty( $settings['sharingTitle'] ) ) {
@@ -294,7 +294,7 @@ class Frontend {
 			$sharing_type = 'website';
 		}
 
-		$open_graph_meta_tags[] = '<meta property="og:type" content="' . $sharing_type . '" />';
+		$open_graph_meta_tags[] = '<meta property="og:type" content="' . esc_attr( $sharing_type ) . '" />';
 
 		echo "\n" . join( "\n", $open_graph_meta_tags ) . "\n";
 	}
@@ -417,6 +417,7 @@ class Frontend {
 				'isotopeInstances'            => [], // Holds all the isotope instances (@since 1.9.6)
 				'activeFiltersCountInstances' => [], // Holds all the active filters count instances (@since 2.0)
 				'googleMapInstances'          => [], // Holds all the Google Map instances (@since 2.0)
+				'leafletMapInstances'         => [], // Holds all the Leaflet Map instances (@since 2.2)
 				'facebookAppId'               => isset( Database::$global_settings['facebookAppId'] ) ? Database::$global_settings['facebookAppId'] : false,
 				'headerPosition'              => Database::$header_position,
 				'offsetLazyLoad'              => ! empty( Database::$global_settings['offsetLazyLoad'] ) ? Database::$global_settings['offsetLazyLoad'] : 300,
@@ -436,6 +437,8 @@ class Frontend {
 				'infoboxScript'               => BRICKS_URL_ASSETS . 'js/libs/infobox.min.js?v=' . BRICKS_VERSION, // @since 2.0
 				'markerClustererScript'       => BRICKS_URL_ASSETS . 'js/libs/markerclusterer.min.js?v=' . BRICKS_VERSION, // @since 2.0
 				'mainQueryId'                 => Database::$main_query_id, // @since 2.0
+				'activeSearchTemplate'        => Database::$active_templates['search'] ?? null, // @since 2.2
+				'defaultMode'                 => Database::$global_data['styleManager']['defaultMode'] ?? 'light', // light, dark, auto (@since 2.2)
 			]
 		);
 	}
@@ -587,9 +590,21 @@ class Frontend {
 
 		// Add component children to Frontend::$elements to render them
 		foreach ( $component_elements as $component_element ) {
+			// Follow 'is_frontend' from component element to its children, otherwise Bricks\Helpers::set_is_frontend_to_false executed in AJAX::render_data will not bring 'is_frontend' to children (#86c6jvw7v; @since 2.2)
+			if ( isset( $element['is_frontend'] ) ) {
+				$component_element['is_frontend'] = $element['is_frontend'];
+			}
+
 			// Set 'parentComponent' on component child to get use .brxe-{} class name on component child
 			$component_element['parentComponent'] = $component_id;
-			$component_element['instanceId']      = $element['instanceId'] ?? $element['id']; // Use grandparent instanceId if available (nested component) (#86c51y7xy; @since 2.1)
+
+			if ( $component_element['name'] === 'slot' ) {
+				// Slot element: Use parent instance ID to correctly map slot children
+				$component_element['instanceId'] = $element['id'];
+			} else {
+				// Other elements: Use grandparent instanceId if available (nested component) (#86c51y7xy; @since 2.1)
+				$component_element['instanceId'] = $element['instanceId'] ?? $element['id'];
+			}
 
 			self::$elements[ $component_element['id'] ] = $component_element;
 
@@ -603,6 +618,48 @@ class Frontend {
 				// Get children from component
 				if ( ! empty( $component_element['children'] ) ) {
 					$element['children'] = $component_element['children'];
+				}
+			}
+		}
+
+		/**
+		 * STEP: Add slot children to Frontend::$elements if component instance has slots
+		 *
+		 * @since 2.2
+		 */
+		if ( ! empty( $element['slotChildren'] ) ) {
+			foreach ( $element['slotChildren'] as $slot_id => $slot_child_ids ) {
+				if ( is_array( $slot_child_ids ) ) {
+					foreach ( $slot_child_ids as $child_id ) {
+						$child_element = null;
+
+						// Find child in current elements
+						foreach ( self::$elements as $el ) {
+							if ( $el['id'] === $child_id ) {
+								$child_element = $el;
+								break;
+							}
+						}
+
+						// If not found, get from original elements array
+						if ( ! $child_element ) {
+							$original_elements = Database::get_data( Database::$page_data['preview_or_post_id'], 'content' );
+							foreach ( $original_elements as $el ) {
+								if ( $el['id'] === $child_id ) {
+									$child_element = $el;
+									break;
+								}
+							}
+						}
+
+						if ( $child_element ) {
+							$child_element['parent']          = $element['id'];
+							$child_element['parentComponent'] = $component_id;
+							$child_element['instanceId']      = $element['instanceId'] ?? $element['id'];
+
+							self::$elements[ $child_id ] = $child_element;
+						}
+					}
 				}
 			}
 		}

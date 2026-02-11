@@ -1363,7 +1363,7 @@ if ( $code_review ) {
 					<td>
 						<input type="checkbox" name="builderAutosaveDisabled" id="builderAutosaveDisabled" <?php checked( isset( $settings['builderAutosaveDisabled'] ) ); ?>>
 						<label for="builderAutosaveDisabled"><?php esc_html_e( 'Disable autosave', 'bricks' ); ?></label>
-						<p class="description"><?php esc_html_e( 'The autosave creates a backup copy of all elements on the canvas. Global data such as components, classes, and variables is not saved. Autosaves can be restored under Manage > History / Rivisions from the builder toolbar.', 'bricks' ); ?></p>
+						<p class="description"><?php esc_html_e( 'The autosave creates a backup copy of all elements on the canvas. Global data such as components, classes, and variables is not saved. Autosaves can be restored under Manage > History / Revisions from the builder toolbar.', 'bricks' ); ?></p>
 
 					<?php if ( ! isset( $settings['builderAutosaveDisabled'] ) ) { ?>
 						<div class="separator"></div>
@@ -1520,6 +1520,21 @@ if ( $code_review ) {
 				<tr>
 					<th><label><?php esc_html_e( 'Control panel', 'bricks' ); ?></label></th>
 					<td>
+						<input type="checkbox" name="builderClassPreviewOnHover" id="builderClassPreviewOnHover" <?php checked( isset( $settings['builderClassPreviewOnHover'] ) ); ?>>
+						<label for="builderClassPreviewOnHover"><?php echo esc_html__( 'Class preview on hover', 'bricks' ); ?></label>
+
+						<br>
+
+						<input type="checkbox" name="builderColorPreviewOnHover" id="builderColorPreviewOnHover" <?php checked( isset( $settings['builderColorPreviewOnHover'] ) ); ?>>
+						<label for="builderColorPreviewOnHover"><?php echo esc_html__( 'Color preview on hover', 'bricks' ); ?></label>
+
+						<br>
+
+						<input type="checkbox" name="builderVariablePreviewOnHover" id="builderVariablePreviewOnHover" <?php checked( isset( $settings['builderVariablePreviewOnHover'] ) ); ?>>
+						<label for="builderVariablePreviewOnHover"><?php echo esc_html__( 'Variable preview on hover', 'bricks' ); ?></label>
+
+						<br>
+
 						<input type="checkbox" name="builderDisablePanelAutoExpand" id="builderDisablePanelAutoExpand" <?php checked( isset( $settings['builderDisablePanelAutoExpand'] ) ); ?>>
 						<label for="builderDisablePanelAutoExpand"><?php echo esc_html__( 'Disable auto-expand', 'bricks' ) . ' (' . esc_html__( 'Text editor', 'bricks' ) . ', ' . esc_html__( 'Code', 'bricks' ) . ')'; ?></label>
 
@@ -1537,6 +1552,12 @@ if ( $code_review ) {
 
 						<input type="checkbox" name="builderCodeVim" id="builderCodeVim" <?php checked( isset( $settings['builderCodeVim'] ) ); ?>>
 						<label for="builderCodeVim"><?php echo esc_html__( 'Code control', 'bricks' ) . ': Vim (' . esc_html__( 'Toggle', 'bricks' ) . ')'; ?></label>
+
+						<br>
+
+						<input type="checkbox" name="builderRememberSpacingLinkState" id="builderRememberSpacingLinkState" <?php checked( isset( $settings['builderRememberSpacingLinkState'] ) ); ?>>
+						<label for="builderRememberSpacingLinkState"><?php echo esc_html__( 'Spacing control', 'bricks' ) . ': ' . esc_html__( 'Remember linked state', 'bricks' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Remember and apply the linked state (unlinked, opposites linked, all sides linked) for all spacing controls.', 'bricks' ); ?></p>
 
 						<div class="separator"></div>
 
@@ -1799,6 +1820,18 @@ if ( $code_review ) {
 							esc_html__( 'Only set if you experience problems with the default rendering in the builder (REST API disabled, etc.)', 'bricks' );
 							?>
 						</p>
+					</td>
+				</tr>
+
+				<tr>
+					<th>
+						<label><?php esc_html_e( 'Instant navigation', 'bricks' ); ?></label>
+						<span class="badge"><?php esc_html_e( 'Experimental', 'bricks' ); ?></span>
+					</th>
+					<td>
+						<input type="checkbox" name="builderInstantNavigation" id="builderInstantNavigation" <?php checked( isset( $settings['builderInstantNavigation'] ) ); ?>>
+						<label for="builderInstantNavigation"><?php esc_html_e( 'Enable instant navigation', 'bricks' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Switch between pages & templates without reloading the builder.', 'bricks' ); ?></p>
 					</td>
 				</tr>
 			</tbody>

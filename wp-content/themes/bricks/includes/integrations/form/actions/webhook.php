@@ -85,7 +85,26 @@ class Webhook extends Base {
 			if ( ! empty( $webhook['dataTemplate'] ) ) {
 				// Use custom data template
 				$payload = $webhook['dataTemplate'];
-				$payload = $form->render_data( $payload );
+
+				/**
+				 * JSON content type: Custom placeholder replacement with JSON escaping
+				 *
+				 * We intentionally don't use $form->render_data() here because it performs
+				 * raw string replacement without JSON escaping. When user input contains
+				 * characters that are special in JSON (double quotes, backslashes, newlines,
+				 * tabs), the resulting JSON string becomes invalid and json_decode() fails.
+				 *
+				 * Example: {"message": "{{field}}"} with user input 'Book the "Premium" package'
+				 * - render_data() result: {"message": "Book the "Premium" package"} - Invalid JSON
+				 * - This method result:   {"message": "Book the \"Premium\" package"} - Valid JSON
+				 *
+				 * @since 2.2
+				 */
+				if ( $content_type === 'json' ) {
+					$payload = $this->render_data_for_json( $form, $payload );
+				} else {
+					$payload = $form->render_data( $payload, true );
+				}
 
 				// Ensure valid JSON if using JSON format
 				if ( $content_type === 'json' ) {
@@ -107,6 +126,42 @@ class Webhook extends Base {
 			} else {
 				// Send all form fields
 				$payload = $form_fields;
+
+				// Add uploaded files to payload
+				$uploaded_files = $form->get_uploaded_files();
+
+				if ( ! empty( $uploaded_files ) ) {
+					foreach ( $uploaded_files as $field_name => $files ) {
+						// Loop through files for this field
+						foreach ( $files as $file ) {
+							$file_data = [
+								'name' => $file['name'],
+								'type' => $file['type'],
+								'size' => $file['size'] ?? 0,
+							];
+
+							// Attachment ID (Media Library)
+							if ( isset( $file['attachment_id'] ) ) {
+								$file_data['id']  = $file['attachment_id'];
+								$file_data['url'] = wp_get_attachment_url( $file['attachment_id'] );
+							}
+
+							// Custom directory or default uploads folder
+							elseif ( isset( $file['file'] ) ) {
+								$upload_dir = wp_upload_dir();
+
+								// If file is in uploads directory, generate URL
+								if ( strpos( $file['file'], $upload_dir['basedir'] ) === 0 ) {
+									$file_data['url'] = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $file['file'] );
+								} else {
+									$file_data['path'] = $file['file'];
+								}
+							}
+
+							$payload[ $field_name ][] = $file_data;
+						}
+					}
+				}
 			}
 
 			// Check payload size
@@ -179,5 +234,50 @@ class Webhook extends Base {
 				]
 			);
 		}
+	}
+
+	/**
+	 * Render form field placeholders for JSON context with proper escaping
+	 *
+	 * Replaces {{field_id}} and {{field_id:property}} placeholders with
+	 * JSON-escaped values to ensure valid JSON output.
+	 *
+	 * @param \Bricks\Integrations\Form\Init $form    Form instance.
+	 * @param string                         $content Content with placeholders.
+	 *
+	 * @return string Content with replaced and JSON-escaped values.
+	 *
+	 * @since 2.2
+	 */
+	private function render_data_for_json( $form, $content ) {
+		// Match {{field_id}} and {{field_id:property}} patterns (same as render_data)
+		preg_match_all( '/{{(\w+)(?::(\w+))?}}/', $content, $matches, PREG_SET_ORDER );
+
+		if ( ! empty( $matches ) ) {
+			foreach ( $matches as $match ) {
+				$tag      = $match[0];
+				$field_id = $match[1];
+				$property = $match[2] ?? '';
+
+				if ( $property ) {
+					$value = $form->get_file_field_property( $field_id, $property );
+				} else {
+					$value = $form->get_field_value( $field_id );
+					$value = is_array( $value ) ? implode( ', ', $value ) : $value;
+				}
+
+				// JSON-escape: encode to JSON string and strip the surrounding quotes
+				$escaped_value = trim( wp_json_encode( (string) $value ), '"' );
+
+				$content = str_replace( $tag, $escaped_value, $content );
+			}
+		}
+
+		// Render dynamic data tags (e.g., {post_title}, {site_title})
+		$fields       = $form->get_fields();
+		$loop_post_id = isset( $fields['loopId'] ) ? absint( $fields['loopId'] ) : 0;
+		$content      = bricks_render_dynamic_data( $content, $loop_post_id );
+
+		return $content;
 	}
 }

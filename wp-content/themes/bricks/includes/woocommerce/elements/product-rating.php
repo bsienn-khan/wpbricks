@@ -50,8 +50,34 @@ class Product_Rating extends Element {
 			'type'  => 'checkbox',
 		];
 
-		// NO RATINGS
+		// REVIEWS LINK TEXT
+		$this->controls['reviewsLinkSeparator'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Reviews link', 'bricks' ),
+			'type'        => 'separator',
+			'description' => esc_html__( 'Use %s for the review count. Leave empty to use the default text.', 'bricks' ),
+			'required'    => [ 'hideReviewsLink', '=', '' ],
+		];
 
+		$this->controls['reviewsLinkTextSingle'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Text', 'bricks' ) . ': ' . esc_html__( 'Single', 'bricks' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => esc_html__( '%s customer review', 'woocommerce' ),
+			'required'    => [ 'hideReviewsLink', '=', '' ],
+		];
+
+		$this->controls['reviewsLinkTextPlural'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Text', 'bricks' ) . ': ' . esc_html__( 'Plural', 'bricks' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => esc_html__( '%s customer reviews', 'woocommerce' ),
+			'required'    => [ 'hideReviewsLink', '=', '' ],
+		];
+
+		// NO RATINGS
 		$this->controls['noRatings'] = [
 			'tab'   => 'content',
 			'label' => esc_html__( 'No ratings', 'bricks' ),
@@ -106,6 +132,15 @@ class Product_Rating extends Element {
 				'show_empty_stars'  => $show_empty_stars,
 				'hide_reviews_link' => $hide_reviews_link,
 			];
+
+			// Pass custom review link text if set
+			if ( ! empty( $settings['reviewsLinkTextSingle'] ) ) {
+				$params['reviews_link_text_single'] = $settings['reviewsLinkTextSingle'];
+			}
+
+			if ( ! empty( $settings['reviewsLinkTextPlural'] ) ) {
+				$params['reviews_link_text_plural'] = $settings['reviewsLinkTextPlural'];
+			}
 
 			$rating_html = Woocommerce_Helpers::render_product_rating( $product, $params, false );
 		}

@@ -286,11 +286,18 @@ class Element_Code extends Element {
 				$output .= trim( $js_code );
 			}
 
+			// Force without wrapper, no matter what (@since 2.2)
+			$no_root_force = isset( $settings['noRootForce'] );
+
 			// No root wrapper (frontend only, wrapper required in builder to get all inner nodes)
-			$no_root = isset( $settings['noRootForce'] ) || isset( $settings['noRoot'] );
-			if ( $no_root &&
+			$no_root = isset( $settings['noRoot'] );
+
+			if ( $no_root_force ||
+				(
+					$no_root &&
 				( ! bricks_is_builder() && ! bricks_is_builder_call() ) ||
 				( isset( $settings['isStaticArea'] ) && $settings['isStaticArea'] === true )
+			)
 			) {
 				echo $output;
 			} else {

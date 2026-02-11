@@ -93,9 +93,9 @@ class Woocommerce_Mini_Cart extends Element {
 			'inline'      => true,
 			'css'         => [
 				[
-					'property'  => 'display',
-					'selector'  => '.cart-count',
-					'important' => true,
+					'property' => 'display',
+					'selector' => '.cart-count',
+					// 'important' => true, // Not needed with Cascade Layers - used if applied on class (@since 2.2 #86c3p8f91)
 				],
 			],
 		];

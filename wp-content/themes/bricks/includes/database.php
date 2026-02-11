@@ -309,6 +309,46 @@ class Database {
 							}
 						}
 
+						// Search Criteria for search result template (@since 2.2)
+						if ( $query->is_search && Search::search_template_has_custom_criteria( $post_id ) ) {
+							// Get search-criteria settings from template settings
+							$search_term = $query->get( 's', '' );
+
+							// Get post IDs using combined SQL search
+							$post_ids = Search::get_search_template_criteria_post_ids( $post_id, $search_term );
+							$post_ids = ! empty( $post_ids ) ? $post_ids : [ 0 ];
+
+							$query->set( 'brx_original_search_term', $search_term );
+
+							// To avoid default search behavior interfering
+							$query->set( 's', '' );
+
+							// Modify main query to include only the found post IDs
+							$query->set( 'post__in', $post_ids );
+
+							// Since we removed the "s" parameter, we need to restore the original search term in search box or it will be empty
+							add_filter(
+								'get_search_query',
+								function( $query ) {
+									if ( is_main_query() && is_search() ) {
+										global $wp_query;
+										$original_term = $wp_query->get( 'brx_original_search_term' );
+										if ( $original_term ) {
+											return $original_term;
+										}
+									}
+									return $query;
+								}
+							);
+
+							// Amend orderby only if weight score is used and no other sort is applied by user
+							if ( Search::use_weight_score( $post_id ) && ! empty( $post_ids ) && ! isset( $query_vars['brx_sort_applied'] ) ) {
+								$query->set( 'orderby', 'post__in' );
+								$query->set( 'order', '' );
+								$query->set( 'brx_orderby', 'weighted_relevance' );
+							}
+						}
+
 						/**
 						 * Handle offset
 						 *
@@ -1272,6 +1312,14 @@ class Database {
 			self::$global_data['colorPalette'] = get_option( BRICKS_DB_COLOR_PALETTE, [] );
 		}
 
+		// Populate with default colors if color palette is not an array (@since 2.2)
+		if ( ! is_array( self::$global_data['colorPalette'] ) || empty( self::$global_data['colorPalette'] ) ) {
+			self::$global_data['colorPalette'] = self::default_color_palette();
+		}
+
+		// Style Manager (@since 2.2)
+		self::$global_data['styleManager'] = get_option( BRICKS_DB_STYLE_MANAGER, null );
+
 		// Global queries (@since 2.1)
 		if ( is_multisite() && BRICKS_MULTISITE_USE_MAIN_SITE_GLOBAL_QUERIES ) {
 			self::$global_data['globalQueries'] = get_blog_option( get_main_site_id(), BRICKS_DB_GLOBAL_QUERIES, [] );
@@ -1427,6 +1475,114 @@ class Database {
 		if ( ! empty( self::$global_settings['adobeFontsProjectId'] ) ) {
 			self::$adobe_fonts = get_option( BRICKS_DB_ADOBE_FONTS, [] );
 		}
+	}
+
+	/**
+	 * Default color palette (https://www.materialui.co/colors)
+	 *
+	 * Only used if no custom colorPalette is saved in db.
+	 *
+	 * @since 1.0
+	 *
+	 * @since 2.2: Use 'light' key for colors instead of 'hex'
+	 *
+	 * @return array
+	 */
+	public static function default_color_palette() {
+		$colors = [
+			// Grey
+			[
+				'light' => '#f5f5f5',
+				'raw'   => 'var(--bricks-color-grey-100)'
+			],
+			[
+				'light' => '#e0e0e0',
+				'raw'   => 'var(--bricks-color-grey-300)'
+			],
+			[
+				'light' => '#9e9e9e',
+				'raw'   => 'var(--bricks-color-grey-500)'
+			],
+			[
+				'light' => '#616161',
+				'raw'   => 'var(--bricks-color-grey-700)'
+			],
+			[
+				'light' => '#424242',
+				'raw'   => 'var(--bricks-color-grey-800)'
+			],
+			[
+				'light' => '#212121',
+				'raw'   => 'var(--bricks-color-grey-900)'
+			],
+
+			// Warm colors
+			[
+				'light' => '#ffeb3b',
+				'raw'   => 'var(--bricks-color-yellow)',
+			],
+			[
+				'light' => '#ffc107',
+				'raw'   => 'var(--bricks-color-amber)',
+			],
+			[
+				'light' => '#ff9800',
+				'raw'   => 'var(--bricks-color-orange)',
+			],
+			[
+				'light' => '#ff5722',
+				'raw'   => 'var(--bricks-color-deep-orange)',
+			],
+			[
+				'light' => '#f44336',
+				'raw'   => 'var(--bricks-color-red)',
+			],
+			[
+				'light' => '#9c27b0',
+				'raw'   => 'var(--bricks-color-purple)',
+			],
+
+			// Cool colors
+			[
+				'light' => '#2196f3',
+				'raw'   => 'var(--bricks-color-blue)',
+			],
+			[
+				'light' => '#03a9f4',
+				'raw'   => 'var(--bricks-color-light-blue)',
+			],
+			[
+				'light' => '#81D4FA',
+				'raw'   => 'var(--bricks-color-sky-blue)',
+			],
+			[
+				'light' => '#4caf50',
+				'raw'   => 'var(--bricks-color-green)',
+			],
+			[
+				'light' => '#8bc34a',
+				'raw'   => 'var(--bricks-color-light-green)',
+			],
+			[
+				'light' => '#cddc39',
+				'raw'   => 'var(--bricks-color-lime)',
+			],
+		];
+
+		$colors = apply_filters( 'bricks/builder/color_palette', $colors );
+
+		foreach ( $colors as $index => $color ) {
+			$color_id               = Helpers::generate_random_id( false );
+			$colors[ $index ]['id'] = $color_id;
+		}
+
+		$palettes[] = [
+			'id'     => Helpers::generate_random_id( false ),
+			'name'   => 'Default',
+			'colors' => $colors,
+		];
+
+		return $palettes;
 	}
 
 	/**

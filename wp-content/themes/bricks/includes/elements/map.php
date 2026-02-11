@@ -43,6 +43,24 @@ class Element_Map extends Element {
 		wp_enqueue_script( 'bricks-google-maps' );
 	}
 
+	/**
+	 * Add language parameter to Google Maps API script
+	 *
+	 * @since 2.2
+	 *
+	 * @param string $src
+	 * @param string $handle
+	 * @return string
+	 */
+	public function add_google_maps_language_param( $src, $handle ) {
+		if ( $handle === 'bricks-google-maps' && strpos( $src, 'language=' ) === false ) {
+			$site_lang = str_replace( '_', '-', get_locale() );
+			$src       = add_query_arg( 'language', $site_lang, $src );
+		}
+
+		return $src;
+	}
+
 	public function set_control_groups() {
 		$this->control_groups['addresses'] = [
 			'title'    => esc_html__( 'Addresses', 'bricks' ),
@@ -461,6 +479,15 @@ class Element_Map extends Element {
 			'type'  => 'separator',
 		];
 
+		$this->controls['localization'] = [
+			'group'       => 'map',
+			'label'       => esc_html__( 'Use page locale', 'bricks' ),
+			'type'        => 'checkbox',
+			'inline'      => true,
+			'description' => esc_html__( 'By default, the map language follows the user\'s browser settings. Enable this to force the map to use the current page\'s locale instead.', 'bricks' ),
+			'required'    => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
+		];
+
 		$this->controls['height'] = [
 			'group'       => 'map',
 			'label'       => esc_html__( 'Height', 'bricks' ),
@@ -660,6 +687,11 @@ class Element_Map extends Element {
 		$map_type    = $settings['type'] ?? 'roadmap';
 		$marker_type = $settings['markerType'] ?? 'image';
 		$zoom        = isset( $settings['zoom'] ) ? intval( $this->render_dynamic_data( $settings['zoom'] ) ) : 12;
+
+		// Localization: Force site language (@since 2.2)
+		if ( isset( $settings['localization'] ) ) {
+			add_filter( 'script_loader_src', [ $this, 'add_google_maps_language_param' ], 10, 2 );
+		}
 
 		/**
 		 * STEP: Use Google Maps Embed API
@@ -866,6 +898,11 @@ class Element_Map extends Element {
 			$map_options['markerActiveWidth'] = $settings['markerActiveWidth'];
 		}
 
+		// Default marker ARIA label (title attribute) (#86c79vyd1; @since 2.2)
+		if ( isset( $settings['markerAriaLabel'] ) ) {
+			$map_options['markerAriaLabel'] = $this->render_dynamic_data( $settings['markerAriaLabel'] );
+		}
+
 		// Support mapId and AdvancedMarker (@since 2.0)
 		if ( isset( $settings['googleMapId'] ) ) {
 			$map_options['googleMapId'] = $settings['googleMapId'];
@@ -911,7 +948,7 @@ class Element_Map extends Element {
 	 * @since 2.0
 	 */
 	public function repeater_item_from_query( $data ) {
-		// Recursive function to process nested arrays
+		// Recursive function to render dynamic data for nested arrays
 		$process_data = function( $value ) use ( &$process_data ) {
 			if ( is_array( $value ) ) {
 				// Recursively process nested arrays
@@ -978,6 +1015,12 @@ class Element_Map extends Element {
 				if ( ! empty( $images['items']['images'] ) && isset( $images['items']['images'][0]['id'] ) ) {
 					$processed_data[ $key ] = $images['items']['images'][0];
 				}
+
+				// When the image is using custom URL (@since 2.2)
+				if ( ! empty( $images['items']['images'] ) && isset( $images['items']['images']['url'] ) ) {
+					$processed_data[ $key ] = $process_data( $images['items']['images'] );
+				}
+
 				continue;
 			}
 

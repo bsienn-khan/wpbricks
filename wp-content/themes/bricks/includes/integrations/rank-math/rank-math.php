@@ -52,9 +52,12 @@ class Rank_Math {
 	 * @since 1.3.2
 	 */
 	public function wp_enqueue_scripts( $hook_suffix ) {
-		if ( bricks_is_builder() || ( is_admin() && $hook_suffix == 'post.php' ) ) {
-			// NOTE: rank-math-analyzer is not enqueued by default in the builder.
-			wp_enqueue_script( 'bricks-rank-math', BRICKS_URL_ASSETS . 'js/integrations/rank-math.min.js', [ 'wp-hooks', 'rank-math-analyzer' ], filemtime( BRICKS_PATH_ASSETS . 'js/integrations/rank-math.min.js' ), true );
+		if ( bricks_is_builder() || ( is_admin() && $hook_suffix === 'post.php' ) ) {
+			// Avoid WP 6.9.1 error message if rank-math-analyzer is not registered (#86c81kwvt; @since 2.2)
+			if ( wp_script_is( 'rank-math-analyzer', 'registered' ) ) {
+				// NOTE: rank-math-analyzer is not enqueued by default in the builder.
+				wp_enqueue_script( 'bricks-rank-math', BRICKS_URL_ASSETS . 'js/integrations/rank-math.min.js', [ 'wp-hooks', 'rank-math-analyzer' ], filemtime( BRICKS_PATH_ASSETS . 'js/integrations/rank-math.min.js' ), true );
+			}
 
 			if ( bricks_is_builder() ) {
 				$nonce = wp_create_nonce( 'bricks-nonce-builder' );

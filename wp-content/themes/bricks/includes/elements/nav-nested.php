@@ -863,6 +863,7 @@ class Element_Nav_Nested extends Element {
 			$breakpoint_options[ $breakpoint['key'] ] = $breakpoint['label'];
 		}
 
+		$breakpoint_options['custom'] = esc_html__( 'Custom', 'bricks' ); // @since 2.2
 		$breakpoint_options['always'] = esc_html__( 'Always', 'bricks' );
 		$breakpoint_options['never']  = esc_html__( 'Never', 'bricks' );
 
@@ -873,6 +874,15 @@ class Element_Nav_Nested extends Element {
 			'options'     => $breakpoint_options,
 			'rerender'    => true,
 			'placeholder' => esc_html__( 'Mobile landscape', 'bricks' ),
+		];
+
+		// Input for custom breakpoint value (@since 2.2)
+		$controls['mobileMenuCustomBreakpoint'] = [
+			'group'    => 'mobile-menu',
+			'label'    => esc_html__( 'Custom breakpoint', 'bricks' ) . ' (px)',
+			'type'     => 'number',
+			'required' => [ 'mobileMenu', '=', 'custom' ],
+			'rerender' => true,
 		];
 
 		$controls['mobileMenuWidth'] = [
@@ -1162,7 +1172,12 @@ class Element_Nav_Nested extends Element {
 		if ( $show_nav_button_at !== 'never' ) {
 			// Builder: Add nav menu & mobile menu visibility via inline style
 			if ( bricks_is_builder() || bricks_is_builder_call() ) {
-				$breakpoint          = Breakpoints::get_breakpoint_by( 'key', $show_nav_button_at );
+				if ( $show_nav_button_at === 'custom' && ! empty( $settings['mobileMenuCustomBreakpoint'] ) ) {
+					$breakpoint = $settings['mobileMenuCustomBreakpoint'];
+				} else {
+					$breakpoint = Breakpoints::get_breakpoint_by( 'key', $show_nav_button_at );
+				}
+
 				$nav_menu_inline_css = $this->generate_mobile_menu_inline_css( $settings, $breakpoint );
 
 				$output .= "<style>$nav_menu_inline_css</style>";

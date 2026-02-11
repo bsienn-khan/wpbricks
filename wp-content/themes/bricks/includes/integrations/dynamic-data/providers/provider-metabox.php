@@ -804,11 +804,13 @@ class Provider_Metabox extends Base {
 
 		$field = $this->loop_tags[ $query->object_type ]['field'];
 
-		// Set the global $post, if looping through posts (Maybe we should restrict to the relationships: $field['_brx_object_type'] == 'relationship')
-		if ( is_a( $loop_object, 'WP_Post' ) ) {
+		// Set the global $post, if looping through posts. 'relationship' and 'post' field needs to set the global $post (#86c6egwdm; @since 2.2)
+		if ( is_a( $loop_object, 'WP_Post' ) || ( isset( $field['type'] ) && in_array( $field['type'], [ 'post', 'relationship' ] ) ) ) {
 			global $post;
 			$post = get_post( $loop_object );
 			setup_postdata( $post );
+
+			return $post;
 		}
 
 		return $loop_object;
@@ -853,7 +855,7 @@ class Provider_Metabox extends Base {
 			'button_group'      => [ self::CONTEXT_TEXT ], // (@since 1.12)
 
 			// WordPress
-			'post'              => [ self::CONTEXT_TEXT, self::CONTEXT_LINK ],
+			'post'              => [ self::CONTEXT_TEXT, self::CONTEXT_LINK, self::CONTEXT_LOOP ],
 			'taxonomy_advanced' => [ self::CONTEXT_TEXT, self::CONTEXT_LINK ],
 			'taxonomy'          => [ self::CONTEXT_TEXT, self::CONTEXT_LINK ],
 			'user'              => [ self::CONTEXT_TEXT ],

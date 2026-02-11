@@ -155,6 +155,33 @@ function bricksCreatePropertyControl(property, props, component) {
 }
 
 /**
+ * Check if a property is connected to a nested component instance
+ */
+function isConnectedToNestedInstance(component, propertyId) {
+	if (!component || !component.elements) {
+		return false
+	}
+
+	return component.elements.some((element) => {
+		if (element.cid && element.properties) {
+			// Check if any of the instance's properties connect to this property
+			return Object.values(element.properties).some((connectionValue) => {
+				if (typeof connectionValue === 'string' && connectionValue.startsWith('parent:')) {
+					// Parse: parent:cid_{componentId}:prop_{propertyId}
+					const match = connectionValue.match(/^parent:cid_([^:]+):prop_([^:]+)$/)
+					if (match) {
+						const connectedPropertyId = match[2]
+						return connectedPropertyId === propertyId
+					}
+				}
+				return false
+			})
+		}
+		return false
+	})
+}
+
+/**
  * Register Bricks components as Gutenberg blocks using ServerSideRender
  */
 function bricksRegisterComponentBlocks() {
@@ -166,6 +193,7 @@ function bricksRegisterComponentBlocks() {
 	const { createElement } = window.wp.element
 	const { Placeholder } = window.wp.components
 	const ServerSideRender = window.wp.serverSideRender || window.wp.components.ServerSideRender
+	const { useBlockProps } = window.wp.blockEditor || window.wp.editor || {}
 
 	// Register block category
 	window.wp.blocks.setCategories([
@@ -207,25 +235,68 @@ function bricksRegisterComponentBlocks() {
 			blockId: {
 				type: 'string',
 				default: ''
+			},
+			variant: {
+				type: 'string',
+				default: ''
+			},
+			_preview: {
+				type: 'boolean',
+				default: false
 			}
+		}
+
+		// Prepare icon
+		let icon = null
+
+		if (component.blockIcon) {
+			try {
+				// SVG / Custom Icon
+				if (
+					(component.blockIcon.library === 'svg' ||
+						component.blockIcon.library?.startsWith('custom_')) &&
+					component.blockIcon.svg?.url
+				) {
+					icon = createElement('img', {
+						src: component.blockIcon.svg.url,
+						style: { width: '24px', height: '24px' }
+					})
+				}
+				// Font Icon
+				else if (component.blockIcon.icon) {
+					// We need to ensure font families are loaded, but for now just use the class
+					icon = createElement('i', {
+						className: component.blockIcon.icon,
+						style: { fontSize: '20px', lineHeight: '1' }
+					})
+				}
+			} catch (e) {
+				console.warn('Error parsing block icon:', e)
+			}
+		}
+
+		// Default icon
+		if (!icon) {
+			icon = createElement(
+				'svg',
+				{
+					viewBox: '0 0 24 24',
+					xmlns: 'http://www.w3.org/2000/svg',
+					style: { fill: 'currentColor' }
+				},
+				createElement('path', {
+					d: 'M7.94514768,0 L8.35021097,0.253164557 L8.35021097,7.29113924 C9.77919139,6.34598684 11.3600476,5.87341772 13.092827,5.87341772 C15.5907298,5.87341772 17.6610326,6.74542025 19.3037975,8.48945148 C20.9240587,10.2334827 21.7341772,12.382547 21.7341772,14.9367089 C21.7341772,17.5021225 20.9184329,19.6511868 19.2869198,21.3839662 C17.6441549,23.1279975 15.579478,24 13.092827,24 C10.9212268,24 9.06470532,23.2236365 7.52320675,21.6708861 L7.52320675,23.5780591 L3,23.5780591 L3,0.556962025 L7.94514768,0 Z M12.2320675,10.4472574 C11.0393752,10.4472574 10.0436046,10.8523166 9.24472574,11.6624473 C8.44584692,12.4950815 8.0464135,13.5864911 8.0464135,14.9367089 C8.0464135,16.2869266 8.44584692,17.3727104 9.24472574,18.1940928 C10.0323527,19.0154753 11.0281234,19.4261603 12.2320675,19.4261603 C13.5035225,19.4261603 14.5330481,18.9985978 15.3206751,18.1434599 C16.0970503,17.2995738 16.4852321,16.2306675 16.4852321,14.9367089 C16.4852321,13.6427502 16.0914245,12.5682181 15.3037975,11.7130802 C14.5161705,10.8691941 13.4922707,10.4472574 12.2320675,10.4472574 Z'
+				})
+			)
 		}
 
 		try {
 			registerBlockType(blockName, {
+				apiVersion: 3,
 				title: componentName,
-				category: 'bricks',
-				description: component.description,
-				icon: createElement(
-					'svg',
-					{
-						viewBox: '0 0 24 24',
-						xmlns: 'http://www.w3.org/2000/svg',
-						style: { fill: 'currentColor' }
-					},
-					createElement('path', {
-						d: 'M7.94514768,0 L8.35021097,0.253164557 L8.35021097,7.29113924 C9.77919139,6.34598684 11.3600476,5.87341772 13.092827,5.87341772 C15.5907298,5.87341772 17.6610326,6.74542025 19.3037975,8.48945148 C20.9240587,10.2334827 21.7341772,12.382547 21.7341772,14.9367089 C21.7341772,17.5021225 20.9184329,19.6511868 19.2869198,21.3839662 C17.6441549,23.1279975 15.579478,24 13.092827,24 C10.9212268,24 9.06470532,23.2236365 7.52320675,21.6708861 L7.52320675,23.5780591 L3,23.5780591 L3,0.556962025 L7.94514768,0 Z M12.2320675,10.4472574 C11.0393752,10.4472574 10.0436046,10.8523166 9.24472574,11.6624473 C8.44584692,12.4950815 8.0464135,13.5864911 8.0464135,14.9367089 C8.0464135,16.2869266 8.44584692,17.3727104 9.24472574,18.1940928 C10.0323527,19.0154753 11.0281234,19.4261603 12.2320675,19.4261603 C13.5035225,19.4261603 14.5330481,18.9985978 15.3206751,18.1434599 C16.0970503,17.2995738 16.4852321,16.2306675 16.4852321,14.9367089 C16.4852321,13.6427502 16.0914245,12.5682181 15.3037975,11.7130802 C14.5161705,10.8691941 13.4922707,10.4472574 12.2320675,10.4472574 Z'
-					})
-				),
+				category: component.blockCategory || 'bricks',
+				description: component.desc,
+				icon: icon,
 				keywords: ['bricks', window.bricksData.i18n.component],
 				attributes: attributes,
 				supports: {
@@ -235,11 +306,31 @@ function bricksRegisterComponentBlocks() {
 					anchor: false,
 					className: false
 				},
+				example: component.blockPreviewImage
+					? {
+							attributes: {
+								_preview: true
+							}
+						}
+					: undefined,
 				edit: function (props) {
 					try {
-						const { InspectorControls } = window.wp.blockEditor || window.wp.editor
+						const { InspectorControls, useBlockProps } = window.wp.blockEditor || window.wp.editor
 						const { PanelBody } = window.wp.components
 						const { useEffect, useState, useRef, useMemo } = window.wp.element
+
+						// Get block props
+						const blockProps = useBlockProps ? useBlockProps() : {}
+
+						// Check for preview mode
+						if (props.attributes._preview && component.blockPreviewImage?.url) {
+							return createElement('img', {
+								...blockProps,
+								src: component.blockPreviewImage.url,
+								style: { ...blockProps.style, width: '100%', height: 'auto', display: 'block' },
+								alt: componentName
+							})
+						}
 
 						// Set blockId on first render if not already set
 						useEffect(() => {
@@ -262,11 +353,12 @@ function bricksRegisterComponentBlocks() {
 							return () => clearTimeout(timeoutId)
 						}, [JSON.stringify(props.attributes)])
 
-						// Pass componentId, blockId and properties
+						// Pass componentId, blockId, variant and properties
 						const memoizedSafeAttributes = useMemo(() => {
 							const safeAttributes = {
 								componentId: debouncedAttributes.componentId,
-								blockId: debouncedAttributes.blockId
+								blockId: debouncedAttributes.blockId,
+								variant: debouncedAttributes.variant || ''
 							}
 
 							// Only include properties if they exist and have content
@@ -378,10 +470,55 @@ function bricksRegisterComponentBlocks() {
 							return createElement(
 								'div',
 								{
-									style: { padding: '20px', border: '2px dashed #ccc', textAlign: 'center' }
+									...blockProps,
+									style: {
+										...blockProps.style,
+										padding: '20px',
+										border: '2px dashed #ccc',
+										textAlign: 'center'
+									}
 								},
 								window.bricksData.i18n.serverSideRenderNotAvailable
 							)
+						}
+
+						// Build variant selector
+						let variantControl = null
+						if (
+							component.variants &&
+							Array.isArray(component.variants) &&
+							component.variants.length > 0
+						) {
+							// Prepare variant options for select control
+							const variantOptions = component.variants.map(function (variant) {
+								return {
+									label: variant.name || variant.id,
+									value: variant.id
+								}
+							})
+
+							// Add default/none option at the beginning (@since 2.2)
+							variantOptions.unshift({
+								label: component.labelVariantBase || window.bricksData.i18n.base || 'Base',
+								value: ''
+							})
+
+							// Create variant select control
+							const variantProperty = {
+								id: 'variant',
+								label: window.bricksData.i18n.variant || 'Variant',
+								type: 'select',
+								options: variantOptions
+							}
+
+							variantControl = window.createBricksSelectControl(variantProperty, {
+								attributes: {
+									variant: props.attributes.variant || ''
+								},
+								setAttributes: function (newAttrs) {
+									props.setAttributes({ variant: newAttrs.variant || '' })
+								}
+							})
 						}
 
 						// Build property controls (only for properties with connections)
@@ -389,12 +526,17 @@ function bricksRegisterComponentBlocks() {
 						if (component.properties && Array.isArray(component.properties)) {
 							component.properties.forEach(function (property) {
 								if (property.id && property.label) {
+									// Check connections to element controls
+									const hasDirectConnections =
+										property.connections &&
+										typeof property.connections === 'object' &&
+										Object.keys(property.connections).length > 0
+
+									// Check connections to nested component instances
+									const hasNestedConnections = isConnectedToNestedInstance(component, property.id)
+
 									// Skip properties that don't have connections to any elements
-									if (
-										!property.connections ||
-										typeof property.connections !== 'object' ||
-										Object.keys(property.connections).length === 0
-									) {
+									if (!hasDirectConnections && !hasNestedConnections) {
 										return
 									}
 
@@ -409,12 +551,30 @@ function bricksRegisterComponentBlocks() {
 						// Create the editor UI
 						const editorElements = []
 
+						// Add variant control in inspector (sidebar) if available
+						if (variantControl && InspectorControls) {
+							editorElements.push(
+								createElement(
+									InspectorControls,
+									{ key: 'inspector-variant' },
+									createElement(
+										PanelBody,
+										{
+											title: window.bricksData.i18n.variant,
+											initialOpen: true
+										},
+										variantControl
+									)
+								)
+							)
+						}
+
 						// Add property controls in inspector (sidebar)
 						if (propertyControls.length > 0 && InspectorControls) {
 							editorElements.push(
 								createElement(
 									InspectorControls,
-									{ key: 'inspector' },
+									{ key: 'inspector-properties' },
 									createElement(
 										PanelBody,
 										{
@@ -485,8 +645,21 @@ function bricksRegisterComponentBlocks() {
 								createElement(
 									'div',
 									{
+										...blockProps,
 										key: 'render-wrapper',
-										ref: renderRef
+										ref: (node) => {
+											// Handle local ref for content caching
+											renderRef.current = node
+											// Handle Gutenberg's blockProps ref
+											const { ref: blockPropsRef } = blockProps
+											if (blockPropsRef) {
+												if (typeof blockPropsRef === 'function') {
+													blockPropsRef(node)
+												} else {
+													blockPropsRef.current = node
+												}
+											}
+										}
 									},
 									serverSideRenderComponent
 								)
@@ -499,8 +672,10 @@ function bricksRegisterComponentBlocks() {
 								createElement(
 									'div',
 									{
+										...blockProps,
 										key: 'render-error',
 										style: {
+											...blockProps.style,
 											padding: '20px',
 											border: '2px solid #d32f2f',
 											textAlign: 'center',
@@ -532,7 +707,9 @@ function bricksRegisterComponentBlocks() {
 						return createElement(
 							'div',
 							{
+								...blockProps,
 								style: {
+									...blockProps.style,
 									padding: '20px',
 									border: '2px dashed #ccc',
 									textAlign: 'center',
@@ -578,6 +755,7 @@ function bricksRegisterComponentBlocks() {
 				component.elements[0].label || `${window.bricksData.i18n.component} ${component.id}`
 
 			registerBlockType(blockName, {
+				apiVersion: 3,
 				title: componentName,
 				category: 'bricks',
 				icon: createElement(
@@ -600,6 +778,10 @@ function bricksRegisterComponentBlocks() {
 					properties: {
 						type: 'object',
 						default: {}
+					},
+					variant: {
+						type: 'string',
+						default: ''
 					}
 				},
 				supports: {
@@ -610,12 +792,16 @@ function bricksRegisterComponentBlocks() {
 					inserter: false // Don't show in inserter
 				},
 				edit: function () {
-					return createElement(Placeholder, {
-						icon: 'warning',
-						label: `${window.bricksData.i18n.blockNotAvailable}: ${componentName} [BRICKS]`,
-						instructions: window.bricksData.i18n.componentNotEnabledInstructions,
-						className: 'bricks-disabled-component-placeholder'
-					})
+					const blockProps = useBlockProps ? useBlockProps() : {}
+					return createElement('div', blockProps, [
+						createElement(Placeholder, {
+							key: 'placeholder',
+							icon: 'warning',
+							label: `${window.bricksData.i18n.blockNotAvailable}: ${componentName} [BRICKS]`,
+							instructions: window.bricksData.i18n.componentNotEnabledInstructions,
+							className: 'bricks-disabled-component-placeholder'
+						})
+					])
 				},
 				save: function () {
 					return null

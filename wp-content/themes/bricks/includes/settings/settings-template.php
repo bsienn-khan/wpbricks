@@ -19,6 +19,14 @@ class Settings_Template extends Settings_Base {
 			];
 		}
 
+		// Search criteria (@since 2.2)
+		elseif ( Templates::get_template_type() === 'search' ) {
+			$this->control_groups['search-criteria'] = [
+				'title' => esc_html__( 'Search criteria', 'bricks' ),
+				'badge' => Helpers::render_badge( '2.2' ),
+			];
+		}
+
 		$this->control_groups['template-conditions'] = [
 			'title'    => esc_html__( 'Conditions', 'bricks' ),
 			'required' => [
@@ -782,5 +790,13 @@ class Settings_Template extends Settings_Base {
 			'reload' => true,
 			'label'  => esc_html__( 'Apply preview', 'bricks' ),
 		];
+
+		/**
+		 * Search Criteria
+		 *
+		 * @since 2.2
+		 */
+		$search_criteria_controls = Element::search_criteria_controls( 'template' );
+		$this->controls           = array_merge( $this->controls, $search_criteria_controls );
 	}
 }

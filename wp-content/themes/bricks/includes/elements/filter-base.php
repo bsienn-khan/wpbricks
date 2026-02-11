@@ -24,10 +24,17 @@ class Filter_Element extends Element {
 	}
 
 	public function set_controls_after() {
+		// Search criteria group (@since 2.2)
+		if ( $this->name === 'filter-search' ) {
+			$this->control_groups['search-criteria'] = [
+				'title' => esc_html__( 'Search criteria', 'bricks' ),
+				'badge' => Helpers::render_badge( '2.2' ),
+			];
+		}
+
 		if ( $this->name !== 'filter-active-filters' ) {
 			$this->control_groups['filter-active'] = [
 				'title' => esc_html__( 'Active filter', 'bricks' ),
-				'tab'   => 'content',
 			];
 		}
 	}
@@ -1081,7 +1088,7 @@ class Filter_Element extends Element {
 			'label'            => esc_html__( 'Target query', 'bricks' ),
 			'placeholder'      => esc_html__( 'Select', 'bricks' ),
 			'excludeMainQuery' => true, // (@since 1.12.2)
-			'desc'             => esc_html__( 'Select the query this filter should target.', 'bricks' ) . ' ' . esc_html__( 'Only post queries are supported in this version.', 'bricks' ),
+			'desc'             => esc_html__( 'Select the query this filter should target.', 'bricks' ),
 		];
 
 		$controls['filterQueryIdInfo'] = [
@@ -1115,7 +1122,7 @@ class Filter_Element extends Element {
 			'type'     => 'info',
 			'required' => [
 				[ 'filterQueryId', '!=', '' ],
-				[ 'filterNiceName', '!=', '' ]
+				[ 'filterNiceName', '!=', '' ],
 			],
 			'content'  => esc_html__( 'Use a prefix to avoid conflicts with plugins or WordPress reserved parameters.', 'bricks' ),
 		];
@@ -1672,7 +1679,8 @@ class Filter_Element extends Element {
 		// Sorting controls
 		if ( in_array( $this->name, [ 'filter-select', 'filter-radio' ], true ) ) {
 			// queryOrderBy, termsOrderBy, usersOrderBy
-			$post_sort_options  = Setup::get_control_options( 'queryOrderBy' );
+			$post_sort_options = Setup::get_control_options( 'queryOrderBy' );
+			unset( $post_sort_options['_default'] ); // Remove the custom '_default' option as it's not applicable here (#86c6b52jm; @since 2.2)
 			$term_order_options = Setup::get_control_options( 'termsOrderBy' );
 			$user_order_options = Setup::get_control_options( 'usersOrderBy' );
 

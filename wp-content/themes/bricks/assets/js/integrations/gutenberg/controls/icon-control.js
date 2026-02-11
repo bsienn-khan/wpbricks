@@ -182,7 +182,7 @@ function createBricksIconControl(property, props) {
 					const icons = customIcons.filter((icon) => icon.setId === setId)
 					icons.forEach((icon) => {
 						currentOptions[icon.id] = {
-							html: `<img src="${icon.url}" title="${icon.name}" />`,
+							html: `<img src="${icon.url}" title="${icon.name}" style="width:100%;height:100%;object-fit:contain;" />`,
 							title: icon.name
 						}
 					})
@@ -492,7 +492,11 @@ function createBricksIconControl(property, props) {
 														currentValue.library?.startsWith('custom_')
 															? createElement('div', {
 																	className: 'custom-icon',
-																	style: getIconSetBackgroundColor(),
+																	style: {
+																		...getIconSetBackgroundColor(),
+																		width: '100%',
+																		height: '100%'
+																	},
 																	dangerouslySetInnerHTML: { __html: option.html }
 																})
 															: createElement('i', {

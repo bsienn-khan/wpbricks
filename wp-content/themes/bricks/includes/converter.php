@@ -99,10 +99,11 @@ class Converter {
 						else {
 							// Set component instance 'cid' to existing component ID
 							foreach ( $components as $component ) {
-								$global_element_id = $component['_converted_from_global_element_id'] ?? false;
+								$existing_global_id = $component['_converted_from_global_element_id'] ?? false; // (#86c6p6c2h; @since 2.2)
 
-								if ( $global_element_id && $global_element_id === $global_element_id ) {
+								if ( $existing_global_id && $existing_global_id === $global_element_id ) {
 									$elements[ $index ]['cid'] = $component['id'];
+									break; // Exit foreach loop as we found the component
 								}
 							}
 						}

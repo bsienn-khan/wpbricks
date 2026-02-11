@@ -33,6 +33,7 @@ class Ajax {
 		add_action( 'wp_ajax_bricks_save_template_screenshot', [ $this, 'save_template_screenshot' ] );
 		add_action( 'wp_ajax_bricks_create_autosave', [ $this, 'create_autosave' ] );
 		add_action( 'wp_ajax_bricks_get_builder_url', [ $this, 'get_builder_url' ] );
+		add_action( 'wp_ajax_bricks_get_partial_builder_data', [ $this, 'get_partial_builder_data' ] );
 
 		add_action( 'wp_ajax_bricks_save_color_palette', [ $this, 'save_color_palette' ] );
 		add_action( 'wp_ajax_bricks_save_panel_width', [ $this, 'save_panel_width' ] );
@@ -259,6 +260,294 @@ class Ajax {
 	}
 
 	/**
+	 * Generate Style Manager CSS file
+	 *
+	 * Creates style-manager.min.css (contains color variables, utility classes, and global variables with scale property.
+	 *
+	 * @return bool True on success, false on failure
+	 *
+	 * @since 2.2
+	 */
+	public static function generate_style_manager_css_file() {
+		$color_palettes              = get_option( BRICKS_DB_COLOR_PALETTE, [] );
+		$global_variables_categories = get_option( BRICKS_DB_GLOBAL_VARIABLES_CATEGORIES, [] );
+
+		$css_content = '/* Bricks Style Manager CSS - Generated on ' . date( 'Y-m-d H:i:s' ) . " */\n\n";
+
+		// STEP 1: Generate CSS variables from color palettes
+		$css_variables = [];
+
+		if ( is_array( $color_palettes ) && ! empty( $color_palettes ) ) {
+			foreach ( $color_palettes as $palette ) {
+				if ( empty( $palette['colors'] ) || ! is_array( $palette['colors'] ) ) {
+					continue;
+				}
+
+				foreach ( $palette['colors'] as $color ) {
+					// Skip colors without 'light' value (old format colors)
+					if ( empty( $color['light'] ) ) {
+						continue;
+					}
+
+					// Extract variable name from raw (e.g., "var(--primary)" => "--primary")
+					if ( ! empty( $color['raw'] ) ) {
+						$var_name = Helpers::extract_name_from_css_variable( $color['raw'] );
+						if ( $var_name ) {
+							$css_variables[ $var_name ] = $color['light'];
+						}
+					}
+				}
+			}
+		}
+
+		// STEP 2: Generate CSS variables from global variables categories with scale property
+		if ( is_array( $global_variables_categories ) && ! empty( $global_variables_categories ) ) {
+			$global_variables = get_option( BRICKS_DB_GLOBAL_VARIABLES, [] );
+
+			foreach ( $global_variables_categories as $category ) {
+				// Skip categories without scale property
+				if ( empty( $category['scale'] ) || ! is_array( $category['scale'] ) ) {
+					continue;
+				}
+
+				// Get all variables in this category
+				$category_variables = array_filter(
+					$global_variables,
+					function( $variable ) use ( $category ) {
+						return ! empty( $variable['category'] ) && $variable['category'] === $category['id'];
+					}
+				);
+
+				// Generate CSS variables for each variable in the category
+				foreach ( $category_variables as $variable ) {
+					if ( empty( $variable['name'] ) || empty( $variable['value'] ) ) {
+						continue;
+					}
+
+					$var_name = Helpers::extract_name_from_css_variable( $variable['name'] );
+					if ( $var_name ) {
+						$css_variables[ $var_name ] = $variable['value'];
+					}
+				}
+			}
+		}
+
+		// Add CSS variables to content
+		if ( ! empty( $css_variables ) ) {
+			$css_content .= "/* CSS Variables */\n\n";
+			$css_content .= ":root {\n";
+			foreach ( $css_variables as $var_name => $var_value ) {
+				$css_content .= "  {$var_name}: {$var_value};\n";
+			}
+			$css_content .= "}\n\n";
+		}
+
+		// STEP 3: Generate utility classes for color palettes
+		$utility_config = [
+			'bg'      => [
+				'property' => 'background-color',
+				'prefix'   => 'bg'
+			],
+			'text'    => [
+				'property' => 'color',
+				'prefix'   => 'text'
+			],
+			'border'  => [
+				'property' => 'border-color',
+				'prefix'   => 'border'
+			],
+			'outline' => [
+				'property' => 'outline-color',
+				'prefix'   => 'outline'
+			],
+			'fill'    => [
+				'property' => 'fill',
+				'prefix'   => 'fill'
+			],
+			'stroke'  => [
+				'property' => 'stroke',
+				'prefix'   => 'stroke'
+			],
+		];
+
+		if ( is_array( $color_palettes ) && ! empty( $color_palettes ) ) {
+			foreach ( $color_palettes as $palette ) {
+				if ( empty( $palette['colors'] ) || ! is_array( $palette['colors'] ) ) {
+					continue;
+				}
+
+				// Get all root colors (colors without 'type' property)
+				$root_colors = array_filter(
+					$palette['colors'],
+					function( $color ) {
+						return empty( $color['type'] ) && ! empty( $color['light'] );
+					}
+				);
+
+				foreach ( $root_colors as $root_color ) {
+					// Get all shades for this root color
+					$shades = array_filter(
+						$palette['colors'],
+						function( $color ) use ( $root_color ) {
+							return ! empty( $color['light'] ) && ! empty( $color['type'] ) && ! empty( $color['parent'] ) && $color['parent'] === $root_color['id'];
+						}
+					);
+
+					// Combine root color with its shades
+					$all_colors = array_merge( [ $root_color ], $shades );
+
+					// Check if root color has utility classes enabled
+					$enabled_utilities = ! empty( $root_color['utilityClasses'] ) && is_array( $root_color['utilityClasses'] )
+						? $root_color['utilityClasses']
+						: [];
+
+					if ( empty( $enabled_utilities ) ) {
+						continue;
+					}
+
+					// Add comment for this color group
+					if ( ! empty( $root_color['raw'] ) ) {
+						$css_content .= "/* Utility classes for {$root_color['raw']} */\n\n";
+					}
+
+					// Generate utility classes for each enabled type
+					foreach ( $enabled_utilities as $utility_key ) {
+						if ( ! isset( $utility_config[ $utility_key ] ) ) {
+							continue;
+						}
+
+						$config   = $utility_config[ $utility_key ];
+						$property = $config['property'];
+						$prefix   = $config['prefix'];
+
+						foreach ( $all_colors as $color ) {
+							// Skip colors without raw value
+							if ( empty( $color['raw'] ) ) {
+								continue;
+							}
+
+							// Extract clean variable name (without var() wrapper and --)
+							$var_name = Helpers::extract_name_from_css_variable( $color['raw'] );
+							$var_name = str_replace( '--', '', $var_name );
+
+							// Generate class name
+							$class_name = ".{$prefix}-{$var_name}";
+
+							// Add utility class CSS rule
+							$css_content .= "{$class_name} { {$property}: {$color['raw']}; }\n";
+						}
+					}
+
+					$css_content .= "\n";
+				}
+			}
+		}
+
+		// STEP 4: Generate utility classes for global variables categories with scale property
+		if ( is_array( $global_variables_categories ) && ! empty( $global_variables_categories ) ) {
+			$global_variables = get_option( BRICKS_DB_GLOBAL_VARIABLES, [] );
+
+			foreach ( $global_variables_categories as $category ) {
+				// Skip categories without scale property or utilityClasses
+				if ( empty( $category['scale'] ) || ! is_array( $category['scale'] ) ) {
+					continue;
+				}
+
+				if ( empty( $category['utilityClasses'] ) || ! is_array( $category['utilityClasses'] ) ) {
+					continue;
+				}
+
+				// Get all variables in this category
+				$category_variables = array_filter(
+					$global_variables,
+					function( $variable ) use ( $category ) {
+						return ! empty( $variable['category'] ) && $variable['category'] === $category['id'];
+					}
+				);
+
+				if ( empty( $category_variables ) ) {
+					continue;
+				}
+
+				// Add comment for this category
+				if ( ! empty( $category['name'] ) ) {
+					$css_content .= "/* Utility classes for {$category['name']} */\n\n";
+				}
+
+				// Get utility class configurations from scale
+				$utility_classes = $category['utilityClasses'];
+				$prefix          = $category['scale']['prefix'] ?? '';
+
+				// Generate utility classes for each configuration
+				foreach ( $utility_classes as $utility_config ) {
+					// Each utility class config has 'className' and 'cssProperty'
+					if ( empty( $utility_config['className'] ) || empty( $utility_config['cssProperty'] ) ) {
+						continue;
+					}
+
+					$class_name_pattern = $utility_config['className']; // e.g., "text-*" or "p-*"
+					$css_property       = $utility_config['cssProperty']; // e.g., "font-size" or "padding"
+
+					// Generate a utility class for each variable in the category
+					foreach ( $category_variables as $variable ) {
+						if ( empty( $variable['name'] ) ) {
+							continue;
+						}
+
+						// Extract scale name from variable name
+						// e.g., "text-m" => "m", "space-xs" => "xs"
+						$variable_name = $variable['name'];
+						$scale_name    = str_replace( $prefix, '', $variable_name );
+
+						// Replace * in className pattern with scale name
+						// e.g., "text-*" with scale "m" => "text-m"
+						if ( strpos( $class_name_pattern, '*' ) !== false ) {
+							$class_name = str_replace( '*', $scale_name, $class_name_pattern );
+						}
+
+						// Append scale name if no * is present
+						else {
+							$class_name = $class_name_pattern . $scale_name;
+						}
+
+						// Get CSS variable reference
+						$var_reference = Helpers::extract_name_from_css_variable( $variable_name );
+
+						// Add utility class CSS rule
+						// e.g., ".text-m { font-size: var(--text-m); }"
+						$css_content .= ".{$class_name} { {$css_property}: var({$var_reference}); }\n";
+					}
+				}
+
+				$css_content .= "\n";
+			}
+		}
+
+		// Minify CSS
+		$css_content = Assets::minify_css( $css_content );
+
+		// Ensure CSS directory exists
+		if ( ! file_exists( Assets::$css_dir ) ) {
+			wp_mkdir_p( Assets::$css_dir );
+		}
+
+		// Write CSS file
+		$css_file_path = Assets::$css_dir . '/style-manager.min.css';
+		$result        = file_put_contents( $css_file_path, $css_content );
+
+		return $result !== false;
+	}
+
+	/**
+	 * Generate color palette CSS file (deprecated - use generate_style_manager_css_file instead)
+	 *
+	 * @deprecated 2.2 Use generate_style_manager_css_file() instead
+	 */
+	public static function generate_color_palette_css_file( $color_palettes ) {
+		return self::generate_style_manager_css_file();
+	}
+
+	/**
 	 * Save color palette
 	 *
 	 * @since 1.0
@@ -267,8 +556,19 @@ class Ajax {
 		self::verify_request( 'bricks-nonce-builder' );
 
 		if ( isset( $_POST['colorPalette'] ) ) {
-			$color_palette_updated = update_option( BRICKS_DB_COLOR_PALETTE, stripslashes_deep( $_POST['colorPalette'] ) );
-			wp_send_json_success( $color_palette_updated );
+			$color_palette = stripslashes_deep( $_POST['colorPalette'] );
+
+			$color_palette_updated = update_option( BRICKS_DB_COLOR_PALETTE, $color_palette );
+
+			// Generate color palette CSS file (@since 2.2)
+			$css_file_generated = self::generate_color_palette_css_file( $color_palette );
+
+			wp_send_json_success(
+				[
+					'color_palette_updated' => $color_palette_updated,
+					'css_file_generated'    => $css_file_generated
+				]
+			);
 		} else {
 			wp_send_json_error( [ 'message' => esc_html__( 'New color could not be saved.', 'bricks' ) ] );
 		}
@@ -549,6 +849,31 @@ class Ajax {
 			self::simulate_bricks_query( $loop_element );
 		}
 
+		/**
+		 * STEP: Resolve parent property connections in element settings (nested components)
+		 *
+		 * Get request elements to resolve parent properties with live builder data
+		 *
+		 * @since 2.2
+		 */
+		$request_elements = [];
+		if ( isset( $element['componentInstance']['elements'] ) && is_array( $element['componentInstance']['elements'] ) ) {
+			$request_elements = $element['componentInstance']['elements'];
+		}
+
+		if ( isset( $element['settings'] ) && is_array( $element['settings'] ) ) {
+			foreach ( $element['settings'] as $setting_key => $setting_value ) {
+				// Check if the setting value is a parent property connection string
+				if ( is_string( $setting_value ) && strpos( $setting_value, 'parent:' ) === 0 ) {
+					// Resolve the parent property value
+					$resolved_value = Helpers::resolve_parent_property_value( $setting_value, $request_elements );
+
+					// Replace the connection string with the resolved value
+					$element['settings'][ $setting_key ] = $resolved_value;
+				}
+			}
+		}
+
 		// Init element class (i.e. new Bricks\Element_Alert( $element ))
 		$element_class_name = isset( Elements::$elements[ $element_name ]['class'] ) ? Elements::$elements[ $element_name ]['class'] : false;
 
@@ -609,7 +934,7 @@ class Ajax {
 	 * NOTE: This method doesn't generate any styles!
 	 */
 	public function get_html_from_content() {
-		if ( bricks_is_builder() ) {
+		if ( bricks_is_builder() || bricks_is_builder_call() ) {
 			$nonce = 'bricks-nonce-builder';
 		} elseif ( is_admin() ) {
 			$nonce = 'bricks-nonce-admin';
@@ -780,8 +1105,23 @@ class Ajax {
 			}
 		}
 
-		$post_types  = ! empty( $_GET['postTypes'] ) ? array_map( 'sanitize_text_field', $_GET['postTypes'] ) : null;
-		$taxonomy    = ! empty( $_GET['taxonomy'] ) ? array_map( 'sanitize_text_field', $_GET['taxonomy'] ) : null;
+		$post_types = ! empty( $_GET['postTypes'] ) ? array_map( 'sanitize_text_field', $_GET['postTypes'] ) : null;
+		$taxonomy   = ! empty( $_GET['taxonomy'] ) ? array_map( 'sanitize_text_field', $_GET['taxonomy'] ) : null;
+
+		// Filter out 'undefined' from taxonomy list (JS quirk)
+		if ( is_array( $taxonomy ) ) {
+			$taxonomy = array_filter(
+				$taxonomy,
+				function( $t ) {
+					return $t !== 'undefined';
+				}
+			);
+
+			if ( empty( $taxonomy ) ) {
+				$taxonomy = null;
+			}
+		}
+
 		$search      = ! empty( $_GET['search'] ) ? stripslashes_deep( sanitize_text_field( $_GET['search'] ) ) : ''; // Improve performance (@since 1.12)
 		$include_all = ! empty( $_GET['includeAll'] ) ? true : null;
 		$terms       = [];
@@ -925,6 +1265,31 @@ class Ajax {
 			}
 		}
 
+		// STEP: Resolve parent property connections in nested components (@since 2.2)
+		$parent_element       = ! empty( $_POST['element'] ) ? self::decode( $_POST['element'], false ) : false;
+		$elements_with_parent = $elements;
+		$parent_instance_id   = '';
+		if ( $parent_element && isset( $parent_element['cid'] ) ) {
+			// Add parent element to search array so nested components can find it
+			array_unshift( $elements_with_parent, $parent_element );
+			$parent_instance_id = $parent_element['id'];
+		}
+
+		foreach ( $elements as $index => $element ) {
+			if ( isset( $element['properties'] ) && is_array( $element['properties'] ) ) {
+				foreach ( $element['properties'] as $prop_id => $prop_value ) {
+					// Check if property value is a parent property connection string
+					if ( is_string( $prop_value ) && strpos( $prop_value, 'parent:' ) === 0 ) {
+						// Resolve parent property value using live builder data
+						$resolved_value = Helpers::resolve_parent_property_value( $prop_value, $elements_with_parent, $parent_instance_id );
+
+						// Replace connection string with resolved value
+						$elements[ $index ]['properties'][ $prop_id ] = $resolved_value;
+					}
+				}
+			}
+		}
+
 		$filtered_elements = $elements;
 
 		// If post-content with source="bricks" is in elements, remove it
@@ -945,12 +1310,27 @@ class Ajax {
 		// Collect HTML strings for all elements start (@since 2.0)
 		add_filter( 'bricks/frontend/render_element', [ 'Bricks\Builder', 'collect_elements_html' ], 10, 2 );
 		add_filter( 'bricks/frontend/render_loop', [ 'Bricks\Builder', 'collect_looping_html' ], 10, 3 );
+		add_action( 'bricks/dynamic_data/tag_value_parsed', [ 'Bricks\Builder', 'collect_looping_dynamic_data' ], 10, 7 ); // (#86c4tzdxq; @since 2.2)
+
+		/**
+		 * STEP: Add component instance to elements array so slot.php can find it via slotChildren
+		 *
+		 * The component instance (with slotChildren) is sent separately in $_POST['element'],
+		 * but slot.php's find_component_instance_with_slot() looks for it in Frontend::$elements.
+		 *
+		 * @since 2.2
+		 */
+		if ( $parent_element && ! empty( $parent_element['slotChildren'] ) ) {
+			// Add component instance to elements so slot can find it
+			array_unshift( $elements, $parent_element );
+		}
 
 		$html = Frontend::render_data( $elements, $area );
 
 		// Collect HTML strings for all elements end (@since 2.0)
 		remove_filter( 'bricks/frontend/render_loop', [ 'Bricks\Builder', 'collect_looping_html' ], 10, 3 );
 		remove_filter( 'bricks/frontend/render_element', [ 'Bricks\Builder', 'collect_elements_html' ], 10, 2 );
+		remove_action( 'bricks/dynamic_data/tag_value_parsed', [ 'Bricks\Builder', 'collect_looping_dynamic_data' ], 10, 7 ); // (#86c4tzdxq; @since 2.2)
 
 		$inline_css .= Assets::$inline_css_dynamic_data;
 
@@ -971,10 +1351,11 @@ class Ajax {
 		];
 
 		// For builder elements to reduce render_elements API calls (@since 2.0)
-		$data['elementsHtml']  = Builder::$elements_html;
-		$data['previewTexts']  = Builder::$preview_texts;
-		$data['loopingHtml']   = Builder::$looping_html;
-		$data['templatesData'] = Builder::$templates_data;
+		$data['elementsHtml']       = Builder::$elements_html;
+		$data['previewTexts']       = Builder::$preview_texts;
+		$data['loopingHtml']        = Builder::$looping_html;
+		$data['templatesData']      = Builder::$templates_data;
+		$data['loopingDynamicData'] = Builder::$looping_dynamic_data;
 
 		// Run query to get query results count in builder (@since 1.9.1)
 		$element = ! empty( $_POST['element'] ) ? self::decode( $_POST['element'], false ) : false;
@@ -1097,6 +1478,24 @@ class Ajax {
 				update_option( BRICKS_DB_COLOR_PALETTE, $color_palette );
 			} else {
 				delete_option( BRICKS_DB_COLOR_PALETTE );
+			}
+
+			// Generate color palette CSS file (@since 2.2)
+			$css_file_generated = self::generate_color_palette_css_file( $color_palette );
+		}
+
+		/**
+		 * Save style manager settings
+		 *
+		 * @since 2.2
+		 */
+		if ( isset( $_POST['styleManager'] ) ) {
+			$style_manager = self::decode( $_POST['styleManager'], false );
+
+			if ( is_array( $style_manager ) && ! empty( $style_manager ) ) {
+				update_option( BRICKS_DB_STYLE_MANAGER, $style_manager );
+			} else {
+				delete_option( BRICKS_DB_STYLE_MANAGER );
 			}
 		}
 
@@ -1639,6 +2038,9 @@ class Ajax {
 			}
 
 			Helpers::save_global_variables_in_db( $global_variables );
+
+			// Regenerate Style Manager CSS file to include scale-based variables (@since 2.2)
+			$css_file_generated = self::generate_style_manager_css_file();
 		}
 
 		/**
@@ -1654,6 +2056,9 @@ class Ajax {
 			} else {
 				delete_option( BRICKS_DB_GLOBAL_VARIABLES_CATEGORIES );
 			}
+
+			// Regenerate Style Manager CSS file to include scale-based variables (@since 2.2)
+			$css_file_generated = self::generate_style_manager_css_file();
 		}
 
 		/**
@@ -2157,29 +2562,52 @@ class Ajax {
 										if ( count( $matches ) >= 3 ) {
 											$weight = $matches[1];
 											$style  = $matches[2] ? $matches[2] : 'normal';
+											$db_key = $weight;
+											if ( $style !== 'normal' ) {
+												$db_key .= $style;
+											}
 
 											// Check if this variant exists in the new font faces
 											if ( isset( $new_font_faces[ $variant_key ] ) ) {
-												$font_extension = $get_font_extension( $new_font_faces[ $variant_key ] );
+												$new_face_data = $new_font_faces[ $variant_key ];
+												$new_entry     = [];
 
-												// Find and remove the old variant with same URL
-												foreach ( $current_font_faces as $old_key => $old_face ) {
-													// Check all possible extensions, not just woff2
-													foreach ( [ 'woff2', 'woff', 'ttf' ] as $ext ) {
-														if ( isset( $old_face[ $ext ] ) ) {
-															$old_url = wp_get_attachment_url( $old_face[ $ext ] );
-															if ( $old_url === $new_font_faces[ $variant_key ]['url'] ) {
-																unset( $current_font_faces[ $old_key ] );
-																break 2; // Break out of both loops
+												// Handle array of subsets
+												if ( isset( $new_face_data[0] ) && is_array( $new_face_data[0] ) ) {
+													foreach ( $new_face_data as $subset ) {
+														if ( isset( $subset['url'] ) ) {
+															$font_extension = $get_font_extension( $subset );
+															$attachment_id  = attachment_url_to_postid( $subset['url'] );
+															if ( $attachment_id ) {
+																$subset_entry = [ $font_extension => $attachment_id ];
+																if ( ! empty( $subset['unicode-range'] ) ) {
+																	$subset_entry['unicode-range'] = $subset['unicode-range'];
+																}
+																$new_entry[] = $subset_entry;
+															}
+														}
+													}
+												} else {
+													// Single (legacy)
+													if ( isset( $new_face_data['url'] ) ) {
+														$font_extension = $get_font_extension( $new_face_data );
+														$attachment_id  = attachment_url_to_postid( $new_face_data['url'] );
+														if ( $attachment_id ) {
+															$new_entry = [ $font_extension => $attachment_id ];
+															if ( ! empty( $new_face_data['unicode-range'] ) ) {
+																$new_entry['unicode-range'] = $new_face_data['unicode-range'];
 															}
 														}
 													}
 												}
 
-												// Update this variant in the current font faces with attachment ID
-												$current_font_faces[ $variant_key ] = [
-													$font_extension => attachment_url_to_postid( $new_font_faces[ $variant_key ]['url'] )
-												];
+												if ( ! empty( $new_entry ) ) {
+													$current_font_faces[ $db_key ] = $new_entry;
+													// Clean up variant_key if different from db_key
+													if ( $db_key !== $variant_key && isset( $current_font_faces[ $variant_key ] ) ) {
+														unset( $current_font_faces[ $variant_key ] );
+													}
+												}
 											}
 										}
 									}
@@ -2210,7 +2638,6 @@ class Ajax {
 										if ( count( $matches ) >= 3 ) {
 											$weight = $matches[1];
 											$style  = $matches[2] ? $matches[2] : 'normal';
-											// Generate database key format (e.g. '400' for normal, '700italic' for italic)
 											$db_key = $weight;
 											if ( $style !== 'normal' ) {
 												$db_key .= $style;
@@ -2218,52 +2645,44 @@ class Ajax {
 
 											// Check if this variant exists in the new font faces
 											if ( isset( $new_font_faces[ $variant_key ] ) ) {
-												// Find and remove the old variant with same attachment ID
-												if ( isset( $new_font_faces[ $variant_key ]['url'] ) ) {
-													$new_url           = $new_font_faces[ $variant_key ]['url'];
-													$new_attachment_id = attachment_url_to_postid( $new_url );
+												$new_face_data = $new_font_faces[ $variant_key ];
+												$new_entry     = [];
 
-													// Check if DB format key exists in current font faces
-													if ( isset( $current_font_faces[ $db_key ] ) ) {
-
-														// Get old attachment ID to compare - check all extensions
-														$old_attachment_id = 0;
-														foreach ( [ 'woff2', 'woff', 'ttf' ] as $ext ) {
-															if ( isset( $current_font_faces[ $db_key ][ $ext ] ) ) {
-																$old_attachment_id = $current_font_faces[ $db_key ][ $ext ];
-																break;
+												// Handle array of subsets
+												if ( isset( $new_face_data[0] ) && is_array( $new_face_data[0] ) ) {
+													foreach ( $new_face_data as $subset ) {
+														if ( isset( $subset['url'] ) ) {
+															$font_extension = $get_font_extension( $subset );
+															$attachment_id  = attachment_url_to_postid( $subset['url'] );
+															if ( $attachment_id ) {
+																$subset_entry = [ $font_extension => $attachment_id ];
+																if ( ! empty( $subset['unicode-range'] ) ) {
+																	$subset_entry['unicode-range'] = $subset['unicode-range'];
+																}
+																$new_entry[] = $subset_entry;
 															}
 														}
-
-														if ( $old_attachment_id != $new_attachment_id ) {
-															unset( $current_font_faces[ $db_key ] );
+													}
+												} else {
+													// Single (legacy)
+													if ( isset( $new_face_data['url'] ) ) {
+														$font_extension = $get_font_extension( $new_face_data );
+														$attachment_id  = attachment_url_to_postid( $new_face_data['url'] );
+														if ( $attachment_id ) {
+															$new_entry = [ $font_extension => $attachment_id ];
+															if ( ! empty( $new_face_data['unicode-range'] ) ) {
+																$new_entry['unicode-range'] = $new_face_data['unicode-range'];
+															}
 														}
 													}
+												}
 
-													// Also check the client format key just in case
-													if ( isset( $current_font_faces[ $variant_key ] ) ) {
+												if ( ! empty( $new_entry ) ) {
+													$current_font_faces[ $db_key ] = $new_entry;
+													// Clean up variant_key if different from db_key
+													if ( $db_key !== $variant_key && isset( $current_font_faces[ $variant_key ] ) ) {
 														unset( $current_font_faces[ $variant_key ] );
 													}
-
-													// Look for any variants using the same file but with different key
-													foreach ( $current_font_faces as $old_key => $old_face ) {
-														// Check all possible extensions
-														foreach ( [ 'woff2', 'woff', 'ttf' ] as $ext ) {
-															if ( isset( $old_face[ $ext ] ) ) {
-																if ( $old_face[ $ext ] == $new_attachment_id && $old_key != $db_key && $old_key != $variant_key ) {
-																	unset( $current_font_faces[ $old_key ] );
-																	break; // Break out of extension loop once found
-																}
-															}
-														}
-													}
-
-													// Add/update the variant using the database format key
-													$font_extension = $get_font_extension( $new_font_faces[ $variant_key ] );
-
-													$current_font_faces[ $db_key ] = [
-														$font_extension => $new_attachment_id
-													];
 												}
 											}
 										}
@@ -2604,11 +3023,6 @@ class Ajax {
 				break;
 		}
 
-		// STEP: Generate post CSS file on autosave
-		if ( Database::get_setting( 'cssLoading' ) === 'file' ) {
-			Assets_Files::generate_post_css_file( $post_id, $area, $elements );
-		}
-
 		wp_send_json_success( [ 'autosave_id' => $autosave_id ] );
 	}
 
@@ -2660,7 +3074,13 @@ class Ajax {
 	 * @since 1.0
 	 */
 	public function get_image_metadata() {
-		self::verify_request( 'bricks-nonce-builder' );
+		if ( bricks_is_builder() || bricks_is_builder_call() ) {
+			$nonce = 'bricks-nonce-builder';
+		} elseif ( is_admin() ) {
+			$nonce = 'bricks-nonce-admin';
+		}
+
+		self::verify_request( $nonce ?? 'bricks-nonce' );
 
 		$image_id   = ! empty( $_POST['imageId'] ) ? intval( $_POST['imageId'] ) : 0;
 		$image_size = ! empty( $_POST['imageSize'] ) ? sanitize_text_field( $_POST['imageSize'] ) : '';
@@ -3255,6 +3675,77 @@ class Ajax {
 				'total_posts'         => $scan_result['total_posts'],
 			]
 		);
+	}
+
+	/**
+	 * Get builder data for instant navigation (page-specific data only)
+	 *
+	 * @since 2.2
+	 */
+	public function get_partial_builder_data() {
+		self::verify_request( 'bricks-nonce-builder' );
+
+		$post_id = isset( $_POST['postId'] ) ? intval( $_POST['postId'] ) : 0;
+
+		if ( ! $post_id ) {
+			wp_send_json_error( [ 'message' => esc_html__( 'No post ID provided.', 'bricks' ) ] );
+		}
+
+		if ( ! Capabilities::current_user_can_use_builder( $post_id ) ) {
+			wp_send_json_error( [ 'message' => esc_html__( 'No permission to edit this post.', 'bricks' ) ] );
+		}
+
+		// Set page data for builder_data() to work correctly
+		Database::set_page_data( $post_id );
+
+		// Set active templates for the new post
+		Database::set_active_templates( $post_id );
+
+		// Calculate active theme styles for the new post
+		Theme_Styles::set_active_style( $post_id );
+		$theme_style_active_ids = array_keys( Theme_Styles::$settings_by_id );
+		$theme_style_active_id  = end( $theme_style_active_ids );
+
+		$data = Builder::partial_builder_data( $post_id );
+
+		$data['themeStyleActiveIds'] = $theme_style_active_ids;
+		$data['themeStyleActiveId']  = $theme_style_active_id;
+
+		// Add additional data that might be needed
+		$data['postId']      = $post_id;
+		$data['postStatus']  = get_post_status( $post_id );
+		$data['postType']    = get_post_type( $post_id );
+		$data['previewUrl']  = add_query_arg( 'bricks_preview', time(), get_the_permalink( $post_id ) );
+		$data['editPostUrl'] = htmlspecialchars_decode( get_edit_post_link( $post_id ) );
+		$data['builderUrl']  = Helpers::get_builder_edit_link( $post_id );
+		$data['permalink']   = get_permalink( $post_id );
+
+		// URL to edit header/content/footer templates
+		$data['editHeaderUrl']  = ! empty( Database::$active_templates['header'] ) ? Helpers::get_builder_edit_link( Database::$active_templates['header'] ) : '';
+		$data['editContentUrl'] = ! empty( Database::$active_templates['content'] ) ? Helpers::get_builder_edit_link( Database::$active_templates['content'] ) : '';
+		$data['editFooterUrl']  = ! empty( Database::$active_templates['footer'] ) ? Helpers::get_builder_edit_link( Database::$active_templates['footer'] ) : '';
+
+		// Template IDs for instant navigation (@since 1.11)
+		$data['editHeaderId']  = ! empty( Database::$active_templates['header'] ) ? Database::$active_templates['header'] : 0;
+		$data['editContentId'] = ! empty( Database::$active_templates['content'] ) ? Database::$active_templates['content'] : 0;
+		$data['editFooterId']  = ! empty( Database::$active_templates['footer'] ) ? Database::$active_templates['footer'] : 0;
+
+		$data['pageTitle'] = html_entity_decode( get_the_title( $post_id ), ENT_QUOTES, get_bloginfo( 'charset' ) );
+
+		if ( $data['postType'] === BRICKS_DB_TEMPLATE_SLUG ) {
+			$data['pageTitle'] .= ' (' . __( 'Template', 'bricks' ) . ')';
+		} else {
+			$data['pageTitle'] .= ' (' . __( 'Builder', 'bricks' ) . ')';
+		}
+
+		// Include template type for header/footer templates
+		if ( $data['postType'] === BRICKS_DB_TEMPLATE_SLUG ) {
+			$data['templateType'] = Templates::get_template_type( $post_id );
+		} else {
+			$data['templateType'] = 'content'; // Default for pages/posts
+		}
+
+		wp_send_json_success( $data );
 	}
 
 	/**

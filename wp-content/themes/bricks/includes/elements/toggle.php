@@ -172,7 +172,14 @@ class Element_Toggle extends Element {
 	public function render() {
 		$settings = $this->settings;
 
-		$this->set_attribute( '_root', 'aria-label', ! empty( $settings['ariaLabel'] ) ? esc_attr( $settings['ariaLabel'] ) : esc_html__( 'Open', 'bricks' ) );
+		$default_aria_label = esc_html__( 'Open', 'bricks' );
+
+		// Check if it is the close toggle in nav nested element (@since 2.2)
+		if ( isset( $settings['_hidden']['_cssClasses'] ) && is_string( $settings['_hidden']['_cssClasses'] ) && strpos( $settings['_hidden']['_cssClasses'], 'brx-toggle-div' ) !== false ) {
+			$default_aria_label = esc_html__( 'Close', 'bricks' );
+		}
+
+		$this->set_attribute( '_root', 'aria-label', ! empty( $settings['ariaLabel'] ) ? esc_attr( $settings['ariaLabel'] ) : $default_aria_label );
 
 		$this->set_attribute( '_root', 'aria-expanded', 'false' );
 

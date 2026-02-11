@@ -22,6 +22,7 @@ class Setup {
 	}
 
 	public function __construct() {
+		add_action( 'wp_head', [ $this, 'set_project_default_mode' ], 1 );
 		add_action( 'bricks_body', [ $this, 'body_tag' ], 1 );
 		add_filter( 'body_class', [ $this, 'body_class' ] );
 
@@ -61,6 +62,42 @@ class Setup {
 		if ( Builder::get_query_max_results() ) {
 			add_filter( 'bricks/query/result', [ $this, 'builder_query_max_results' ], 10, 2 );
 		}
+	}
+
+	/**
+	 * Set project default mode (light, dark) on <html> tag
+	 *
+	 * To avoid FOUC on page load.
+	 * Use JS to set data-brx-theme attribute based on user preference or project default mode in wp_head and CSS to show/hide icons accordingly.
+	 *
+	 * @since 2.2
+	 */
+	public function set_project_default_mode( $output ) {
+		wp_register_script( 'bricks-dl-mode', null );
+		wp_enqueue_script( 'bricks-dl-mode' );
+
+		$project_default_mode = ! empty( Database::$global_data['styleManager']['defaultMode'] ) ? Database::$global_data['styleManager']['defaultMode'] : 'light';
+
+		// Only read localStorage on frontend, builder mode should not read this and user can switch the mode via builder Toolbar
+		$saved_theme_js = bricks_is_frontend()
+		? 'localStorage.getItem("brx_mode")'
+		: '""';
+
+		$script_content = '(function() {
+				let savedTheme = ' . $saved_theme_js . ';
+				let defaultMode = "' . esc_js( $project_default_mode ) . '";
+				let currentTheme = savedTheme || defaultMode;
+
+				if (currentTheme === "auto") {
+					let prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)").matches;
+						document.documentElement.dataset.brxTheme = prefersDarkScheme ? "dark" : "light";
+				} else {
+					document.documentElement.dataset.brxTheme = currentTheme;
+				}
+		})();';
+
+		wp_add_inline_script( 'bricks-dl-mode', $script_content );
+
 	}
 
 	/**
@@ -132,7 +169,8 @@ class Setup {
 				$value = join( ' ', $value );
 			}
 
-			$body_attributes_string .= "{$key}=\"{$value}\"";
+			// Added space between attributes (@since 2.2)
+			$body_attributes_string .= " {$key}=\"{$value}\"";
 		}
 
 		echo "<body {$body_attributes_string}>";
@@ -198,6 +236,7 @@ class Setup {
 		remove_filter( 'the_content_feed', 'wp_staticize_emoji' );
 		remove_filter( 'comment_text_rss', 'wp_staticize_emoji' );
 		remove_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );
+		remove_filter( 'the_content', 'convert_smilies', 20 ); // Stop converting symbols to smilies (#86c695he9)
 
 		add_filter( 'tiny_mce_plugins', [ $this, 'disable_emojis_tinymce' ] );
 
@@ -1065,10 +1104,11 @@ class Setup {
 			];
 
 			$control_options['queryTypes'] = [
-				'post' => esc_html__( 'Posts', 'bricks' ),
-				'term' => esc_html__( 'Terms', 'bricks' ),
-				'user' => esc_html__( 'Users', 'bricks' ),
-				'api'  => 'API', // (@since 2.1)
+				'post'  => esc_html__( 'Posts', 'bricks' ),
+				'term'  => esc_html__( 'Terms', 'bricks' ),
+				'user'  => esc_html__( 'Users', 'bricks' ),
+				'api'   => 'API', // (@since 2.1)
+				'array' => esc_html__( 'Array', 'bricks' ), // (@since 2.2)
 			];
 
 			$control_options['queryOrder'] = [
@@ -1077,63 +1117,61 @@ class Setup {
 			];
 
 			$control_options['queryOrderBy'] = [
-				'none'           => esc_html( 'None', 'bricks' ),
-				'ID'             => esc_html( 'ID', 'bricks' ),
-				'author'         => esc_html( 'Author', 'bricks' ),
-				'title'          => esc_html( 'Title', 'bricks' ),
-				'name'           => esc_html( 'Slug', 'bricks' ), // Post name (@since 1.11.1)
-				'type'           => esc_html( 'Post type', 'bricks' ), // (@since 1.11.1)
-				'date'           => esc_html( 'Published date', 'bricks' ),
-				'modified'       => esc_html( 'Modified date', 'bricks' ),
-				'rand'           => esc_html( 'Random', 'bricks' ),
-				'comment_count'  => esc_html( 'Comment count', 'bricks' ),
-				'relevance'      => esc_html( 'Relevance', 'bricks' ),
-				'menu_order'     => esc_html( 'Menu order', 'bricks' ),
-				'parent'         => esc_html( 'Parent', 'bricks' ),
-				'meta_value'     => esc_html( 'Meta value', 'bricks' ),
-				'meta_value_num' => esc_html( 'Meta numeric value', 'bricks' ),
-				'post__in'       => esc_html( 'Post include order', 'bricks' ),
-				'_default'       => esc_html( 'Default', 'bricks' ), // Use WP default order (@since 1.12)
+				'none'           => esc_html__( 'None', 'bricks' ),
+				'ID'             => esc_html__( 'ID', 'bricks' ),
+				'author'         => esc_html__( 'Author', 'bricks' ),
+				'title'          => esc_html__( 'Title', 'bricks' ),
+				'name'           => esc_html__( 'Slug', 'bricks' ), // Post name (@since 1.11.1)
+				'type'           => esc_html__( 'Post type', 'bricks' ), // (@since 1.11.1)
+				'date'           => esc_html__( 'Published date', 'bricks' ),
+				'modified'       => esc_html__( 'Modified date', 'bricks' ),
+				'rand'           => esc_html__( 'Random', 'bricks' ),
+				'comment_count'  => esc_html__( 'Comment count', 'bricks' ),
+				'relevance'      => esc_html__( 'Relevance', 'bricks' ),
+				'menu_order'     => esc_html__( 'Menu order', 'bricks' ),
+				'parent'         => esc_html__( 'Parent', 'bricks' ),
+				'meta_value'     => esc_html__( 'Meta value', 'bricks' ),
+				'meta_value_num' => esc_html__( 'Meta numeric value', 'bricks' ),
+				'post__in'       => esc_html__( 'Post include order', 'bricks' ),
+				'_default'       => esc_html__( 'Default', 'bricks' ), // Use WP default order (@since 1.12)
 			];
 
 			$control_options['termsOrderBy'] = [
-				'none'           => esc_html( 'None', 'bricks' ),
-				'term_id'        => esc_html( 'ID', 'bricks' ),
-				'name'           => esc_html( 'Name', 'bricks' ),
-				// 'term_order'         => esc_html( 'Term order', 'bricks' ),
-				'parent'         => esc_html( 'Parent', 'bricks' ),
-				'meta_value'     => esc_html( 'Meta value', 'bricks' ), // (@since 1.11.1)
-				'meta_value_num' => esc_html( 'Meta numeric value', 'bricks' ), // (@since 1.11.1)
-				'count'          => esc_html( 'Count', 'bricks' ),
-				'include'        => esc_html( 'Include list', 'bricks' ),
-				'_default'       => esc_html( 'Default', 'bricks' ), // Use WP default order (@since 1.12)
+				'none'           => esc_html__( 'None', 'bricks' ),
+				'term_id'        => esc_html__( 'ID', 'bricks' ),
+				'name'           => esc_html__( 'Name', 'bricks' ),
+				// 'term_order'     => esc_html__( 'Term order', 'bricks' ),
+				'parent'         => esc_html__( 'Parent', 'bricks' ),
+				'meta_value'     => esc_html__( 'Meta value', 'bricks' ), // (@since 1.11.1)
+				'meta_value_num' => esc_html__( 'Meta numeric value', 'bricks' ), // (@since 1.11.1)
+				'count'          => esc_html__( 'Count', 'bricks' ),
+				'include'        => esc_html__( 'Include list', 'bricks' ),
 			];
 
 			$control_options['usersOrderBy'] = [
-				'none'           => esc_html( 'None', 'bricks' ),
-				'ID'             => esc_html( 'ID', 'bricks' ),
-				'display_name'   => esc_html( 'Name', 'bricks' ),
-				'name'           => esc_html( 'Username', 'bricks' ),
-				'nicename'       => esc_html( 'Nicename', 'bricks' ),
-				'login'          => esc_html( 'Login', 'bricks' ),
-				'email'          => esc_html( 'Email', 'bricks' ),
-				// 'url'        => esc_html( 'Website', 'bricks' ),
-				'registered'     => esc_html( 'Registered date', 'bricks' ),
-				'post_count'     => esc_html( 'Post count', 'bricks' ),
-				'include'        => esc_html( 'Include list', 'bricks' ),
-				'meta_value'     => esc_html( 'Meta value', 'bricks' ),
-				'meta_value_num' => esc_html( 'Meta numeric value', 'bricks' ),
-				// 'post__in' => esc_html( 'Post include order', 'bricks' ),
-				'_default'       => esc_html( 'Default', 'bricks' ), // Use WP default order (@since 1.12)
+				'none'           => esc_html__( 'None', 'bricks' ),
+				'ID'             => esc_html__( 'ID', 'bricks' ),
+				'display_name'   => esc_html__( 'Name', 'bricks' ),
+				'name'           => esc_html__( 'Username', 'bricks' ),
+				'nicename'       => esc_html__( 'Nicename', 'bricks' ),
+				'login'          => esc_html__( 'Login', 'bricks' ),
+				'email'          => esc_html__( 'Email', 'bricks' ),
+				// 'url'        => esc_html__( 'Website', 'bricks' ),
+				'registered'     => esc_html__( 'Registered date', 'bricks' ),
+				'post_count'     => esc_html__( 'Post count', 'bricks' ),
+				'include'        => esc_html__( 'Include list', 'bricks' ),
+				'meta_value'     => esc_html__( 'Meta value', 'bricks' ),
+				'meta_value_num' => esc_html__( 'Meta numeric value', 'bricks' ),
+				// 'post__in' => esc_html__( 'Post include order', 'bricks' ),
 			];
 
 			$control_options['queryCompare'] = [
-				'='           => esc_html( 'Equal', 'bricks' ),
-				'!='          => esc_html( 'Not equal', 'bricks' ),
-				'>'           => esc_html( 'Greater than', 'bricks' ),
-				'>='          => esc_html( 'Greater than or equal', 'bricks' ),
-				'<'           => esc_html( 'Lesser', 'bricks' ),
-				'<='          => esc_html( 'Lesser or equal', 'bricks' ),
+				'='           => esc_html__( 'Equal', 'bricks' ),
+				'!='          => esc_html__( 'Not equal', 'bricks' ),
+				'>'           => esc_html__( 'Greater than', 'bricks' ),
+				'>='          => esc_html__( 'Greater than or equal', 'bricks' ),
+				'<'           => esc_html__( 'Lesser', 'bricks' ),
+				'<='          => esc_html__( 'Lesser or equal', 'bricks' ),
 				'LIKE'        => 'LIKE',
 				'NOT LIKE'    => 'NOT LIKE',
 				'IN'          => 'IN',
@@ -1164,11 +1202,11 @@ class Setup {
 			];
 
 			$control_options['templatesOrderBy'] = [
-				'author'   => esc_html( 'Author', 'bricks' ),
-				'title'    => esc_html( 'Title', 'bricks' ),
-				'date'     => esc_html( 'Published date', 'bricks' ),
-				'modified' => esc_html( 'Modified date', 'bricks' ),
-				'rand'     => esc_html( 'Random', 'bricks' ),
+				'author'   => esc_html__( 'Author', 'bricks' ),
+				'title'    => esc_html__( 'Title', 'bricks' ),
+				'date'     => esc_html__( 'Published date', 'bricks' ),
+				'modified' => esc_html__( 'Modified date', 'bricks' ),
+				'rand'     => esc_html__( 'Random', 'bricks' ),
 			];
 
 			$control_options['templateTypes'] = [
@@ -1381,7 +1419,7 @@ class Setup {
 				continue;
 			}
 
-			// Show all post types the taxonomy is registered to (#86c47ukrw; @since 2.x)
+			// Show all post types the taxonomy is registered to (#86c47ukrw; @since 2.2)
 			if ( isset( $tax->object_type ) && is_array( $tax->object_type ) && count( $tax->object_type ) > 0 ) {
 				$post_types = array_map( 'ucwords', $tax->object_type );
 				$post_type  = ' (' . implode( '/', $post_types ) . ')';

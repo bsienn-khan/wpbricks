@@ -32,6 +32,7 @@ class Wpml {
 		add_filter( 'wpml_page_builder_support_required', [ $this, 'wpml_page_builder_support_required' ], 10, 1 );
 		add_action( 'wpml_page_builder_register_strings', [ $this, 'wpml_page_builder_register_strings' ], 10, 2 );
 		add_action( 'wpml_pro_translation_completed', [ $this, 'handle_translation_completed_no_strings' ], 10, 3 );
+		add_action( 'wpml_pro_translation_completed', [ $this, 'update_translated_post_component_blocks' ], 20, 3 );
 
 		/**
 		 * Using a closure to ensure this function is only triggered from the 'wpml_page_builder_string_translated' hook
@@ -98,7 +99,293 @@ class Wpml {
 
 		// Register component strings when components are saved
 		add_action( 'update_option_' . BRICKS_DB_COMPONENTS, [ $this, 'register_components_string_packages' ], 10, 2 );
+
+		// Switch builder language (#86c6h2bv7; @since 2.2)
+		add_action( 'bricks/builder/switch_locale', [ $this, 'switch_builder_languge' ] );
+
+		/**
+		 * Register strings for "Components as Blocks" in Gutenberg
+		 *
+		 * @since 2.2
+		 */
+		add_filter( 'wpml_found_strings_in_block', [ $this, 'wpml_found_strings_in_block' ], 10, 2 );
+
+		// Register global settings strings (@since 2.2)
+		add_action( 'update_option_' . BRICKS_DB_GLOBAL_SETTINGS, [ $this, 'register_global_settings_strings' ], 10, 2 );
+
+		// Translate global settings strings (@since 2.2)
+		add_filter( 'bricks/user_activation_email/from_name', [ $this, 'translate_global_settings_string' ] );
+		add_filter( 'bricks/user_activation_email/subject', [ $this, 'translate_global_settings_string' ] );
+		add_filter( 'bricks/user_activation_email/content', [ $this, 'translate_global_settings_string' ] );
 	}
+
+	/**
+	 * Register strings for "Components as Blocks" in Gutenberg
+	 *
+	 * @param array $strings
+	 * @param array $block
+	 *
+	 * @return array
+	 *
+	 * @since 2.2
+	 */
+	public function wpml_found_strings_in_block( $strings, $block ) {
+		// Convert block object to array if needed (WP_Block_Parser_Block)
+		if ( is_object( $block ) ) {
+			$block = (array) $block;
+		}
+
+		// Check if this is a Bricks component block
+		if ( empty( $block['blockName'] ) || strpos( $block['blockName'], 'bricks-components/' ) !== 0 ) {
+			return $strings;
+		}
+
+		$component_id = $block['attrs']['componentId'] ?? '';
+
+		// Extract component ID from block name if missing in attributes
+		if ( empty( $component_id ) ) {
+			$parts = explode( '/', $block['blockName'] );
+			if ( isset( $parts[1] ) ) {
+				$component_id = $parts[1];
+			}
+		}
+
+		if ( empty( $component_id ) || empty( $block['attrs']['properties'] ) ) {
+			return $strings;
+		}
+
+		$properties = $block['attrs']['properties'];
+		$block_id   = $block['attrs']['blockId'] ?? '';
+
+		// Get component configuration to know property types
+		$components = get_option( BRICKS_DB_COMPONENTS, [] );
+
+		$component = null;
+		foreach ( $components as $c ) {
+			if ( isset( $c['id'] ) && (string) $c['id'] === (string) $component_id ) {
+				$component = $c;
+				break;
+			}
+		}
+
+		if ( ! $component || empty( $component['properties'] ) ) {
+			return $strings;
+		}
+
+		// Map definitions by ID
+		$property_definitions = [];
+		foreach ( $component['properties'] as $prop ) {
+			if ( isset( $prop['id'] ) ) {
+				$property_definitions[ $prop['id'] ] = $prop;
+			}
+		}
+
+		foreach ( $properties as $property_key => $property_value ) {
+			if ( ! isset( $property_definitions[ $property_key ] ) ) {
+				continue;
+			}
+
+			$definition = $property_definitions[ $property_key ];
+			$type       = $definition['type'] ?? 'text';
+			$label      = $definition['label'] ?? $property_key;
+
+			// Prefix string name with block ID to ensure uniqueness per instance
+			$string_name = 'property_' . $property_key;
+			if ( $block_id ) {
+				$string_name = $block_id . '_' . $string_name;
+			}
+
+			// Handle different property types
+			switch ( $type ) {
+				case 'text':
+				case 'textarea':
+				case 'editor':
+					if ( is_string( $property_value ) && ! empty( $property_value ) ) {
+						$strings[] = (object) [
+							'id'    => $string_name,
+							'name'  => $string_name,
+							'value' => $property_value,
+							'type'  => ( $type === 'textarea' || $type === 'editor' ) ? 'TEXTAREA' : 'LINE',
+						];
+					}
+					break;
+
+				case 'link':
+				case 'image':
+					if ( is_array( $property_value ) && isset( $property_value['url'] ) && is_string( $property_value['url'] ) && ! empty( $property_value['url'] ) ) {
+						$strings[] = (object) [
+							'id'    => $string_name . '_url',
+							'name'  => $string_name . '_url',
+							'value' => $property_value['url'],
+							'type'  => 'LINE',
+						];
+					}
+					break;
+
+				case 'image-gallery':
+					if ( is_array( $property_value ) && isset( $property_value['images'] ) && is_array( $property_value['images'] ) ) {
+						foreach ( $property_value['images'] as $index => $image ) {
+							if ( isset( $image['url'] ) && ! empty( $image['url'] ) ) {
+								$strings[] = (object) [
+									'id'    => $string_name . '_image_' . $index . '_url',
+									'name'  => $string_name . '_image_' . $index . '_url',
+									'value' => $image['url'],
+									'type'  => 'LINE',
+								];
+							}
+						}
+					}
+					break;
+			}
+		}
+
+		return $strings;
+	}
+
+	/**
+	 * Handle WPML translation completion for component blocks
+	 * Updates the translated post content with translated component properties
+	 *
+	 * @param int    $new_post_id     ID of the translated post.
+	 * @param array  $fields          Translated fields.
+	 * @param object $job             Translation job object.
+	 *
+	 * @since 2.2
+	 */
+	public function update_translated_post_component_blocks( $new_post_id, $fields, $job ) {
+		$original_post_id = $job->original_doc_id ?? false;
+
+		if ( ! $original_post_id ) {
+			return;
+		}
+
+		// Switch to target language to ensure we get correct translations
+		global $sitepress;
+		$original_lang = $sitepress->get_current_language();
+		$target_lang   = $job->language_code;
+
+		if ( $original_lang !== $target_lang ) {
+			$sitepress->switch_lang( $target_lang );
+		}
+
+		$post    = get_post( $new_post_id );
+		$content = $post ? $post->post_content : '';
+		$blocks  = parse_blocks( $content );
+
+		// We need to pass original post ID to translate_component_block_attributes
+		// because strings are registered against the original post ID package
+		$updated_blocks = $this->update_component_blocks_recursive( $blocks, $original_post_id );
+
+		// Serialize and update if changed
+		$new_content = serialize_blocks( $updated_blocks );
+
+		if ( $new_content !== $content ) {
+			// Update post content
+			$post_data = [
+				'ID'           => $new_post_id,
+				'post_content' => $new_content,
+			];
+
+			// Remove hook to prevent loop
+			remove_action( 'wpml_pro_translation_completed', [ $this, 'update_translated_post_component_blocks' ], 20 );
+
+			wp_update_post( $post_data );
+
+			// Re-add hook
+			add_action( 'wpml_pro_translation_completed', [ $this, 'update_translated_post_component_blocks' ], 20, 3 );
+		}
+
+		if ( $original_lang !== $target_lang ) {
+			$sitepress->switch_lang( $original_lang );
+		}
+	}
+
+	/**
+	 * Recursively update component blocks with translations
+	 *
+	 * @param array $blocks
+	 * @param int   $original_post_id
+	 * @return array
+	 */
+	private function update_component_blocks_recursive( $blocks, $original_post_id ) {
+		foreach ( $blocks as &$block ) {
+			// Check if Bricks component block
+			if ( isset( $block['blockName'] ) && strpos( $block['blockName'], 'bricks-components/' ) === 0 && ! empty( $block['attrs'] ) ) {
+				$block['attrs'] = self::translate_component_block_attributes( $block['attrs'], $original_post_id );
+			}
+
+			// Recurse inner blocks
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$block['innerBlocks'] = $this->update_component_blocks_recursive( $block['innerBlocks'], $original_post_id );
+			}
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * Register global settings strings for translation
+	 *
+	 * @param mixed $old_value The old option value.
+	 * @param mixed $value     The new option value.
+	 *
+	 * @since 2.2
+	 */
+	public function register_global_settings_strings( $old_value, $value ) {
+		if ( ! is_array( $value ) || empty( $value ) ) {
+			return;
+		}
+
+		$package = [
+			'kind'  => 'Bricks',
+			'name'  => 'Global settings',
+			'title' => 'Global settings',
+		];
+
+		$strings = [
+			'userActivationLinkEmailFromName' => 'LINE',
+			'userActivationLinkEmailSubject'  => 'LINE',
+			'userActivationLinkEmailContent'  => 'VISUAL',
+		];
+
+		foreach ( $strings as $key => $type ) {
+			if ( ! empty( $value[ $key ] ) ) {
+				$string_title = "Bricks User Activation: $key";
+				do_action( 'wpml_register_string', $value[ $key ], $key, $package, $string_title, $type );
+			}
+		}
+	}
+
+	/**
+	 * Translate global settings string
+	 *
+	 * @param string $value
+	 * @return string
+	 *
+	 * @since 2.2
+	 */
+	public function translate_global_settings_string( $value ) {
+		$filter = current_filter();
+		$map    = [
+			'bricks/user_activation_email/from_name' => 'userActivationLinkEmailFromName',
+			'bricks/user_activation_email/subject'   => 'userActivationLinkEmailSubject',
+			'bricks/user_activation_email/content'   => 'userActivationLinkEmailContent',
+		];
+
+		if ( ! isset( $map[ $filter ] ) ) {
+			return $value;
+		}
+
+		$name    = $map[ $filter ];
+		$package = [
+			'kind'  => 'Bricks',
+			'name'  => 'Global settings',
+			'title' => 'Global settings',
+		];
+
+		return apply_filters( 'wpml_translate_string', $value, $name, $package );
+	}
+
 
 	/**
 	 * Handle WPML translation completion ONLY when there are no strings to translate
@@ -153,7 +440,21 @@ class Wpml {
 
 		// Clear unique inline CSS if using file-based CSS loading
 		if ( Database::get_setting( 'cssLoading' ) === 'file' ) {
-			\Bricks\Assets::$unique_inline_css = [];
+			\Bricks\Assets::reset_duplication_tracking();
+
+			$template_type = get_post_meta( $new_post_id, BRICKS_DB_TEMPLATE_TYPE, true );
+			$area          = 'content';
+
+			if ( $template_type === 'header' || $template_type === 'footer' ) {
+				$area = $template_type;
+			}
+
+			$meta_key = Database::get_bricks_data_key( $area );
+			$elements = get_post_meta( $new_post_id, $meta_key, true );
+
+			if ( $elements ) {
+				\Bricks\Assets_Files::generate_post_css_file( $new_post_id, $area, $elements );
+			}
 		}
 	}
 
@@ -601,6 +902,12 @@ class Wpml {
 			$element_id  = isset( $string_parts[0] ) ? $string_parts[0] : false;
 			$setting_key = isset( $string_parts[1] ) ? $string_parts[1] : false;
 
+			// Handle setting keys that start with underscore (e.g., _attributes becomes __ in string ID)
+			if ( $setting_key === '' && isset( $string_parts[2] ) ) {
+				$setting_key = '_' . $string_parts[2];
+				array_splice( $string_parts, 1, 2, [ $setting_key ] );
+			}
+
 			// If it's a link, update the URL
 			if ( $setting_key === 'link' ) {
 				foreach ( $bricks_elements as $index => $element ) {
@@ -612,34 +919,24 @@ class Wpml {
 			}
 
 			if ( count( $string_parts ) > 3 && isset( $string_parts[2] ) && isset( $string_parts[3] ) ) {
-				// Split the string ID to extract various details (like element ID, setting key, repeater index, etc.)
-				$string_parts = explode( '_', $string_id );
+				$repeater_index = $string_parts[2];  // The repeater item index
+				$repeater_key   = $string_parts[3];  // The repeater item key
 
-				// Assign values to $element_id and $setting_key if the corresponding parts are set, else assign false
-				$element_id  = $string_parts[0] ?? false;
-				$setting_key = $string_parts[1] ?? false;
+				// Loop through elements to update the repeater field value with the translation
+				foreach ( $bricks_elements as $index => $element ) {
+					if ( $element['id'] === $element_id && isset( $translation[ $lang ]['value'] ) ) {
+						// Define the path for readability
+						$path = &$bricks_elements[ $index ]['settings'][ $setting_key ][ $repeater_index ][ $repeater_key ];
 
-				// If there are more than 3 parts in the string ID, it indicates this string belongs to a repeater field
-				if ( count( $string_parts ) > 3 && isset( $string_parts[2] ) && isset( $string_parts[3] ) ) {
-					$repeater_index = $string_parts[2];  // The repeater item index
-					$repeater_key   = $string_parts[3];  // The repeater item key
-
-					// Loop through elements to update the repeater field value with the translation
-					foreach ( $bricks_elements as $index => $element ) {
-						if ( $element['id'] === $element_id && isset( $translation[ $lang ]['value'] ) ) {
-							// Define the path for readability
-							$path = &$bricks_elements[ $index ]['settings'][ $setting_key ][ $repeater_index ][ $repeater_key ];
-
-							// If $repeater_key is 'link', update the 'url', else update the repeater's specific field with its translated value
-							if ( $repeater_key === 'link' && isset( $path['url'] ) ) {
-								$path['url'] = $translation[ $lang ]['value'];
-							} elseif ( isset( $path ) ) {
-								$path = $translation[ $lang ]['value'];
-							}
+						// If $repeater_key is 'link', update the 'url', else update the repeater's specific field with its translated value
+						if ( $repeater_key === 'link' && isset( $path['url'] ) ) {
+							$path['url'] = $translation[ $lang ]['value'];
+						} elseif ( isset( $path ) ) {
+							$path = $translation[ $lang ]['value'];
 						}
 					}
-					continue;  // Skip further processing and jump to the next iteration
 				}
+				continue;  // Skip further processing and jump to the next iteration
 			}
 
 			if ( ! $element_id || ! $setting_key ) {
@@ -713,7 +1010,11 @@ class Wpml {
 
 				// STEP: Replace the text of the element with the translated text
 				if ( $element['id'] === $element_id && isset( $translation[ $lang ]['value'] ) ) {
-					$bricks_elements[ $index ]['settings'][ $setting_key ] = $translation[ $lang ]['value'];
+					if ( is_array( $bricks_elements[ $index ]['settings'][ $setting_key ] ) && isset( $bricks_elements[ $index ]['settings'][ $setting_key ]['url'] ) ) {
+						$bricks_elements[ $index ]['settings'][ $setting_key ]['url'] = $translation[ $lang ]['value'];
+					} else {
+						$bricks_elements[ $index ]['settings'][ $setting_key ] = $translation[ $lang ]['value'];
+					}
 				}
 			}
 		}
@@ -752,6 +1053,8 @@ class Wpml {
 		 * To regenerate CSS file for secondary languages without triggering return on line 2356 in assets.php
 		 */
 		if ( Database::get_setting( 'cssLoading' ) == 'file' ) {
+			\Bricks\Assets::reset_duplication_tracking();
+
 			\Bricks\Assets::$unique_inline_css = [];
 		}
 	}
@@ -1407,6 +1710,7 @@ class Wpml {
 
 			switch ( $property_type ) {
 				case 'text':
+				case 'textarea':
 				case 'editor':
 					if ( is_string( $default_value ) && ! empty( $default_value ) ) {
 						$string_id        = "property_{$property_id}_default";
@@ -1461,5 +1765,90 @@ class Wpml {
 		}
 
 		return $properties;
+	}
+
+	/**
+	 * Switch WPML language for the builder
+	 *
+	 * @param string $locale The locale to switch to.
+	 *
+	 * @since 2.2
+	 */
+	public function switch_builder_languge( $locale ) {
+		if ( $locale ) {
+			global $sitepress;
+			$language_code = $sitepress->get_language_code_from_locale( $locale );
+			do_action( 'wpml_switch_language', $language_code );
+		}
+	}
+
+	/**
+	 * Translate component block attributes on-the-fly
+	 *
+	 * @param array $attributes Block attributes.
+	 * @param int   $post_id    Current post ID.
+	 * @return array Translated attributes.
+	 *
+	 * @since 2.2
+	 */
+	public static function translate_component_block_attributes( $attributes, $post_id ) {
+		// Use the original post ID for package lookup if available
+		// This handles the case where we are rendering a translation but strings are registered to original
+		$original_post_id = apply_filters( 'wpml_original_element_id', null, $post_id, 'post_' . get_post_type( $post_id ) );
+		if ( $original_post_id ) {
+			$post_id = $original_post_id;
+		}
+
+		if ( empty( $attributes['properties'] ) || ! is_array( $attributes['properties'] ) ) {
+			return $attributes;
+		}
+
+		$block_id = $attributes['blockId'] ?? '';
+
+		if ( empty( $block_id ) ) {
+			return $attributes;
+		}
+
+		// Package definition must match what WPML uses for Gutenberg blocks
+		// Usually kind=Gutenberg, name=post_id, title="Page Builder Page $post_id"
+		// However, providing just kind and name (which is post_id) should be sufficient for lookup
+		$package = [
+			'kind'    => 'Gutenberg',
+			'name'    => (string) $post_id,
+			'title'   => 'Page Builder Page ' . $post_id,
+			'post_id' => $post_id,
+		];
+
+		foreach ( $attributes['properties'] as $key => $value ) {
+			$string_name = $block_id . '_property_' . $key;
+
+			// Handle text/textarea/editor
+			if ( is_string( $value ) ) {
+				$translated_value = apply_filters( 'wpml_translate_string', $value, $string_name, $package );
+				if ( $translated_value !== $value ) {
+					$attributes['properties'][ $key ] = $translated_value;
+				}
+			}
+			// Handle link/image
+			elseif ( is_array( $value ) && isset( $value['url'] ) ) {
+				$translated_url = apply_filters( 'wpml_translate_string', $value['url'], $string_name . '_url', $package );
+				if ( $translated_url !== $value['url'] ) {
+					$attributes['properties'][ $key ]['url'] = $translated_url;
+				}
+			}
+			// Handle image gallery
+			elseif ( is_array( $value ) && isset( $value['images'] ) && is_array( $value['images'] ) ) {
+				foreach ( $value['images'] as $index => $image ) {
+					if ( isset( $image['url'] ) ) {
+						$translated_url = apply_filters( 'wpml_translate_string', $image['url'], $string_name . '_image_' . $index . '_url', $package );
+						if ( $translated_url !== $image['url'] ) {
+							$attributes['properties'][ $key ]['images'][ $index ]['url'] = $translated_url;
+						}
+					}
+				}
+			}
+		}
+
+		return $attributes;
 	}
 }

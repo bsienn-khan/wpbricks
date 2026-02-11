@@ -716,7 +716,13 @@ const bricksMapFn = new BricksFunction({
 				position: position,
 				content: locationInfo.customMarker,
 				map: map,
-				title: addressObj?.markerAriaLabel || addressObj?.infoTitle || addressObj?.id || '',
+				// Title for accessibility: Address label > Address infoTitle (static mode) > Map default label > Address ID (#86c79vyd1; @since 2.2)
+				title:
+					addressObj?.markerAriaLabel ||
+					addressObj?.infoTitle ||
+					mapInstance?.settings?.markerAriaLabel ||
+					addressObj?.id ||
+					'',
 				clickable: true,
 				markerData: {
 					addressObj: addressObj,
@@ -843,7 +849,7 @@ const bricksMapFn = new BricksFunction({
 
 		// Register addressId and mapId for interaction elements to simplify addressId and mapId retrieval
 		const registerInteractionAddresses = () => {
-			// Note: Although some addresses might already registered, we should re-register again as the map addresses ID will be different in Load More/Infinite Scroll (#86c6dg7dd; @since 2.x)
+			// Note: Although some addresses might already registered, we should re-register again as the map addresses ID will be different in Load More/Infinite Scroll (#86c6dg7dd; @since 2.2)
 			const interactionElements = document.querySelectorAll(
 				'[data-interactions*="openAddress"], [data-interactions*="closeAddress"]'
 			)

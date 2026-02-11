@@ -4,13 +4,14 @@ namespace Bricks;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Builder {
-	public static $dynamic_data    = []; // key: DD tag; value: DD tag value (@since 1.7.1)
-	public static $html_attributes = []; // key: header, main, footer, element ID; value: array with element attributes (@since 1.10)
-	public static $elements_html   = []; // (@since 2.0)
-	public static $preview_texts   = []; // (@since 2.0)
-	public static $looping_html    = []; // (@since 2.0)
-	public static $templates_data  = []; // (@since 2.0)
-	public static $query_api_cache = []; // Cached data for query API results (@since 2.1)
+	public static $dynamic_data         = []; // key: DD tag; value: DD tag value (@since 1.7.1)
+	public static $html_attributes      = []; // key: header, main, footer, element ID; value: array with element attributes (@since 1.10)
+	public static $elements_html        = []; // (@since 2.0)
+	public static $preview_texts        = []; // (@since 2.0)
+	public static $looping_html         = []; // (@since 2.0)
+	public static $templates_data       = []; // (@since 2.0)
+	public static $looping_dynamic_data = []; // (#86c4tzdxq; @since 2.2)
+	public static $query_api_cache      = []; // Cached data for query API results (@since 2.1)
 
 	public function __construct() {
 		// Builder: Add login form to page
@@ -110,13 +111,20 @@ class Builder {
 		$builder_locale = Database::get_setting( 'builderLocale', false );
 
 		if ( $builder_locale && $builder_locale !== 'site-default' ) {
+			do_action( 'bricks/builder/switch_locale', $builder_locale );
 			return $builder_locale;
 		}
 
 		// Check for specific WP dashboard user language
 		$user = wp_get_current_user();
 
-		$locale = ! empty( $user->locale ) ? $user->locale : $locale;
+		if ( ! empty( $user->locale ) ) {
+			if ( $locale !== $user->locale ) {
+				do_action( 'bricks/builder/switch_locale', $user->locale );
+			}
+
+			$locale = $user->locale;
+		}
 
 		return $locale;
 	}
@@ -317,6 +325,10 @@ class Builder {
 				'dynamicWrapper'                    => apply_filters( 'bricks/builder/dynamic_wrapper', [] ),
 
 				// Bricks settings
+				'classPreviewOnHover'               => Database::get_setting( 'builderClassPreviewOnHover', false ),
+				'colorPreviewOnHover'               => Database::get_setting( 'builderColorPreviewOnHover', false ),
+				'variablePreviewOnHover'            => Database::get_setting( 'builderVariablePreviewOnHover', false ),
+
 				'customBreakpoints'                 => Database::get_setting( 'customBreakpoints', false ),
 				'disableClassManager'               => Database::get_setting( 'disableClassManager', false ),
 				'disableVariablesManager'           => Database::get_setting( 'disableVariablesManager', false ),
@@ -334,6 +346,7 @@ class Builder {
 				'structureCollapsed'                => Database::get_setting( 'structureCollapsed', false ),
 				'builderElementBreadcrumbs'         => Database::get_setting( 'builderElementBreadcrumbs', false ),
 				'builderDisableRestApi'             => Database::get_setting( 'builderDisableRestApi', false ),
+				'instantNavigation'                 => Database::get_setting( 'builderInstantNavigation', false ),
 				'builderResponsiveControlIndicator' => Database::get_setting( 'builderResponsiveControlIndicator', 'any' ),
 				'builderControlGroupVisibility'     => Database::get_setting( 'builderControlGroupVisibility', 'open' ),
 				'builderFontFamilyControl'          => Database::get_setting( 'builderFontFamilyControl', 'all' ),
@@ -386,7 +399,6 @@ class Builder {
 					'interactions'      => 'https://academy.bricksbuilder.io/article/interactions/',
 					'popups'            => 'https://academy.bricksbuilder.io/article/popup-builder/',
 					'capabilities'      => 'https://academy.bricksbuilder.io/article/builder-access/',
-					'fluidTypography'   => 'https://academy.bricksbuilder.io/article/fluid-typography/'
 				],
 
 				'version'                           => BRICKS_VERSION,
@@ -398,11 +410,17 @@ class Builder {
 
 				'dynamicTags'                       => Integrations\Dynamic_Data\Providers::get_dynamic_tags_list(),
 				'dynamicTagsQueryLoop'              => Integrations\Dynamic_Data\Providers::get_query_supported_tags_list(),
+				'dynamicTagsArraySupport'           => Integrations\Dynamic_Data\Providers::get_array_supported_tags_list(),
 
 				// URL to edit header/content/footer templates
 				'editHeaderUrl'                     => ! empty( Database::$active_templates['header'] ) ? Helpers::get_builder_edit_link( Database::$active_templates['header'] ) : '',
 				'editContentUrl'                    => ! empty( Database::$active_templates['content'] ) ? Helpers::get_builder_edit_link( Database::$active_templates['content'] ) : '',
 				'editFooterUrl'                     => ! empty( Database::$active_templates['footer'] ) ? Helpers::get_builder_edit_link( Database::$active_templates['footer'] ) : '',
+
+				// Template IDs (@since 2.2)
+				'editHeaderId'                      => ! empty( Database::$active_templates['header'] ) ? Database::$active_templates['header'] : 0,
+				'editContentId'                     => ! empty( Database::$active_templates['content'] ) ? Database::$active_templates['content'] : 0,
+				'editFooterId'                      => ! empty( Database::$active_templates['footer'] ) ? Database::$active_templates['footer'] : 0,
 
 				'locale'                            => get_locale(),
 				'i18n'                              => self::i18n(),
@@ -434,7 +452,7 @@ class Builder {
 				'postTypesSupported'                => Helpers::get_supported_post_types(),
 				'postsPerPage'                      => get_option( 'posts_per_page' ),
 				'elements'                          => Elements::$elements,
-				'elementsCatFirst'                  => $this->get_first_elements_category( $post_id ),
+				'elementsCatFirst'                  => self::get_first_elements_category( $post_id ),
 				'wpEditor'                          => $this->get_wp_editor(),
 				'recaptchaIds'                      => [],
 				'saveMessages'                      => $this->save_messages(),
@@ -448,6 +466,7 @@ class Builder {
 				'isotopeInstances'                  => [], // Necessary to destroy and then reinit Isotope instances
 				'filterInstances'                   => [], // Necessary to destroy and then reinit query filter instances
 				'googleMapInstances'                => [], // Necessary to destroy and then reinit Google Maps instances
+				'leafletMapInstances'               => [], // Necessary to destroy and then reinit Leaflet Maps instances
 				'activeFiltersCountInstances'       => [], // Necessary to destroy and then reinit query filter instances
 
 				'icons'                             => self::get_icon_font_classes(),
@@ -482,14 +501,14 @@ class Builder {
 				'fonts'                             => self::get_fonts(),
 				'templateManagerThumbnailHeight'    => Database::get_setting( 'templateManagerThumbnailHeight' ),
 				'themeStylesLoadingMethod'          => Database::get_setting( 'themeStylesLoadingMethod', 'specific' ), // @since 2.0
-				'codeMirrorConfig'                  => apply_filters( 'bricks/builder/codemirror_config', [] ), // @since 1.11.1
+				'codeMirrorConfig'                  => apply_filters( 'bricks/builder/codemirror_config', [] ),
 				'builderGlobalClassesImport'        => Database::get_setting( 'builderGlobalClassesImport' ),
 				'placeholderImage'                  => [
 					'img'     => self::get_template_placeholder_image(),
 					'svg'     => self::get_template_placeholder_image( true ),
 					'svgPath' => self::get_template_placeholder_image( true, 'path' ),
-				], // @since 1.12.2
-				'pasteAndImportImage'               => Database::get_setting( 'importImageOnPaste', false ), // @since 1.12.2
+				],
+				'pasteAndImportImage'               => Database::get_setting( 'importImageOnPaste', false ),
 				'adobeFontsProjectId'               => Database::get_setting( 'adobeFontsProjectId' ),
 				'bricksGoogleMarkerScript'          => BRICKS_URL_ASSETS . 'js/libs/bricks-google-marker.min.js?v=' . BRICKS_VERSION, // @since 2.0
 				'infoboxScript'                     => BRICKS_URL_ASSETS . 'js/libs/infobox.min.js?v=' . BRICKS_VERSION, // @since 2.0
@@ -1065,7 +1084,7 @@ class Builder {
 	/**
 	 * Based on post_type or template type select the first elements category to show up on builder.
 	 */
-	public function get_first_elements_category( $post_id = 0 ) {
+	public static function get_first_elements_category( $post_id = 0 ) {
 		$post_type = get_post_type( $post_id );
 
 		// NOTE: Undocumented
@@ -1080,58 +1099,6 @@ class Builder {
 		}
 
 		return '';
-	}
-
-	/**
-	 * Default color palette (https://www.materialui.co/colors)
-	 *
-	 * Only used if no custom colorPalette is saved in db.
-	 *
-	 * @since 1.0
-	 *
-	 * @return array
-	 */
-	public static function default_color_palette() {
-		$colors = [
-			// Grey
-			[ 'hex' => '#f5f5f5' ],
-			[ 'hex' => '#e0e0e0' ],
-			[ 'hex' => '#9e9e9e' ],
-			[ 'hex' => '#616161' ],
-			[ 'hex' => '#424242' ],
-			[ 'hex' => '#212121' ],
-
-			// A200
-			[ 'hex' => '#ffeb3b' ],
-			[ 'hex' => '#ffc107' ],
-			[ 'hex' => '#ff9800' ],
-			[ 'hex' => '#ff5722' ],
-			[ 'hex' => '#f44336' ],
-			[ 'hex' => '#9c27b0' ],
-
-			[ 'hex' => '#2196f3' ],
-			[ 'hex' => '#03a9f4' ],
-			[ 'hex' => '#81D4FA' ],
-			[ 'hex' => '#4caf50' ],
-			[ 'hex' => '#8bc34a' ],
-			[ 'hex' => '#cddc39' ],
-		];
-
-		$colors = apply_filters( 'bricks/builder/color_palette', $colors );
-
-		foreach ( $colors as $key => $color ) {
-			$colors[ $key ]['id'] = Helpers::generate_random_id( false );
-			// translators: %s: Color #
-			$colors[ $key ]['name'] = sprintf( esc_html__( 'Color #%s', 'bricks' ), $key + 1 );
-		}
-
-		$palettes[] = [
-			'id'     => Helpers::generate_random_id( false ),
-			'name'   => esc_html__( 'Default', 'bricks' ),
-			'colors' => $colors,
-		];
-
-		return $palettes;
 	}
 
 	/**
@@ -1201,24 +1168,26 @@ class Builder {
 		$template_preview_post_id = Helpers::get_template_setting( 'templatePreviewPostId', $post_id );
 
 		$load_data = [
-			'breakpoints'          => Breakpoints::$breakpoints,
-			'permissions'          => Builder_Permissions::get_current_user_permissions(), // @since 2.0
-			'breakpointActive'     => Breakpoints::$base_key,
-			'themeStyles'          => $theme_styles,
-			'themeStyleActiveIds'  => $theme_style_active_ids,
-			'themeStyleActiveId'   => $theme_style_active_id,
-			'pinnedElements'       => get_option( BRICKS_DB_PINNED_ELEMENTS, [] ),
-			'elementManager'       => Elements::$manager,
-			'codeExecutionEnabled' => Helpers::code_execution_enabled(),
-			'currentUserId'        => get_current_user_id(),
-			'queryMaxResults'      => self::get_query_max_results(),
-			'userCan'              => [
+			'breakpoints'              => Breakpoints::$breakpoints,
+			'permissions'              => Builder_Permissions::get_current_user_permissions(), // @since 2.0
+			'breakpointActive'         => Breakpoints::$base_key,
+			'themeStyles'              => $theme_styles,
+			'themeStyleActiveIds'      => $theme_style_active_ids,
+			'themeStyleActiveId'       => $theme_style_active_id,
+			'pinnedElements'           => get_option( BRICKS_DB_PINNED_ELEMENTS, [] ),
+			'elementManager'           => Elements::$manager,
+			'codeExecutionEnabled'     => Helpers::code_execution_enabled(),
+			'currentUserId'            => get_current_user_id(),
+			'queryMaxResults'          => self::get_query_max_results(),
+			'rememberSpacingLinkState' => Database::get_setting( 'builderRememberSpacingLinkState' ), // @since 2.2
+			'userCan'                  => [
 				'executeCode'  => Capabilities::current_user_can_execute_code(),
 				'uploadSvg'    => Capabilities::current_user_can_upload_svg(),
 				'editPosts'    => current_user_can( 'edit_posts' ), // User can create/edit posts (@since 2.0)
 				'publishPosts' => current_user_can( 'publish_posts' ),
 				'publishPages' => current_user_can( 'publish_pages' ),
 			],
+			'blockCategories'          => function_exists( 'get_block_categories' ) ? get_block_categories( null ) : [],
 		];
 
 		// Components
@@ -1230,9 +1199,16 @@ class Builder {
 		// Add color palettes to load_data
 		if ( ! empty( $global_data['colorPalette'] ) && is_array( $global_data['colorPalette'] ) ) {
 			$load_data['colorPalette'] = $global_data['colorPalette'];
-		} else {
-			$load_data['colorPalette'] = self::default_color_palette();
 		}
+
+		// Add styleManager settings to load_data (@since 2.2)
+		if ( ! empty( $global_data['styleManager'] ) ) {
+			$load_data['styleManager'] = $global_data['styleManager'];
+		}
+
+		// Set light/dark mode based on styleManager settings (@since 2.2)
+		$mode              = ! empty( $load_data['styleManager']['defaultMode'] ) ? $load_data['styleManager']['defaultMode'] : 'light';
+		$load_data['mode'] = $mode;
 
 		// Add global queries to load_data (@since 2.1)
 		if ( ! empty( $global_data['globalQueries'] ) && is_array( $global_data['globalQueries'] ) ) {
@@ -1460,6 +1436,232 @@ class Builder {
 		add_filter( 'bricks/frontend/render_element', [ __CLASS__, 'collect_elements_html' ], 10, 2 );
 		add_filter( 'bricks/frontend/render_loop', [ __CLASS__, 'collect_looping_html' ], 10, 3 );
 		add_action( 'bricks/query/query_api_response', [ __CLASS__, 'collect_query_api_results' ], 10, 2 );
+		add_action( 'bricks/dynamic_data/tag_value_parsed', [ __CLASS__, 'collect_looping_dynamic_data' ], 10, 7 ); // (#86c4tzdxq; @since 2.2)
+
+		// Header
+		if ( $template_type === 'header' && isset( $load_data['header'] ) && is_array( $load_data['header'] ) ) {
+			Frontend::render_data( $load_data['header'], 'header' );
+		}
+
+		// Content
+		if ( ! in_array( $template_type, [ 'header', 'footer' ] ) && isset( $load_data['content'] ) && is_array( $load_data['content'] ) ) {
+			Frontend::render_data( $load_data['content'], 'content' );
+		}
+
+		// Footer
+		if ( $template_type === 'footer' && isset( $load_data['footer'] ) && is_array( $load_data['footer'] ) ) {
+			Frontend::render_data( $load_data['footer'], 'footer' );
+		}
+
+		remove_filter( 'bricks/frontend/render_loop', [ __CLASS__, 'collect_looping_html' ], 10, 3 );
+		// Collect HTML strings for all elements end (@since 2.0)
+		remove_filter( 'bricks/frontend/render_element', [ __CLASS__, 'collect_elements_html' ], 10, 2 );
+		remove_action( 'bricks/query/query_api_response', [ __CLASS__, 'collect_query_api_results' ], 10, 2 );
+		remove_action( 'bricks/dynamic_data/tag_value_parsed', [ __CLASS__, 'collect_looping_dynamic_data' ], 10, 7 ); // (#86c4tzdxq; @since 2.2)
+
+		// Set collected HTML strings for all elements for fast initial render, reduce API calls (@since 2.0)
+		$load_data['elementsHtml']  = self::$elements_html;
+		$load_data['previewTexts']  = self::$preview_texts;
+		$load_data['loopingHtml']   = self::$looping_html;
+		$load_data['templatesData'] = self::$templates_data;
+		$load_data['queryApiCache'] = self::$query_api_cache;
+
+		/**
+		 * STEP: Pre-populate dynamic data to minimize AJAX requests on builder load
+		 *
+		 * Only if Bricks builder setting 'enableDynamicDataPreview' is enabled, we pre-populate.
+		 *
+		 * @see render_dynamic_data_on_elements
+		 *
+		 * @since 1.7.1
+		 */
+		if ( Database::get_setting( 'enableDynamicDataPreview', false ) && is_array( self::$dynamic_data ) && count( self::$dynamic_data ) ) {
+			$load_data['dynamicData']        = self::$dynamic_data;
+			$load_data['loopingDynamicData'] = self::$looping_dynamic_data;
+		}
+
+		/**
+		 * STEP: Code signatures validation for builder unsignedCodeIds
+		 *
+		 * @since 2.0
+		 */
+		$load_data['invalidCodeSignatures'] = self::get_invalid_code_signatures( $load_data );
+
+		/**
+		 * STEP: Add custom attributes to builder
+		 *
+		 * Keys: 'header', 'main', 'footer', or individual Bricks element ID
+		 *
+		 * @since 1.10
+		 */
+		$load_data['htmlAttributes'] = self::$html_attributes;
+
+		$load_data['htmlAttributes']['header']  = apply_filters( 'bricks/header/attributes', [] );
+		$load_data['htmlAttributes']['content'] = apply_filters( 'bricks/content/attributes', [] );
+		$load_data['htmlAttributes']['footer']  = apply_filters( 'bricks/footer/attributes', [] );
+
+		return $load_data;
+	}
+
+	/**
+	 * Get partial page data for builder (lighter version for instant navigation)
+	 *
+	 * NOTE: This is a dedicated function to keep things separate
+	 * But this functionality could be integrated into builder_data with a $partial_load parameter in the future
+	 *
+	 * @since 2.2
+	 *
+	 * @return array
+	 */
+	public static function partial_builder_data( $post_id ) {
+		$page_data                = Database::$page_data;
+		$template_settings        = Helpers::get_template_settings( $post_id );
+		$template_preview_post_id = Helpers::get_template_setting( 'templatePreviewPostId', $post_id );
+
+		$load_data = [
+			'header'           => [],
+			'content'          => [],
+			'footer'           => [],
+			'pageSettings'     => [],
+			'templateSettings' => [],
+			'templatePreview'  => self::get_template_preview_data( $post_id ),
+		];
+
+		// Add page data to load_data
+		if ( ! empty( $page_data['header'] ) ) {
+			$load_data['header'] = $page_data['header'];
+		} else {
+			// Check for header template
+			$template_header_id = Database::$active_templates['header'];
+			$header_template    = $template_header_id ? Database::get_data( $template_header_id, 'header' ) : Database::get_data( $post_id, 'header' );
+
+			if ( ! empty( $header_template ) ) {
+				$load_data['header'] = $header_template;
+
+				// Sticky header, header postition etc.
+				$load_data['templateHeaderSettings'] = Helpers::get_template_settings( $template_header_id );
+			}
+		}
+
+		// Content
+		$template_content_id = Database::$active_templates['content'];
+
+		if ( count( $page_data['content'] ) ) {
+			$load_data['content'] = $page_data['content'];
+		}
+
+		// If content still not populated, check if populated content was set to preview it
+		if ( empty( $load_data['content'] ) && $template_preview_post_id ) {
+			// Template preview
+			$content              = get_post_meta( $template_preview_post_id, BRICKS_DB_PAGE_CONTENT, true );
+			$load_data['content'] = empty( $content ) ? [] : $content;
+		}
+
+		// Last resort for getting content: WP blocks
+		if ( empty( $load_data['content'] ) && Database::get_setting( 'wp_to_bricks' ) ) {
+			$template_preview_post_id = $template_preview_post_id ? $template_preview_post_id : $post_id;
+
+			// Convert Gutenberg blocks to Bricks element
+			$converter           = new Blocks();
+			$content_from_blocks = $converter->convert_blocks_to_bricks( $template_preview_post_id );
+
+			if ( is_array( $content_from_blocks ) ) {
+				$load_data['content'] = $content_from_blocks;
+
+				// NOTE: Development-only
+				$post   = get_post( $template_content_id );
+				$blocks = parse_blocks( $post->post_content );
+
+				$load_data['blocks'] = $blocks;
+			}
+		}
+
+		// Add template preview logic for single templates (@since 1.12)
+		if ( $template_content_id && $template_content_id != $post_id ) {
+			// Load template content for static area
+			$template_content = Database::get_data( $template_content_id, 'content' );
+
+			if ( ! empty( $template_content ) ) {
+				$load_data['staticContent'] = $template_content;
+
+				// Add template page settings to generate CSS for static content (@since 1.12)
+				$template_page_settings = get_post_meta( $template_content_id, BRICKS_DB_PAGE_SETTINGS, true );
+
+				if ( ! empty( $template_page_settings ) ) {
+					$load_data['outerPostContentTemplatePageSettings'] = $template_page_settings;
+				}
+			}
+		}
+
+		// Footer
+		if ( ! empty( $page_data['footer'] ) ) {
+			$load_data['footer'] = $page_data['footer'];
+		} else {
+			$template_footer_id = Database::$active_templates['footer'];
+
+			// Check for footer template
+			$footer_template = $template_footer_id ? Database::get_data( $template_footer_id, 'footer' ) : [];
+
+			if ( ! empty( $footer_template ) ) {
+				$load_data['footer'] = $footer_template;
+			}
+		}
+
+		if ( ! empty( $page_data['settings'] ) ) {
+			$load_data['pageSettings'] = $page_data['settings'];
+		}
+
+		// Template type
+		$template_type = Templates::get_template_type( $post_id );
+
+		// @since 1.7.1 - Default template type is 'content' (so listenHistory in builder can work properly)
+		$load_data['templateType'] = ! empty( $template_type ) ? $template_type : 'content';
+
+		// Refresh settings controls based on new template type
+		$GLOBALS['post'] = get_post( $post_id );
+		Settings::set_controls();
+
+		$load_data['controls'] = [
+			'settings' => Settings::get_controls_data(),
+		];
+
+		$load_data['elementsCatFirst'] = self::get_first_elements_category( $post_id );
+
+		// Template settings
+		if ( $template_settings ) {
+			$load_data['templateSettings'] = $template_settings;
+		}
+
+		// Parse elements to replace dynamic data (needed for background image)
+		$template_preview_post_id = $template_preview_post_id ? $template_preview_post_id : $post_id;
+
+		if ( $template_type !== 'header' && ! empty( $load_data['header'] ) && is_array( $load_data['header'] ) ) {
+			$load_data['header'] = self::render_dynamic_data_on_elements( $load_data['header'], $template_preview_post_id );
+		}
+
+		if ( ! empty( $load_data['content'] ) && is_array( $load_data['content'] ) ) {
+			$load_data['content'] = self::render_dynamic_data_on_elements( $load_data['content'], $template_preview_post_id );
+		}
+
+		if ( $template_type !== 'footer' && ! empty( $load_data['footer'] ) && is_array( $load_data['footer'] ) ) {
+			$load_data['footer'] = self::render_dynamic_data_on_elements( $load_data['footer'], $template_preview_post_id );
+		}
+
+		/**
+		 * Generate element HTML strings in PHP for fast initial render
+		 *
+		 * Individual element HTML AJAX calls in builder are too slow.
+		 * Only load for dynamic area, but not static areas.
+		 */
+		$load_data['elementsHtml'] = [];
+
+		// Remove setting in builder to get 'elementsHtml' with element ID for all PHP elements (@since 1.7)
+		unset( Database::$global_settings['elementAttsAsNeeded'] );
+
+		// New rendering mode: Collect HTML strings for all elements start (@since 2.0)
+		add_filter( 'bricks/frontend/render_element', [ __CLASS__, 'collect_elements_html' ], 10, 2 );
+		add_filter( 'bricks/frontend/render_loop', [ __CLASS__, 'collect_looping_html' ], 10, 3 );
+		add_action( 'bricks/query/query_api_response', [ __CLASS__, 'collect_query_api_results' ], 10, 2 );
 
 		// Header
 		if ( $template_type === 'header' && isset( $load_data['header'] ) && is_array( $load_data['header'] ) ) {
@@ -1498,7 +1700,8 @@ class Builder {
 		 * @since 1.7.1
 		 */
 		if ( Database::get_setting( 'enableDynamicDataPreview', false ) && is_array( self::$dynamic_data ) && count( self::$dynamic_data ) ) {
-			$load_data['dynamicData'] = self::$dynamic_data;
+			$load_data['dynamicData']        = self::$dynamic_data;
+			$load_data['loopingDynamicData'] = self::$looping_dynamic_data;
 		}
 
 		/**
@@ -1617,7 +1820,8 @@ class Builder {
 		}
 
 		// Generate preview text for 1st looping element, exclude nestable element to avoid unnecessary HTML generation, previewTexts are used by contentEditable elements
-		if ( Query::is_any_looping() && ! $instance->nestable ) {
+		// Use Query::get_looping_level() to target 1st loop only (#86c5f59k1; @since 2.2)
+		if ( Query::is_any_looping() && Query::get_looping_level() === 0 && ! $instance->nestable ) {
 			if ( ! isset( self::$preview_texts[ $element_id ] ) ) {
 				// Manually run bricks_render_dynamic_data as bricks/frontend/render_data not yet triggered (#86c3reqnt)
 				// Do not wp_strip_all_tags so first loop node can render complete HTML (#86c5hj7au; @since 2.1)
@@ -1649,6 +1853,24 @@ class Builder {
 		}
 
 		return $html;
+	}
+
+	/**
+	 * Collect dynamic data used inside looping
+	 *
+	 * @since 2.2 #86c4tzdxq
+	 */
+	public static function collect_looping_dynamic_data( $value, $tag, $original_tag, $args, $post, $context, $provider ) {
+		// Collect dynamic data used inside looping
+		if ( ! Query::is_any_looping() ) {
+			return;
+		}
+
+		$query_id = Query::get_query_element_id( Query::is_any_looping() );
+		$key      = $original_tag . '||' . $query_id;
+		if ( ! isset( self::$looping_dynamic_data[ $key ] ) ) {
+			self::$looping_dynamic_data[ $key ] = $value;
+		}
 	}
 
 	/**

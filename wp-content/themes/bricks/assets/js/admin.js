@@ -697,6 +697,35 @@ function bricksAdminBreakpointsRegenerateCssFiles() {
 }
 
 function bricksAdminGenerateCssFile(index, results, counter, data) {
+	/**
+	 * Helper function to handle completion of current file (success or error)
+	 * Continues with next file or finalizes the process
+	 *
+	 * #86c68dyd5 @since 2.2
+	 */
+	function handleCompletion() {
+		if (index === data.length) {
+			// Finished processing all entries
+			var button = document.querySelector('#bricks-css-loading-generate button')
+
+			button.removeAttribute('disabled')
+			button.classList.remove('wait')
+
+			var infoText = document.querySelector('#bricks-css-loading-generate .info')
+
+			if (infoText) {
+				infoText.remove()
+			}
+
+			if (results) {
+				results.insertAdjacentHTML('beforebegin', '<div class="done">... THE END :)</div>')
+			}
+		} else {
+			// Continue with next entry
+			bricksAdminGenerateCssFile(index + 1, results, counter, data)
+		}
+	}
+
 	return jQuery
 		.ajax({
 			type: 'POST',
@@ -735,32 +764,26 @@ function bricksAdminGenerateCssFile(index, results, counter, data) {
 						counter.innerText = count
 					}
 				}
-			}
-		})
-		.then(function (res) {
-			// Finished processing all entries
-			if (index === data.length) {
-				var button = document.querySelector('#bricks-css-loading-generate button')
-
-				button.removeAttribute('disabled')
-				button.classList.remove('wait')
-
-				var infoText = document.querySelector('#bricks-css-loading-generate .info')
-
-				if (infoText) {
-					infoText.remove()
-				}
+			},
+			error: function (xhr, status, error) {
+				// Handle AJAX error
+				var fileName = data[index].hasOwnProperty('file_name')
+					? data[index].file_name
+					: 'post-' + data[index] + '.min.css'
+				var html = '<li class="error">' + fileName + ' generation failed.</li>'
+				var count = counter ? parseInt(counter.innerText) : 0
+				count++
 
 				if (results) {
-					results.insertAdjacentHTML('beforebegin', '<div class="done">... THE END :)</div>')
+					results.insertAdjacentHTML('afterbegin', html)
+				}
+
+				if (counter) {
+					counter.innerText = count
 				}
 			}
-
-			// Continue with next entry
-			else {
-				bricksAdminGenerateCssFile(index + 1, results, counter, data)
-			}
 		})
+		.then(handleCompletion, handleCompletion)
 }
 
 /**
@@ -3652,7 +3675,6 @@ document.addEventListener('DOMContentLoaded', function (e) {
 	bricksRegenerateCodeSignatures()
 	bricksCleanupOrphanedElements()
 	bricksScanOrphanedElements()
-	bricksAdminGlobalElementsReview()
 
 	bricksTemplateThumbnailAddScrollAnimation()
 

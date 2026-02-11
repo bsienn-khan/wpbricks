@@ -26,7 +26,8 @@ class Providers {
 	private $tags = [];
 
 	// Holds the functions that were already run when registering providers and tags (@since 2.0)
-	private static $registered_flags = [];
+	private static $registered_flags        = [];
+	private static $run_again_pattern_cache = [];
 
 	public function __construct( $providers ) {
 		$this->providers_keys = $providers;
@@ -242,10 +243,11 @@ class Providers {
 		 * @since 1.9.4: "u" modifier: Pattern strings are treated as UTF-8 to support Cyrillic, Arabic, etc.
 		 * @since 1.10: "$", "+", "%", "#", "!", "=", "<", ">", "&", "~", "[", "]", ";" as arguments of the dynamic tag {echo}
 		 * @since 1.10.2: "?" as arguments of the dynamic tag {echo}
+		 * @since 2.2 "\" to support date format like "Y-m-d\TH:i:s.v\Z" as argument {string_to_date}
 		 *
 		 * @see https://regexr.com/
 		 */
-		$pattern = '/{([\wÀ-ÖØ-öø-ÿ\-\s\.\/:\(\)\'@|,$%#!+=<>&~\[\];?]+)}/u';
+		$pattern = '/{([\wÀ-ÖØ-öø-ÿ\-\s\.\/:\(\)\'@|,$%#!+=<>&~\[\];?\\\]+)}/u';
 
 		/**
 		 * Matches the echo tag pattern (#86bwebj6m)
@@ -274,14 +276,15 @@ class Providers {
 				return ! in_array( $tag, $exclude_tags );
 			}
 		);
+		$cache_key       = md5( serialize( $registered_tags ) ); // Unique cache key based on registered tags
 
 		$dd_tags_in_content = [];
 		$dd_tags_found      = [];
 		$echo_tags_found    = [];
 
 		// Find all dynamic data tags in the content
+		// Note: Currently nested dynamic data tags unable to detect correctly here. {format_date @date:'{post_date}'}, only {post_date} will be matched. Use on normal  element looks good because we run it once again when triggering Frontend:render_element(), but will have issue in Condition because not fully parse when compare. Workaround in line 393 (@since 2.2)
 		preg_match_all( $pattern, $content, $dd_tags_in_content );
-
 		$dd_tags_in_content = ! empty( $dd_tags_in_content[1] ) ? $dd_tags_in_content[1] : [];
 
 		// Find all echo tags in the content (@since 1.9.8)
@@ -331,6 +334,9 @@ class Providers {
 		// Get the count of found dynamic data tags
 		$dd_tag_count = count( $dd_tags_found );
 
+		$max_attempts  = 10; // Prevent infinite loop (@since 2.2)
+		$rerun_attemps = 0; // Count how many times we rerun the parser (@since 2.2)
+
 		// STEP: Run the parser based on the count of found dynamic data tags
 		for ( $i = 0; $i < $dd_tag_count; $i++ ) {
 			preg_match_all( $pattern, $content, $matches );
@@ -379,6 +385,19 @@ class Providers {
 				}
 
 				$content = str_replace( $tag, $value, $content );
+
+				// Nested dynamic tag might not be fully parsed like {format_date}. Solve issue on line 287 (preg_match_all) (@since 2.2)
+				if ( ! isset( self::$run_again_pattern_cache[ $cache_key ] ) ) {
+					$escaped_tags = array_map( 'preg_quote', $registered_tags );
+					// Build pattern once and cache it
+					self::$run_again_pattern_cache[ $cache_key ] = '/\{(?:' . implode( '|', $escaped_tags ) . ')(?:[:\s]|$)/';
+				}
+
+				// Check if there are more valid dynamic data tags from the $registered_tags in the $content
+				if ( preg_match( self::$run_again_pattern_cache[ $cache_key ], $content ) && $rerun_attemps < $max_attempts ) {
+					$run_again = true;
+					$rerun_attemps++;
+				}
 			}
 
 			if ( $run_again ) {
@@ -404,40 +423,60 @@ class Providers {
 		$tag          = $parsed['tag'] ?? $tag;
 		$args         = $parsed['args'];
 		$original_tag = $parsed['original_tag'];
+		$value        = null;
+		$provider     = null;
 
 		// Return original tag if "raw" argument is set (#86c5heted; @since 2.1)
 		if ( is_array( $args ) && in_array( 'raw', $args ) ) {
 			// Remove all :raw from original tag
 			$original_tag = str_replace( ':raw', '', $original_tag );
-			return '&#123;' . $original_tag . '&#125;'; // Use HTML entities to avoid parser rerun
-		}
+			$value        = '&#123;' . $original_tag . '&#125;'; // Use HTML entities to avoid parser rerun
+		} else {
+			$tags = $this->get_tags();
 
-		$tags = $this->get_tags();
-
-		if ( ! array_key_exists( $tag, $tags ) ) {
-			// Last resort: Try to get field content if it is a WordPress custom field
-			if ( strpos( $tag, 'cf_' ) === 0 ) {
-				// Use get_tag_value function in provider-wp.php (@since 1.9.8)
-				return self::$providers['wp']->get_tag_value( $tag, $post, $args, $context );
+			if ( ! array_key_exists( $tag, $tags ) ) {
+				// Last resort: Try to get field content if it is a WordPress custom field
+				if ( strpos( $tag, 'cf_' ) === 0 ) {
+					$provider = 'wp';
+					// Use get_tag_value function in provider-wp.php (@since 1.9.8)
+					$value = self::$providers['wp']->get_tag_value( $tag, $post, $args, $context );
+				} else {
+					/**
+					 * If true, Bricks replaces not existing DD tags with an empty string
+					 *
+					 * true caused unwanted replacement of inline <script> & <style> tag data.
+					 *
+					 * Set to false @since 1.4 to render all non-matching DD tags (#2ufh0uf)
+					 *
+					 * https://academy.bricksbuilder.io/article/filter-bricks-dynamic_data-replace_nonexistent_tags/
+					 */
+					$replace_tag = apply_filters( 'bricks/dynamic_data/replace_nonexistent_tags', false );
+					$value       = $replace_tag ? '' : '{' . $original_tag . '}';
+				}
+			} else {
+				$provider = $tags[ $tag ]['provider'];
+				$value    = self::$providers[ $provider ]->get_tag_value( $tag, $post, $args, $context );
 			}
-
-			/**
-			 * If true, Bricks replaces not existing DD tags with an empty string
-			 *
-			 * true caused unwanted replacement of inline <script> & <style> tag data.
-			 *
-			 * Set to false @since 1.4 to render all non-matching DD tags (#2ufh0uf)
-			 *
-			 * https://academy.bricksbuilder.io/article/filter-bricks-dynamic_data-replace_nonexistent_tags/
-			 */
-			$replace_tag = apply_filters( 'bricks/dynamic_data/replace_nonexistent_tags', false );
-
-			return $replace_tag ? '' : '{' . $original_tag . '}';
 		}
 
-		$provider = $tags[ $tag ]['provider'];
+		/**
+		 * Action hook fired after a dynamic data tag value is retrieved
+		 *
+		 * Allows tracking/logging of all parsed dynamic data tag values
+		 *
+		 * @param mixed   $value The parsed tag value
+		 * @param string  $tag The tag name (without arguments)
+		 * @param string  $original_tag The original tag string (with arguments)
+		 * @param array   $args The parsed arguments
+		 * @param WP_Post $post The post object
+		 * @param string  $context The context (text, link, image)
+		 * @param string|null $provider The provider name (if available)
+		 *
+		 * @since 2.2 #86c4tzdxq
+		 */
+		do_action( 'bricks/dynamic_data/tag_value_parsed', $value, $tag, $original_tag, $args, $post, $context, $provider );
 
-		return self::$providers[ $provider ]->get_tag_value( $tag, $post, $args, $context );
+		return $value;
 	}
 
 	/**
@@ -499,7 +538,7 @@ class Providers {
 		// Support for dynamic data picker and input text (@since 1.5)
 		$tag = ! empty( $tag['name'] ) ? $tag['name'] : (string) $tag;
 
-		$tag = trim( $tag );
+		$tag = $original_tag = trim( $tag );
 
 		// Remove all curly brackets from DD tag (@pre 1.9.9)
 		// $tag = str_replace( [ '{', '}' ], '', $tag );
@@ -520,7 +559,79 @@ class Providers {
 
 		$post = get_post( $post_id );
 
-		return apply_filters( 'bricks/dynamic_data/render_tag', $tag, $post, $context );
+		$value = apply_filters( 'bricks/dynamic_data/render_tag', $tag, $post, $context );
+
+		// STEP: Parse nested dynamic tags for image context only, may extend to all contexts (#86c3nyng1; @since 2.2)
+		if ( $context === 'image' ) {
+			if ( is_array( $value ) ) {
+				foreach ( $value as $key => $item ) {
+					if ( is_string( $item ) && substr( $item, 0, 1 ) === '{' && substr( $item, -1 ) === '}' && $item !== $original_tag ) {
+						$value[ $key ] = self::parse_nested_tags( $item, $post_id, $context, $args );
+					}
+				}
+			} elseif ( is_string( $value ) ) {
+				if ( substr( $value, 0, 1 ) === '{' && substr( $value, -1 ) === '}' && $value !== $original_tag ) {
+					$value = self::parse_nested_tags( $value, $post_id, $context, $args );
+				}
+			}
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Parse nested dynamic tags recursively
+	 * #86c3nyng1
+	 *
+	 * @since 2.2
+	 * @param string $tag Dynamic tag
+	 * @param int    $post_id Post ID
+	 * @param string $context Context (text, image, link)
+	 * @param array  $args Additional arguments
+	 * @return string Parsed content
+	 */
+	private static function parse_nested_tags( $tag, $post_id, $context, $args ) {
+		if ( ! is_string( $tag ) || substr( $tag, 0, 1 ) !== '{' || substr( $tag, -1 ) !== '}' ) {
+			// Not a valid nested tag, return as is
+			return $tag;
+		}
+
+		$max_attempts = 10;
+		$attempts     = 0;
+
+		while ( strpos( $tag, '{' ) !== false && $attempts < $max_attempts ) {
+			$previous_value = $tag;
+
+			// Remove outermost curly brackets
+			if ( substr( $tag, 0, 1 ) === '{' && substr( $tag, -1 ) === '}' ) {
+				$nested_tag = substr( $tag, 1, -1 );
+			} else {
+				// Content has curly brackets but not wrapped, break to avoid infinite loop
+				break;
+			}
+
+			// Recursively call render_tag to parse the nested tag
+			$nested_value = self::render_tag( $nested_tag, $post_id, $context, $args );
+
+			// Handle different return types
+			if ( is_array( $nested_value ) && ! empty( $nested_value ) ) {
+				$tag = $nested_value[0];
+			} elseif ( is_string( $nested_value ) ) {
+				$tag = $nested_value;
+			} else {
+				// Unsupported type, break to avoid infinite loop
+				break;
+			}
+
+			// Break if value didn't change (prevents infinite loop)
+			if ( $tag === $previous_value ) {
+				break;
+			}
+
+			$attempts++;
+		}
+
+		return $tag;
 	}
 
 	public static function render_content( $content, $post_id = 0, $context = 'text' ) {
@@ -591,6 +702,23 @@ class Providers {
 		foreach ( self::$providers as $provider ) {
 			if ( method_exists( $provider, 'get_query_supported_tags' ) ) {
 				$tags = array_merge( $tags, $provider->get_query_supported_tags() );
+			}
+		}
+
+		return $tags;
+	}
+
+	/**
+	 * Get a list of all supported dynamic data tags that can use Result Filters (array_conditions)
+	 *
+	 * @since 2.2
+	 */
+	public static function get_array_supported_tags_list() {
+		$tags = [];
+
+		foreach ( self::$providers as $provider ) {
+			if ( method_exists( $provider, 'get_array_supported_tags' ) ) {
+				$tags = array_merge( $tags, $provider->get_array_supported_tags() );
 			}
 		}
 

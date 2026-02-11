@@ -658,26 +658,38 @@ class Field_Metabox {
 		$enable_time      = isset( $settings['enableTime'] );
 
 		// Use the actual meta key
-		$dd_tag             = $custom_field_key;
-		$field_info         = $this->get_field_settings_from_dd_provider( $dd_tag );
+		$dd_tag     = $custom_field_key;
+		$field_info = $this->get_field_settings_from_dd_provider( $dd_tag );
+
+		// Return if no field info (#86c74mxtn; @since 2.2)
+		if ( ! $field_info ) {
+			return $date_format;
+		}
+
 		$is_group_sub_field = isset( $field_info['parent']['id'] );
 		$field_settings     = $field_info['field'] ?? [];
 		$mb_field_type      = $field_settings['type'] ?? 'text';
 		$use_timestamp      = ! empty( $field_settings['timestamp'] );
+
+		// Return if not date related field (#86c74mxtn; @since 2.2)
+		if ( ! in_array( $mb_field_type, [ 'date', 'datetime', 'time' ], true ) ) {
+			return $date_format;
+		}
 
 		// Default date time format in metabox
 		$date_format = 'Y-m-d';
 		$time_format = 'H:i';
 
 		switch ( $mb_field_type ) {
-			case 'date':
-				$format = $date_format;
-				break;
 			case 'datetime':
 				$format = $enable_time ? "{$date_format} {$time_format}" : $date_format;
 				break;
 			case 'time':
 				$format = $time_format;
+				break;
+			default:
+			case 'date':
+				$format = $date_format;
 				break;
 		}
 
