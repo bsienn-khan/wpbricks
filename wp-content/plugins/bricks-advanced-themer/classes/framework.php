@@ -11929,14 +11929,20 @@ class AT__Framework {
                 if ( $key !== '_root' || ! is_object( $element ) || $element->id !== $child_id ) {
                     return $attributes;
                 }
-    
+        
                 if ( isset( $attributes['_root']['style'] ) ) {
-                    $attributes['_root']['style'] = rtrim( $attributes['_root']['style'], ';' ) . ";--at-index:{$index};";
+                    // Convert style to string if it's an array
+                    $style = $attributes['_root']['style'];
+                    if ( is_array( $style ) ) {
+                        $style = implode( ';', array_filter( $style ) );
+                    }
+                    $attributes['_root']['style'] = rtrim( $style, ';' ) . ";--at-index:{$index};";
                 } else {
                     $attributes['_root']['style'] = "--at-index:{$index};";
                 }
-    
+        
                 $index++;
+        
                 return $attributes;
             }, 10, 3 );
         }

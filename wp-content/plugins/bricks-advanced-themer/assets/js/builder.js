@@ -2076,34 +2076,35 @@ window.ADMINBRXC = {
     debounceTimer: null,
     populateCSSVariables: function () {
         const self = this;
-        const x = document.querySelector('#bricks-builder-iframe').contentWindow;
+        const iframe = document.querySelector('#bricks-builder-iframe');
+        if(!iframe?.contentWindow) return;
+        const x = iframe.contentWindow;
         let temp = Array.from(x.document.styleSheets)
-            .filter(
-                sheet =>
-                    sheet && sheet.href === null || sheet.href.startsWith(window.location.origin)
-            )
-            .reduce(
-                (acc, sheet) =>
-                    (acc = [
-                        ...acc,
-                        ...Array.from(sheet.cssRules).reduce(
-                            (def, rule) =>
-                                (def =
-                                    rule.selectorText && rule.selectorText.includes(":root")
-                                        ? [
-                                            ...def,
-                                            ...Array.from(rule.style).filter(name =>
-                                                name && name.startsWith("--") && !name.startsWith("--builder")
-                                            )
-                                        ]
-                                        : def),
-                            []
-                        )
-                    ]),
-                []
-            );
+            .filter(sheet => {
+                if(!sheet) return false;
+                return sheet.href === null || sheet.href.startsWith(window.location.origin);
+            })
+            .reduce((acc, sheet) => {
+                let rules;
+                try { rules = Array.from(sheet.cssRules); } catch(e) { return acc; }
+                return [
+                    ...acc,
+                    ...rules.reduce(
+                        (def, rule) =>
+                            (def =
+                                rule.selectorText && rule.selectorText.includes(":root")
+                                    ? [
+                                        ...def,
+                                        ...Array.from(rule.style).filter(name =>
+                                            name && name.startsWith("--") && !name.startsWith("--builder")
+                                        )
+                                    ]
+                                    : def),
+                        []
+                    )
+                ];
+            }, []);
 
-    
         // Include inline CSS variables defined on the :root element
         const rootElement = x.document.querySelector(":root");
         if (rootElement) {
@@ -3125,6 +3126,7 @@ window.ADMINBRXC = {
     colorsPopulateGroups: function(firstRun) {
         // Filter and apply search to color palette
         const filteredPalettes = this.getFilteredPalettes();
+        console.log(filteredPalettes)
         
         // Build complete content by combining different sections
         return `
@@ -3140,9 +3142,9 @@ window.ADMINBRXC = {
             .filter(el => !el.hasOwnProperty('status') || el.status !== "disabled")
             .map(palette => {
                 // Apply search filter to colors if needed
-                let filteredColors = palette.colors;
+                let filteredColors = Array.isArray(palette.colors) ? palette.colors : [];
                 if (this.variablePickerStates.search !== '') {
-                    filteredColors = filteredColors.filter(el => 
+                    filteredColors = filteredColors.filter(el =>
                         el && (el.name.includes(this.variablePickerStates.search) || 
                         el.raw?.includes(this.variablePickerStates.search))
                     );
@@ -3157,7 +3159,7 @@ window.ADMINBRXC = {
     
     generatePaletteCategories: function(palettes, firstRun) {
         return palettes
-            .filter(palette => palette.colors.length > 0)
+            .filter(palette => palette.colors && Array.isArray(palette.colors) && palette.colors.length > 0)
             .map(palette => {
                 const isExpandedDefault = palette.hasOwnProperty('defaultExpanded');
                 const view = palette.view || 'column';
@@ -5584,7 +5586,7 @@ window.ADMINBRXC = {
         const x = document.querySelector('#bricks-builder-iframe').contentWindow;
         const contrastActive = self.topbarStates.tweaks.includes('contrast-checker')
         if(contrastActive){
-            contrast.check();
+            try { contrast.check(); } catch(e) { console.warn('Contrast checker error:', e); }
         } else {
             const failedEls = x.document.querySelectorAll('.brxc-contrast-failed');
             failedEls.forEach(el => el.classList.remove('brxc-contrast-failed'))
@@ -7622,12 +7624,11 @@ window.ADMINBRXC = {
     addIconsToStickyCSS: function(selector = "[data-controlkey=_cssStickyCSS]"){
         const self = this;
         const controlKey = document.querySelector(selector);
-        let action = '';
-        let existing = '';
-        (controlKey) ? existing = controlKey.querySelector('.CodeMirror[data-type="at"]') : existing = false;
-        (controlKey) ? action = controlKey.querySelector('.brxc-action') : action = false;
-        (existing && !action) ? existing.insertAdjacentHTML('beforeBegin', '<div class="brxc-action"></div>') : '';
-        action = controlKey.querySelector('.brxc-action')
+        if(!controlKey) return;
+        let action = controlKey.querySelector('.brxc-action');
+        const existing = controlKey.querySelector('.CodeMirror[data-type="at"]');
+        if(existing && !action) existing.insertAdjacentHTML('beforeBegin', '<div class="brxc-action"></div>');
+        action = controlKey.querySelector('.brxc-action');
         if(!action) return;
 
         let options = {
@@ -9158,7 +9159,7 @@ window.ADMINBRXC = {
             if(globalClasses && globalClasses.length > 0){
                 globalClasses.forEach(globalClass => {
                     const globalClassObj = self.vueGlobalProp.$_getGlobalClass(globalClass);
-                    if(!globalClassObj) return;
+                    if(!globalClassObj || !globalClassObj.settings) return;
 
                     for (const [key, value] of Object.entries(globalClassObj.settings)){
                         if( key.startsWith('_cssCustom') || key.startsWith('_cssCustomSass')){
@@ -12561,7 +12562,7 @@ window.ADMINBRXC = {
             // 1. Generate @property declarations
             const generatePropertyDeclarations = () => {
                 return self.vueState.colorPalette
-                .flatMap(palette => palette.colors)
+                .flatMap(palette => Array.isArray(palette.colors) ? palette.colors : [])
                 .filter(color => color?.colorProperty)
                 .map(color => `@property --${color.name} { syntax: '<color>'; initial-value: ${color.rawValue.light}; inherits: true; }`)
                 .join('\n');
@@ -12827,8 +12828,8 @@ window.ADMINBRXC = {
         if(prefixInput){
             prefixInput.addEventListener('input', () => {
                 const newPrefix = prefixInput.value.replaceAll(' ','');
-                palette.prefix = newPrefix
-                palette.colors.forEach(color => {
+                palette.prefix = newPrefix;
+                (Array.isArray(palette.colors) ? palette.colors : []).forEach(color => {
                     color.raw = `var(--${newPrefix}${self.helpers.formatForClasses(color.name)})`
                 })
             })
@@ -12996,7 +12997,7 @@ window.ADMINBRXC = {
         const palettes = self.vueState.colorPalette;
         
         palettes.forEach(palette => {
-            palette.colors = palette.colors.map(color => {
+            palette.colors = (Array.isArray(palette.colors) ? palette.colors : []).map(color => {
                 if (color.hasOwnProperty('rawValue')) {
                     return {
                         id: color.id,
@@ -13461,10 +13462,11 @@ window.ADMINBRXC = {
                 if (!palette) return;
                 
                 const dataId = event.target.closest('[data-id]')?.dataset.id
-                const activeColor = palette.colors.find(el => el?.id === dataId);
+                const colors = Array.isArray(palette.colors) ? palette.colors : [];
+                const activeColor = colors.find(el => el?.id === dataId);
                 if (!activeColor) return;
-                
-                const hasChildren = palette.colors.some(el => el.shadeParent === activeColor.id)
+
+                const hasChildren = colors.some(el => el.shadeParent === activeColor.id)
 
                 const color = event.detail.color.hsla;
                 this.updateColor({
@@ -13540,8 +13542,11 @@ window.ADMINBRXC = {
     toggleColorProperty: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        if(!color) return;
 
         color.colorProperty = color.colorProperty === true ? false : true;
         self.setColorManagerBody();
@@ -13549,18 +13554,22 @@ window.ADMINBRXC = {
     toggleLinkShades: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
-        if(!color.hasOwnProperty('isShade')) return;
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        if(!color || !color.hasOwnProperty('isShade')) return;
         color.isShade === true ? color.isShade = false : color.isShade = true;
         self.setColorManagerBody();
     },
     toggleExpandShades: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
-        if(!color.hasOwnProperty('isExpanded')) return;
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        if(!color || !color.hasOwnProperty('isExpanded')) return;
         color.isExpanded === true ? color.isExpanded = false : color.isExpanded = true;
         self.setColorManagerBody();
     },
@@ -13579,6 +13588,8 @@ window.ADMINBRXC = {
 
         const palettes = self.vueState.colorPalette;
         const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
 
         let incorrectColor = 0;
         let importedColors = 0;
@@ -13657,7 +13668,9 @@ window.ADMINBRXC = {
         const self = this;
         const palettes = self.vueState.colorPalette;
         const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
-        const obj = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const obj = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
         
         let col = '';
         ['hex','rgb','hsl'].forEach(format => {
@@ -13684,8 +13697,10 @@ window.ADMINBRXC = {
     convertDarkColor: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const obj = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const obj = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
 
         const lightColor = (obj.hasOwnProperty('rawValue') && obj.rawValue.hasOwnProperty('light')) ? chroma(obj.rawValue.light).get('hsl.l') : false;
         if (lightColor) obj.rawValue.dark = chroma(obj.rawValue.light).set('hsl.l', 1 - lightColor).css('hsla');;
@@ -13839,8 +13854,10 @@ window.ADMINBRXC = {
     dynamicScaleCanvas: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return '';
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
         let content = `<div class="brxc-overlay__panel-inline-btns-wrapper" style="margin-top:16px;">
                             <input type="radio" id="brxc-custom-shade-toggle-auto" name="brxc-custom-shade-toggle" class="brxc-input__checkbox" value="0" onclick="ADMINBRXC.colorStates.colorManagerShadeCustom = false;ADMINBRXC.colorStates.colorManagerShadePopup = true;ADMINBRXC.colorStates.colorManagerShadePopupId = '${colorId}';ADMINBRXC.setDynamicScaleCanvas();"${self.colorStates.colorManagerShadeCustom !== true ? ' checked=""' : ''}>
                             <label for="brxc-custom-shade-toggle-auto" class="brxc-overlay__panel-inline-btns">Auto-Shades</label>
@@ -13849,7 +13866,7 @@ window.ADMINBRXC = {
                         </div>`;
         if(self.colorStates.colorManagerShadeCustom !== true){
             let showButton = false;
-            const children = Array.from(palette.colors).filter(el => el && el.hasOwnProperty('shadeParent') && el.shadeParent === colorId);
+            const children = Array.from(palette.colors || []).filter(el => el && el.hasOwnProperty('shadeParent') && el.shadeParent === colorId);
             const lightChildren = children && children.length > 0 ? Array.from(children).filter(el => el && el.hasOwnProperty('shadeType') && el.shadeType === "Light") : false;
             const darkChildren = children && children.length > 0 ? Array.from(children).filter(el => el && el.hasOwnProperty('shadeType') && el.shadeType === "Dark") : false;
             const transparentChildren = children && children.length > 0 ? Array.from(children).filter(el => el && el.hasOwnProperty('shadeType') && el.shadeType === "Transparent") : false;
@@ -13922,7 +13939,7 @@ window.ADMINBRXC = {
             content += showButton ? `<a class="brxc-overlay__action-btn primary" style="margin-top:16px;" onclick="ADMINBRXC.generateShades('${color.id}');"><span>Generate Shades</span></a>` : '';
             
         } else {
-            const children = Array.from(palette.colors).filter(el => el && el.hasOwnProperty('shadeParent') && el.shadeParent === colorId);
+            const children = Array.from(palette.colors || []).filter(el => el && el.hasOwnProperty('shadeParent') && el.shadeParent === colorId);
             const customChildren = children && children.length > 0 ? Array.from(children).filter(el => el && el.hasOwnProperty('shadeMode') && el.shadeMode === "custom") : false;
 
             if(!customChildren || customChildren.length === 0){
@@ -13942,8 +13959,10 @@ window.ADMINBRXC = {
     setShadesForm: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
 
         let content = `<div class="shade-form">`;
         content += `<div class="brxc-shade-wrapper bricks-control-popup bottom">
@@ -14078,8 +14097,10 @@ window.ADMINBRXC = {
     setComplementaryForm: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
 
         const options = [
             { value: 'complementary', label: 'Complementary' },
@@ -14129,7 +14150,9 @@ window.ADMINBRXC = {
     generateCustomShades: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
         const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
 
         if(!color) return;
@@ -14139,7 +14162,7 @@ window.ADMINBRXC = {
         color.shadeArray = self.colorStates.colorManagerShadeColors;
         self.colorStates.colorManagerShadeFinalColors.forEach((el,index) => {
             function setSufix(name, number){
-                const exist = Array.from(palette.colors).find(el => el && el.hasOwnProperty('name') && el.name === `${name}${number}`);
+                const exist = Array.from(palette.colors || []).find(el => el && el.hasOwnProperty('name') && el.name === `${name}${number}`);
                 if(!exist) return `${name}${number}`;
                 number++;
                 return setSufix(name, number);
@@ -14182,8 +14205,10 @@ window.ADMINBRXC = {
     generateAutoShades: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
         let colorOrder = parseInt(palette.colors.indexOf(color));
         const activeColor = self.colorStates.activeColor.rawValue.light;
         let targetColor;
@@ -14215,7 +14240,7 @@ window.ADMINBRXC = {
             colors.forEach((el, index) => {
 
                 function setSufix(name, number){
-                    const exist = Array.from(palette.colors).find(el => el && el.hasOwnProperty('name') && el.name === `${name}${number}`);
+                    const exist = Array.from(palette.colors || []).find(el => el && el.hasOwnProperty('name') && el.name === `${name}${number}`);
                     if(!exist) return `${name}${number}`;
                     number++;
                     return setSufix(name, number);
@@ -14261,12 +14286,14 @@ window.ADMINBRXC = {
         const self = this;
         const palettes = self.vueState.colorPalette;
         const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
         let colorOrder = parseInt(palette.colors.indexOf(color));
 
         self.colorStates.colorManagerComplementaryFinalColors.forEach((el,index) => {
             function setSufix(name, number){
-                const exist = Array.from(palette.colors).find(el => el && el.hasOwnProperty('name') && el.name === `${name}${number}`);
+                const exist = Array.from(palette.colors || []).find(el => el && el.hasOwnProperty('name') && el.name === `${name}${number}`);
                 if(!exist) return `${name}${number}`;
                 number++;
                 return setSufix(name, number);
@@ -14346,13 +14373,15 @@ window.ADMINBRXC = {
         function saveName(input){
             if (input.value === initial || input.value === '') return self.setColorManagerBody();
             const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
-            const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+            if(!palette) return;
+            if(!Array.isArray(palette.colors)) palette.colors = [];
+            const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
             const oldName = color.name;
 
             // Rename Shades
             if(color.hasOwnProperty('shadeChildren') && Array.isArray(color.shadeChildren) && color.shadeChildren.length > 0){
                 color.shadeChildren.forEach(shade => {
-                    const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === shade);
+                    const color = Array.from(palette.colors || []).find(el => el && el.hasOwnProperty('id') && el.id === shade);
                     if(!color) return;
                     renameColor(color, oldName, input.value, palette);
 
@@ -14389,6 +14418,8 @@ window.ADMINBRXC = {
         const self = this;
         const palettes = self.vueState.colorPalette;
         const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
         const name = event.target.value;
         const id = self.vueGlobalProp.$_generateId();
         const raw = `var(--${self.helpers.setColorPrefix(self.helpers.formatForClasses(name), false, palette.prefix)})`;
@@ -14436,13 +14467,15 @@ window.ADMINBRXC = {
     deleteColor: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
         if(!color) return;
 
         // Remove Shade from parent
         if(color.hasOwnProperty('shadeParent')){
-            const parent = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === color.shadeParent);
+            const parent = Array.from(palette.colors || []).find(el => el && el.hasOwnProperty('id') && el.id === color.shadeParent);
             if(parent && parent.hasOwnProperty('shadeChildren') && Array.isArray(parent.shadeChildren) && parent.shadeChildren.length > 0){
                 const index = parseInt(parent.shadeChildren.indexOf(colorId));
                 if(index !== -1) {
@@ -14483,8 +14516,10 @@ window.ADMINBRXC = {
     removeRawValue: function(colorId){
         const self = this;
         const palettes = self.vueState.colorPalette;
-        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette)
-        const color = Array.from(palette.colors).find(el => el && el.hasOwnProperty('id') && el.id === colorId);
+        const palette = Array.from(palettes).find(el => el && el.hasOwnProperty('id') && el.id == self.colorStates.activePalette);
+        if(!palette) return;
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+        const color = palette.colors.find(el => el && el.hasOwnProperty('id') && el.id === colorId);
         if (color.hasOwnProperty('rawValue')) delete color.rawValue;
         self.generateColorCSS();
         self.generateBuilderCSS();
@@ -14496,7 +14531,8 @@ window.ADMINBRXC = {
         const self = this;
         const palette = self.vueState.colorPalette.find(p => p?.id === self.colorStates.activePalette);
         if (!palette) return;
-    
+        if(!Array.isArray(palette.colors)) palette.colors = [];
+
         const originalColor = palette.colors.find(c => c?.id === colorId);
         if (!originalColor) return;
     
@@ -14594,7 +14630,7 @@ window.ADMINBRXC = {
     },
     _colorUpdateNestedShades: function (baseColor, baseColorId, mode, palette, isRoot = true) {
         const self = this;
-        const children = palette.colors.filter(el => el?.shadeParent === baseColorId);
+        const children = (Array.isArray(palette.colors) ? palette.colors : []).filter(el => el?.shadeParent === baseColorId);
         if (!children.length) return;
     
         const base = palette.colors.find(c => c.id === baseColorId);
@@ -14670,7 +14706,7 @@ window.ADMINBRXC = {
         return palettes.reduce((css, palette) => {
             if (palette?.status === "disabled" || !palette?.colors) return css;
     
-            const vars = palette.colors.filter(el => 
+            const vars = (Array.isArray(palette.colors) ? palette.colors : []).filter(el =>
                 el?.raw && el?.rawValue &&
                 (String(el.isVariableOnly) !== "true")
             );
@@ -14714,8 +14750,10 @@ window.ADMINBRXC = {
     },
     bulkClassesReset: function(){
         const self = this;
-        document.querySelector('[name="brxcClassManagercontain"]').value = '';
-        document.querySelector('[name="brxcClassManagerexclude"]').value = '';
+        const containEl = document.querySelector('[name="brxcClassManagercontain"]');
+        const excludeEl = document.querySelector('[name="brxcClassManagerexclude"]');
+        if(containEl) containEl.value = '';
+        if(excludeEl) excludeEl.value = '';
         self.states.classManagerBulkActionTargetContain = '';
         self.states.classManagerBulkActionTargetExclude = '';
         self.states.classManagerBulkActionTargetGroup = 'All';
@@ -14863,8 +14901,9 @@ window.ADMINBRXC = {
                 self.vueState.globalClasses.push(obj);
                 const newId = self.vueGlobalProp.$_generateId();
                 const oldName = obj.name;
-                let newName = el.dataset.name !== "false" ? el.dataset.name : el.querySelector('input[type="text"]').value  && el.querySelector('input[type="text"]').value.length > 0 ? el.querySelector('input[type="text"]').value : oldName;
+                let newName = el.dataset.name !== "false" ? el.dataset.name : el.querySelector('input[type="text"]')?.value  && el.querySelector('input[type="text"]')?.value.length > 0 ? el.querySelector('input[type="text"]').value : oldName;
                 const newClass = self.vueState.globalClasses[self.vueState.globalClasses.length - 1];
+                if(!newClass) return;
                 newClass.id = newId;
                 newName = self.helpers.checkClassName(newName.replaceAll(' ',''));
                 newClass.name = newName;
@@ -14968,10 +15007,13 @@ window.ADMINBRXC = {
         const items = document.querySelectorAll('#brxcClassBulkActionList ul li[data-id]:not([data-enable="false"]');
         if(items.length < 1) return self.vueGlobalProp.$_showMessage('Abort: No Class found!');
 
-        const findValue = document.querySelector('#brxcClassBulkActionCanvas #brxc-bulkActionsOld').value;
+        const findEl = document.querySelector('#brxcClassBulkActionCanvas #brxc-bulkActionsOld');
+        const replaceEl = document.querySelector('#brxcClassBulkActionCanvas #brxc-bulkActionsNew');
+        if(!findEl || !replaceEl) return;
+        const findValue = findEl.value;
         if(!findValue || findValue === "") return self.vueGlobalProp.$_showMessage(`Abort: the find value can't be empty`);
 
-        const replaceValue = document.querySelector('#brxcClassBulkActionCanvas #brxc-bulkActionsNew').value;
+        const replaceValue = replaceEl.value;
 
         function replaceSettingValue(settings) {
             if (settings === null || typeof settings !== 'object') {
@@ -15717,6 +15759,7 @@ window.ADMINBRXC = {
         }
 
         // All
+        if(!Array.isArray(self.vueState.globalClasses)) return;
         count = self.vueState.globalClasses.length;
         isCatActive = self.states.classManagerActiveCategory === "All";
         cats += `<li class="category ignore-drag${isCatActive ? ' active' : ''}"${isCatActive ? ' data-active="true"' : ''} data-id="All"><input type="text" value="All" readonly/><div class="action">${exportBtn(isCatActive)}<span class="count">${count}</span></div></li>`
@@ -15731,6 +15774,7 @@ window.ADMINBRXC = {
         cats += `<div id="sortableWrapper">`;
         sortedCats.forEach(cat => {
             categoryFound = self.helpers.getClassCategoryObjByName(cat)
+            if(!categoryFound) return;
             isCatActive = categoryFound.id === self.states.classManagerActiveCategory;
             count = Array.from(self.vueState.globalClasses).filter(el => el && el.hasOwnProperty('category') && categoryFound && categoryFound.id === el.category).length;
             cats += `<li class="category custom${isActive(cat) ? ' active' : ''}"${isActive(cat) ? ' data-active="true"' : ''} data-id="${categoryFound.id}"><div class="handle"><i class="fas fa-grip-vertical"></i></div><input type="text" data-initial="${cat}" value="${cat}"${!isCatActive ? ' readonly' : ''}/><div class="action">${isCatActive ? `${exportBtn(isCatActive)}<div class="deleteCat" onClick="event.stopPropagation();ADMINBRXC.deleteCategory('${self.states.classManagerActiveCategory}')" data-balloon="Delete category" data-balloon-pos="top-right"><span class="bricks-svg-wrapper"><i class="ti-trash"></i></span></div>` : ``}<span class="count">${count}</span></div></li>`
@@ -15786,6 +15830,7 @@ window.ADMINBRXC = {
                 if(event.target.value === event.target.dataset.initial) return self.setCatList();
                 if(self.states.classManagerCategories.includes(event.target.value)) return self.vueGlobalProp.$_showMessage(`ABORT: category "${event.target.value}" already exists`);
                 const activeObj = self.helpers.getClassCategoryObjById(self.states.classManagerActiveCategory)
+                if(!activeObj) return;
                 activeObj.name = event.target.value;
                 self.populateClassCategories();
                 self.vueGlobalProp.$_showMessage(`Category correctly renamed to ${event.target.value}`)
@@ -16035,6 +16080,7 @@ window.ADMINBRXC = {
     setClassList: function(){
         const self = this;
         const listWrapper = document.querySelector('#brxcClassManagerOverlay #brxcClassListCanvas');
+        if(!listWrapper) return;
         const template = self.helpers.getTemplateType();
         const isClassTrash = self.vueState.hasOwnProperty('globalClassesTrash') && Array.isArray(self.vueState.globalClassesTrash);
         let count = 0;
@@ -16069,7 +16115,7 @@ window.ADMINBRXC = {
          }
 
          // Search
-        globalClasses = (self.states.classManagerSearch === '') ? globalClasses : Array.from(globalClasses).filter(el => el.name.includes(self.states.classManagerSearch));
+        globalClasses = (self.states.classManagerSearch === '') ? globalClasses : Array.from(globalClasses).filter(el => el && el.name && el.name.includes(self.states.classManagerSearch));
 
         // Filter By Style
         if (self.states.classManagerFilterStyle === "has-styles") {
@@ -16178,10 +16224,11 @@ window.ADMINBRXC = {
                     const reorderedClasses = [];
                     const newOrder = items.map(item => parseInt(item.getAttribute('data-order')));
                     newOrder.forEach(el => {
-                        reorderedClasses.push(self.vueState.globalClasses[el])
+                        const cls = self.vueState.globalClasses[el];
+                        if(cls) reorderedClasses.push(cls);
                     })
                     reorderedClasses.forEach((el, ind) => {
-                        self.vueState.globalClasses[ind] = JSON.parse(JSON.stringify(el));
+                        if(el) self.vueState.globalClasses[ind] = JSON.parse(JSON.stringify(el));
                     })
                     self.setClassList();
                     self.setClassContent();
@@ -16202,8 +16249,10 @@ window.ADMINBRXC = {
     setClassContent: function(del = false){
         const self = this;
         const contenttWrapper = document.querySelector('#brxcClassManagerOverlay #brxcClassContentCanvas');
+        if(!contenttWrapper) return;
         const classId = self.states.classManagerActiveClass;
         const arr = self.states.classManagerActiveCategory === "Trash" ? self.vueState.globalClassesTrash : self.vueState.globalClasses;
+        if(!Array.isArray(arr)) return;
         const obj = arr.find(el => el && el.id === classId);
         let viewButtons = '';
         let header = '';
@@ -16244,7 +16293,7 @@ window.ADMINBRXC = {
             viewButtons = `<div class="brxc-class-manager__content-css export">`;
 
             //Generated CSS
-            let globalClasses = self.vueState.globalClasses;
+            let globalClasses = Array.isArray(self.vueState.globalClasses) ? self.vueState.globalClasses : [];
             let cssContent = '';
             if(self.states.classManagerActiveCategory === "All"){
                 cssContent += globalClasses.map(obj => {
@@ -16264,7 +16313,7 @@ window.ADMINBRXC = {
             viewButtons += `<div class="brxc-codemirror__wrapper"><textarea class="brxc-style-overview-css">${finalCSS}</textarea>`;
             viewButtons += `<div class="brxc-overlay__action-btn" style="margin-left: auto" onclick="ADMINBRXC.copytoClipboard(this, this.previousElementSibling.CodeMirror.getValue(), 'Copied!', 'Copy to Clipboard')"><span>Copy to Clipboard</span></div></div>`;
             viewButtons += '</div>'
-        } else if(self.states.classManagerView === "class"){
+        } else if(self.states.classManagerView === "class" && obj){
             // Header
             const showOrderInput = self.states.classManagerActiveCategory !== "Trash";
             const categoryName = obj.hasOwnProperty('category') && self.helpers.getClassCategoryNameById(obj.category) !== false
@@ -16464,9 +16513,9 @@ window.ADMINBRXC = {
             usedPages += '</div>';
 
             used += usedPages;
-        } else if(self.states.classManagerView === "css"){
+        } else if(self.states.classManagerView === "css" && obj){
             css = `<div class="brxc-class-manager__content-css">`;
-        
+
             // Custom CSS
             if(self.states.classManagerActiveCategory !== "Trash"){
                 css += `<div class="label-wrapper"><label class="brxc-input__label has-tooltip"><span>Custom CSS</span>${self.globalSettings.superPowerCSSEnableSass === "1" ? '<span class="highlight">SASS</span>' : ''}<div data-balloon="The following CSS will be applied to the current class and can be modified inside the Style tab -> Custom CSS control. Click the breakpoint icons to wrap your CSS code inside your desired media-query" data-balloon-pos="bottom-left" data-balloon-length="large"><i class="fas fa-circle-question"></i></div></label>`;
@@ -17909,9 +17958,13 @@ window.ADMINBRXC = {
 
             // li
             if (li && ul.contains(li)) {
-                self.dynamicDataStates.input.value += li.dataset.value;
+                const input = self.dynamicDataStates.input;
+                const tag = li.dataset.value;
+                const pos = self.dynamicDataStates.cursorPos ?? input.value.length;
+                input.value = input.value.slice(0, pos) + tag + input.value.slice(pos);
+                self.dynamicDataStates.cursorPos = pos + tag.length;
                 const evt = new Event('input');
-                self.dynamicDataStates.input.dispatchEvent(evt);
+                input.dispatchEvent(evt);
 
                 if (event.shiftKey) {
                     self.vueGlobalProp.$_showMessage(`${li.dataset.value} inserted correctly!`);
@@ -19787,6 +19840,7 @@ window.ADMINBRXC = {
                 const icon = control.querySelector('.brxc-box-shadow-generator');
                 if (icon) icon.remove();
                 const controlkey = control.getAttribute('controlkey');
+                if(!controlkey) return;
                 const target = self.helpers.createTargetWithPseudo(`${controlkey.replaceAll('_', '')}Generator`);
                 const cls = Object.keys(settings.settings).includes(target) ?  'brxc-box-shadow-generator bricks-control-preview active': 'brxc-box-shadow-generator bricks-control-preview';
 
@@ -24321,7 +24375,7 @@ window.ADMINBRXC = {
             const palettes = self.vueState.colorPalette;
             let matchingColor = false;
             palettes.forEach(palette => {
-                palette.colors.forEach( color => {
+                (Array.isArray(palette.colors) ? palette.colors : []).forEach( color => {
                     for (const [key, value] of Object.entries(color)) {
                         if (color[key] === replaceColor)  {
                             matchingColor = color;
@@ -28981,7 +29035,7 @@ window.ADMINBRXC = {
             const palettes = self.vueState.colorPalette.filter(el => states.bricksColorsArr.includes(el.id));
             let string = '';
             palettes.forEach(palette => {
-                const hasATColors = palette.colors.filter(el => el.hasOwnProperty('rawValue'));
+                const hasATColors = (Array.isArray(palette.colors) ? palette.colors : []).filter(el => el.hasOwnProperty('rawValue'));
                 const prefix = palette.prefix;
                 if (hasATColors.length > 0) {
                     const filteredColors = hasATColors.map(el => {
@@ -29644,7 +29698,7 @@ window.ADMINBRXC = {
             const palettes = self.vueState.colorPalette.filter(el => states.bricksColorsArr.includes(el.id));
             let string = '';
             palettes.forEach(palette => {
-                const hasATColors = palette.colors.filter(el => el.hasOwnProperty('rawValue'));
+                const hasATColors = (Array.isArray(palette.colors) ? palette.colors : []).filter(el => el.hasOwnProperty('rawValue'));
                 if (hasATColors.length > 0) {
                     const filteredColors = hasATColors.map(el => `--${el.name}`).join(',');
                     string += `palette **${palette.name}**:${filteredColors}; `;
@@ -30543,30 +30597,6 @@ window.ADMINBRXC = {
             }
         }
     },
-    spacingControls: function(value){
-        const self = this;
-        self.vue._context.components['control-spacing'].data = function() {
-            var e, t;
-            let state = value;
-
-            if ("linkedIcon" in this.control && !this.control.linkedIcon) {
-                state = "unlinked";
-            } else if ("linkOpposites" in this.control && !this.control.linkOpposites) {
-                state = value === "opposites" ? "unlinked" : "all";
-            }
-            return {
-                directionLastChanged: "",
-                variablesEnabled: !this.bricks.disableVariablesManager,
-                directions: null !== (e = this.control) && void 0 !== e && e.directions ? Object.keys(this.control.directions) : ["top", "right", "bottom", "left"],
-                focus: "",
-                label: "",
-                linkState: state,
-                linkOpposites: !this.control.hasOwnProperty("linkOpposites") || this.control.linkOpposites,
-                linkedIcon: !this.control.hasOwnProperty("linkedIcon") || this.control.linkedIcon,
-                property: null === (t = this.control) || void 0 === t || null === (t = t.css) || void 0 === t || null === (t = t[0]) || void 0 === t ? void 0 : t.property
-            }
-        }
-    },
     // iconControlsSVG: function(){
     //     const self = this;
     //     if(!bricksData.loadData.userCan.uploadSvg) return;
@@ -31398,7 +31428,7 @@ We strongly recommend keeping the default "at-" prefix unless you're sure about 
                 let palettes = self.vueState.colorPalette.filter(el => el.hasOwnProperty('at_framework') && el.at_framework === true)
                 if(settings.key !== "all") palettes = palettes.filter(el => el.id === settings.key);
                 palettes.forEach(palette => {
-                    palette.colors = palette.colors.filter(el => !el.hasOwnProperty('at_framework'));
+                    palette.colors = (Array.isArray(palette.colors) ? palette.colors : []).filter(el => !el.hasOwnProperty('at_framework'));
                     if(palette.colors.length === 0){
                         const paletteIndex = self.vueState.colorPalette.indexOf(palette);
                         self.vueState.colorPalette.splice(paletteIndex, 1);
@@ -31933,8 +31963,16 @@ We strongly recommend keeping the default "at-" prefix unless you're sure about 
                 return false;
             });
         }
+        // Prevent Bricks from opening color popup on right-click
+        let preventColorClick = false;
         panelElements.addEventListener('click', (e) => {
             const target = e.target;
+            if(preventColorClick && target.closest('[data-control="color"]')){
+                e.stopPropagation();
+                e.preventDefault();
+                preventColorClick = false;
+                return;
+            }
             setTimeout(() => {
                 // Variable Picker (V Icon)
                 if(arr.includes("variable-picker") && ["icon", "both"].includes(self.globalSettings.classFeatures.variablePickerType) && target.classList.contains('variable-picker-button')){
@@ -31946,11 +31984,13 @@ We strongly recommend keeping the default "at-" prefix unless you're sure about 
                     return;
                 }
     
-                // Dynamic Data 
-                if (Object.values(self.globalSettings.elementFeatures).includes("dynamic-data-modal") && matchElement(target, self.fields.dynamicDataModal)) {
+                // Dynamic Data (skip if direct child of color control — that's the color picker button)
+                if (Object.values(self.globalSettings.elementFeatures).includes("dynamic-data-modal") && matchElement(target, self.fields.dynamicDataModal) && !target.closest('.dynamic-tag-picker-button')?.parentElement?.matches('[data-control="color"]')) {
                     e.stopPropagation();
                     e.preventDefault();
-                    self.dynamicDataStates.input = target.parentElement.querySelector('.has-dynamic-data, textarea, input[type="text"]');
+                    const dynamicInput = target.parentElement.querySelector('.has-dynamic-data, textarea, input[type="text"]');
+                    self.dynamicDataStates.input = dynamicInput;
+                    self.dynamicDataStates.cursorPos = dynamicInput?.selectionStart ?? dynamicInput?.value?.length ?? 0;
                     self.dynamicDataStates.search = '';
                     self.openModal({target: false, id: "#brxcDynamicDataModalOverlay", focus: '#brxcDynamicDataModalOverlay input[type="text"]', callback: () => {
                         self.dynamicDataInit();
@@ -31970,18 +32010,15 @@ We strongly recommend keeping the default "at-" prefix unless you're sure about 
                     self.updateStickyCSS();
                 }
 
-                // Control Links
-                const controlLinks = ['unlinked', 'link', 'all'];
-                const controlStates = ['unlinked', 'opposites', 'all'];
-                const controlIndex = controlLinks.findIndex(cls => target.classList.contains(cls));
-                if (Object.values(self.globalSettings.elementFeatures).includes("link-spacing") && controlIndex !== -1) {
-                    const nextIndex = (controlIndex + 1) % controlLinks.length;
-                    const value = controlStates[nextIndex]; // Gets the next value in the array, looping back to 0
-                    self.spacingControls(value);
-                    self.vueState.rerenderControls = Date.now();
-                    self.helpers.setLocalStorage('spacingControlLink', value)
-                }
             },0)
+        }, true)
+
+        // set the preventColorClick flag for the click event
+        panelElements.addEventListener('mousedown', (e) => {
+            if(e.button === 2 && arr.includes("variable-color-picker") && e.target.closest('[data-control="color"]')){
+                preventColorClick = true;
+                e.stopPropagation();
+            }
         }, true)
         panelElements.addEventListener('contextmenu', (e) => {
             const target = e.target;
@@ -31998,17 +32035,12 @@ We strongly recommend keeping the default "at-" prefix unless you're sure about 
                 const dataControl = target.closest('[data-control="color"]');
                 if(dataControl){
                     e.preventDefault();
+                    e.stopPropagation();
                     const input = dataControl.querySelector('.bricks-control-preview');
-                    const isOpen = dataControl.querySelector('.color-inputs .raw .color-input input');
-                    if(!isOpen) input?.click();
-                    Promise.resolve().then(() => {
-                        const rawInput = dataControl.querySelector('.color-inputs .raw .color-input input');
-                        if(!rawInput){
-                            self.vueGlobalProp.$_showMessage('ERROR: PLEASE RETRY!')
-                        } else {
-                            self.openVariableModal({target: rawInput, clickTarget: input, id: "#brxcVariableOverlay", focus: "#brxcVariableOverlay input.iso-search", type: "color"});
-                        }
-                    })
+                    const rawInput = dataControl.querySelector('.color-input input');
+                    if(rawInput){
+                        self.openVariableModal({target: rawInput, clickTarget: input, id: "#brxcVariableOverlay", focus: "#brxcVariableOverlay input.iso-search", type: "color"});
+                    }
                 };
                 return;
             }
@@ -32439,11 +32471,6 @@ We strongly recommend keeping the default "at-" prefix unless you're sure about 
         // Elements Columns
         if(Object.values(self.globalSettings.elementFeatures).includes('resize-elements-icons') && ls.elementsColumns){
             self.elementsColStates.col = ls.elementsColumns;
-        }
-
-        // Link Spacing Control
-        if(Object.values(self.globalSettings.elementFeatures).includes("link-spacing") && ls.spacingControlLink){
-            self.spacingControls(ls.spacingControlLink)
         }
 
         // Focus Mode Preview

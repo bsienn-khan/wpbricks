@@ -11555,7 +11555,7 @@ body #bricks-structure > main.panel-content{
 }
 #bricks-structure .panel-content>.bricks-structure-list {
    flex: 1;
-   height: unset;
+   height: unset !important;
 }
 #brxcSearchStructure{
    margin: 0 0px 0px 1px;

@@ -893,8 +893,11 @@ Witty',
         global $brxc_acf_fields;
     
         // Validate inputs early
-        if (empty($group_key) || empty($fields_map) || !is_array($fields_map) || empty($acf_data)) {
-            return; // Exit early if data is insufficient or invalid
+        if (empty($group_key) || empty($fields_map) || !is_array($fields_map)) {
+            return;
+        }
+        if (!is_array($acf_data)) {
+            $acf_data = [];
         }
     
         foreach ($fields_map as $field_row) {
@@ -3543,7 +3546,6 @@ Other than being less confusing than other Ipsum’s, Website Ipsum is also form
                                     'increase-field-size' => '<span>Increase the Text Controls Size. <a href="#" class="dashicons dashicons-info acf-js-tooltip" title="When this option is checked, the text control fields (where you add your custom values) will be increased from 30% to 50% and leave more room to write css variables and advanced CSS functions."></a></span>',
                                     'class-icons-reveal-on-hover' => '<span>Reveal Class Icons on Hover. <a href="#" class="dashicons dashicons-info acf-js-tooltip" title="When this option is checked, the icons that stand inside the Class input will be hidden by default, and visible when hovered or on focus."></a></span>',
                                     'expand-spacing' => '<span>Expand Spacing Controls. <a href="#" class="dashicons dashicons-info acf-js-tooltip" title="When this option is checked, a new expand icon will be visible next to the spacing controls in the builder and will allow you to resize the input to easily type and see CSS variables."></a></span>',
-                                    'link-spacing' => '<span>Persistant Link Spacing Controls. <a href="#" class="dashicons dashicons-info acf-js-tooltip" title="When this option is checked, changing the link type on a spacing control (unlinked, opposites or all) will keep the value persistant for all similar controls - even after builder reload."></a></span>',
                                     'sync-heading-label' => '<span>Sync Heading Text with Element Label. <span class="new-feature">NEW</span><a href="#" class="dashicons dashicons-info acf-js-tooltip" title="When enabled, any text you enter in the heading text control will automatically sync with the active element\'s label."></a></span>',
                                     'color-default-raw' => '<span>Color Popup set to RAW and displayed as a LIST. <a href="#" class="dashicons dashicons-info acf-js-tooltip" title="When this option is checked, the Bricks color popup will be automatically  set on RAW mode and displayed as a LIST instead of the grid."></a></span>',
                                     'grid-builder' => '<span>Grid Builder.<a href="#" class="dashicons dashicons-info acf-js-tooltip" title="When this option is checked, a new icon will be visible next to the display control in the builder as soon as you select GRID as the display option of your container."></a></span>',

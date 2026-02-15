@@ -29,6 +29,18 @@ Valid license key should be entered for the plugin to function and to receive au
 
 
 == Changelog ==
+= 3.3.12 ( FEB 13, 2026)
+* IMPROVE: Tags inserted from Dynamic Data now respect the current cursor position.
+* IMPROVE: Added new JS safeguards to the Class Manager in case the <code>globalClasses</code> array is corrupted with undefined values.
+* FIX: The color picker wasn’t firing on new Bricks 2.2 color controls.
+* FIX: The Visibility Floating Bar could be misdisplayed on large structures.
+* FIX: Removed license activation messages from ACF.
+* FIX: Fixed a fatal error when using stagger effects on elements with styles registered as arrays.
+* FIX: Fixed a JS error that could occur when some stylesheets return a 403 error from the server.
+* FIX: Removed “Undefined array keys” warnings on first plugin activation.
+* FIX: The contrast checker could trigger a JS error when unparseable colors were present in the DOM.
+* DEPRECATED: Persistent Link Spacing Controls (available in Bricks 2.2).
+
 = 3.3.11 ( DEC 3, 2025)
 * FIX: Incorrect version of builder.css could cause the server to misidentify the file and fail to parse it as CSS.
 

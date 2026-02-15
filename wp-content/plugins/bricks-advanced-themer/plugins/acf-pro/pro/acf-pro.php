@@ -194,6 +194,8 @@ if ( ! class_exists( 'acf_pro' ) ) :
 		 * @since 6.2.1
 		 */
 		public function maybe_show_license_status_error() {
+			return;
+			
 			$license_status         = acf_pro_get_license_status();
 			$defined_license_errors = acf_pro_get_activation_failure_transient();
 			$manage_url             = false;
