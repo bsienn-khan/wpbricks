@@ -9,11 +9,11 @@ add_action('wp_enqueue_scripts', function () {
         // Dependency 'bricks-frontend'
         // It tells WordPress: "Do not load my child CSS until the main Bricks frontend CSS has loaded."
         // This ensures your custom styles actually override the default Bricks styles because they appear later in the HTML.
-        wp_enqueue_style('bricks-child', get_theme_file_uri('/style.css'), ['bricks-frontend']);
+        wp_enqueue_style('bricks-child', get_theme_file_uri('/style.css'), ['bricks-frontend'], filemtime(get_theme_file_path('/style.css')));
 
         // Enqueue JS
         // Dependency true so it loads after all other scripts in the footer
-        wp_enqueue_script('bricks-child', get_theme_file_uri( '/scripts.js'), true);
+        wp_enqueue_script('bricks-child', get_theme_file_uri( '/scripts.js'), true, filemtime(get_theme_file_path('/scripts.js')));
     }
 });
 
